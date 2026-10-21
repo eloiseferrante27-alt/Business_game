@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>G-mix — Business Game</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script defer src="/static/game.js"></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="#top"><span class="brand-icon">G</span><span>g-mix<small>SUPPLY CHAIN GAME</small></span></a>
+    <div class="company"><span class="factory-icon">▦</span><span>ATELIER NORD<small>Unité de production</small></span></div>
+    <p class="nav-label">PILOTAGE</p>
+    <nav><a class="selected" href="#overview">◫ &nbsp; Vue d’ensemble</a><a href="#warehouse">▤ &nbsp; Stocks & production</a><a href="#orders">⇄ &nbsp; Approvisionnement</a></nav>
+    <div class="side-bottom"><div class="agent-status"><i></i><span>Agents autonomes<small>3 agents actifs</small></span></div><p>Chaque décision compte.<br>Une semaine à la fois.</p><div class="profile"><span>GM</span> Direction générale</div></div>
+  </aside>
+  <main id="top">
+    <header><span>Simulation <b>/</b> Opérations</span><span class="connected"><i></i> Simulation active &nbsp;·&nbsp; G-MIX 2026</span></header>
+    <section id="overview" class="intro">
+      <div><p class="overline">TABLEAU DE BORD</p><h1>Bonjour, Directeur<span>.</span></h1><p class="subhead">Votre chaîne logistique, en temps réel. À vous de jouer.</p></div>
+      <div class="turn"><div><small>PÉRIODE EN COURS</small><strong id="week">Semaine 01</strong></div><button id="next-turn">▶ &nbsp; Lancer la semaine <b>↗</b></button></div>
+    </section>
+    <div id="notice" role="status"></div>
+    <section class="metrics">
+      <article><small>OTIF CLIENTS</small><strong><span id="otif">—</span><em>%</em></strong><p><i class="dot green"></i> Livraisons à l’heure et complètes</p></article>
+      <article><small>TRS PRODUCTION</small><strong><span id="trs">—</span><em>%</em></strong><p><i class="dot blue"></i> Rendement des lignes</p></article>
+      <article><small>VALEUR DU STOCK</small><strong><span id="stock-value">—</span><em>€</em></strong><p><i class="dot amber"></i> Valorisation de l’entrepôt</p></article>
+      <article><small>RÉFÉRENCES EN RUPTURE</small><strong><span id="stockouts">—</span><em>SKU</em></strong><p id="rupture-caption"><i class="dot green"></i> Tout est sous contrôle</p></article>
+    </section>
+    <section class="columns">
+      <article id="warehouse" class="panel inventory">
+        <div class="panel-head"><div><small>ENTREPÔT</small><h2>Stocks disponibles</h2></div><span id="sku-count" class="badge">— références</span></div>
+        <div class="table-scroll"><table><thead><tr><th>ARTICLE</th><th>DISPONIBLE</th><th>SEUIL SÉCURITÉ</th><th>ÉTAT</th></tr></thead><tbody id="stock-rows"><tr><td colspan="4">Chargement…</td></tr></tbody></table></div>
+        <div class="legend"><span><i class="dot green"></i>Niveau sain</span><span><i class="dot amber"></i>Sous le seuil</span><span><i class="dot red"></i>Rupture</span></div>
+      </article>
+      <article id="orders" class="panel order-panel">
+        <div class="panel-head"><div><small>DÉCISION DU DIRECTEUR</small><h2>Passer une commande</h2></div><span class="plus">＋</span></div>
+        <p class="description">Anticipez vos besoins. Les fournisseurs livrent selon leur délai et leur fiabilité.</p>
+        <form id="order-form">
+          <label for="supplier">Fournisseur</label><select id="supplier" required><option value="">Chargement…</option></select>
+          <label for="sku">Référence à commander</label><select id="sku" required><option value="">Choisir un produit…</option></select>
+          <label for="quantity">Quantité <small>UNITÉS</small></label><input id="quantity" type="number" min="1" value="250" required>
+          <button class="confirm" type="submit">Confirmer la commande <b>→</b></button>
+        </form>
+        <p id="order-feedback" class="feedback"></p>
+        <div class="hint">✦ &nbsp; La livraison sera intégrée à la simulation.</div>
+      </article>
+    </section>
+    <section class="columns lower">
+      <article class="panel">
+        <div class="panel-head"><div><small>USINE</small><h2>Lignes de production</h2></div><span class="running"><i></i> EN SERVICE</span></div>
+        <div id="lines" class="lines">Chargement des lignes…</div>
+      </article>
+      <article class="panel">
+        <div class="panel-head"><div><small>VEILLE AUTOMATISÉE</small><h2>Marché & événements</h2></div><span class="market-icon">⌁</span></div>
+        <div id="events" class="events"></div>
+        <div class="agents"><span class="agent market-agent">M</span><span class="agent supplier-agent">S</span><span class="agent client-agent">C</span><span><b>Agents de veille actifs</b><small>Marché · Fournisseurs · GMS</small></span></div>
+      </article>
+    </section>
+    <footer><span>G-MIX BUSINESS SIMULATION</span><span id="connection">Connexion à l’API…</span></footer>
+  </main>
+</body>
+</html>

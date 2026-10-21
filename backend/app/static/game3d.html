@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#182c31">
+  <title>G-mix — Atelier vivant</title>
+  <link rel="stylesheet" href="/static/game3d.css">
+  <script type="module" src="/static/game3d.js"></script>
+</head>
+<body>
+  <main id="game">
+    <canvas id="world" aria-label="Entrepôt 3D G-mix"></canvas>
+    <div id="loading"><div class="loading-mark">G</div><b>Ouverture de l’atelier…</b><span>Chargement du monde 3D</span></div>
+    <section id="setup-screen" class="setup-screen" aria-labelledby="setup-title">
+      <form id="setup-form" class="setup-card glass">
+        <div class="setup-brand"><span>G</span><small>G-MIX · SIMULATION INDUSTRIELLE</small></div>
+        <p class="mini-title">AVANT D’ENTRER DANS L’ATELIER</p>
+        <h1 id="setup-title">Préparez votre entreprise</h1>
+        <p class="setup-intro">Choisissez votre identité et le niveau de défi de votre première semaine.</p>
+        <label for="company-input">Nom de l’entreprise</label>
+        <input id="company-input" name="company_name" value="G-mix" minlength="2" maxlength="32" required>
+        <label for="difficulty-input">Difficulté</label>
+        <select id="difficulty-input" name="difficulty">
+          <option value="facile">Découverte · stocks et production renforcés</option>
+          <option value="normal" selected>Équilibré · conditions standard</option>
+          <option value="difficile">Expert · stocks et fiabilité réduits</option>
+        </select>
+        <div class="supplier-setup-heading"><label>Fournisseurs à ajouter</label><button id="add-supplier" type="button">＋ Ajouter</button></div>
+        <p class="supplier-setup-help">Nom · délai en semaines · fiabilité en % · coût unitaire en €</p>
+        <div id="custom-supplier-list" class="custom-supplier-list"></div>
+        <label class="tutorial-choice"><input id="tutorial-enabled" type="checkbox" checked> Lancer le didacticiel après le démarrage</label>
+        <button id="start-new-game" class="setup-primary" type="submit">Créer une nouvelle partie <span>→</span></button>
+        <button id="resume-game" class="setup-secondary" type="button" hidden>Reprendre la sauvegarde</button>
+        <p id="setup-note" class="setup-note">Une nouvelle partie remplace la sauvegarde actuelle.</p>
+      </form>
+    </section>
+    <section id="tutorial" class="tutorial" hidden aria-live="polite">
+      <div class="tutorial-card glass"><div class="tutorial-head"><span id="tutorial-count">ÉTAPE 1 / 4</span><button id="tutorial-skip" type="button">Passer</button></div><h2 id="tutorial-title"></h2><p id="tutorial-copy"></p><button id="tutorial-next" class="tutorial-next" type="button">Compris <span>→</span></button></div>
+    </section>
+    <header class="topbar">
+      <a class="brand" href="#"><span>G</span> G-MIX <small>ATELIER NORD</small></a>
+      <div class="week-chip"><i></i><span id="week">SEMAINE 01</span></div>
+      <button id="next-turn" class="week-button"><span>▶</span> Lancer la semaine</button>
+    </header>
+
+    <section class="left-hud glass">
+      <div class="hud-heading"><div><small>VOTRE ENTREPRISE</small><h1 id="company-name">L’atelier</h1></div><span class="season">● EN LIGNE</span></div>
+      <div class="kpi-row"><span><i class="kpi-dot otif"></i>OTIF clients</span><b><span id="otif">—</span>%</b></div>
+      <div class="kpi-row"><span><i class="kpi-dot trs"></i>TRS usine</span><b><span id="trs">—</span>%</b></div>
+      <div class="kpi-row"><span><i class="kpi-dot inventory"></i>Valeur du stock</span><b><span id="stock-value">—</span> €</b></div>
+      <div class="hud-divider"></div>
+      <div class="mini-title">OBJECTIF DE LA SEMAINE</div>
+      <p id="objective">Explorez l’entrepôt et maintenez un bon niveau de service.</p>
+      <div class="objective-progress"><i></i></div>
+      <div id="objective-status">Votre équipe attend vos décisions.</div>
+    </section>
+
+    <section id="inspector" class="inspector glass">
+      <button id="close-inspector" class="close-button" aria-label="Fermer">×</button>
+      <div class="mini-title">VOTRE ASSISTANT</div>
+      <div class="assistant-line"><span class="assistant-avatar">A</span><div><b>Alex</b><small>Responsable des opérations</small></div><i class="online-dot"></i></div>
+      <p id="inspector-copy">Cliquez sur une machine, une étagère ou un membre de l’équipe pour voir ce qui se passe.</p>
+      <button id="inspector-action" class="action-button" hidden></button>
+      <div class="event-box"><span class="event-spark">✦</span><div><small>VEILLE MARCHÉ</small><p id="event-summary">Marché stable cette semaine.</p></div></div>
+    </section>
+
+    <div id="toast" role="status"></div>
+    <div class="bottom-hud">
+      <div class="movement-hint glass"><span class="key">W</span><span class="key-cluster"><i>A</i><i>S</i><i>D</i></span><span>Se déplacer</span><b class="hint-divider"></b><span class="key">CLIC</span><span>Aller / interagir</span><span class="key">E</span><span>Parler</span></div>
+      <div class="action-bar glass">
+        <button id="order-open" class="action-slot" title="Commander"><span class="slot-icon">＋</span><small>COMMANDE</small><kbd>1</kbd></button>
+        <button id="inspect-open" class="action-slot active" title="Inspecter"><span class="slot-icon">⌕</span><small>INSPECTER</small><kbd>2</kbd></button>
+        <button id="home-camera" class="action-slot" title="Recentrer la caméra"><span class="slot-icon">◎</span><small>CAMÉRA</small><kbd>3</kbd></button>
+      </div>
+      <div class="people-count glass"><span class="people-icons">● ● ●</span><span><b>ÉQUIPE</b><small id="people-label">4 ouvriers actifs</small></span></div>
+    </div>
+    <div class="zoom-hint">MOLETTE · ZOOM <span>DRAG · ORBITER</span></div>
+    <div id="order-modal" class="modal-backdrop" hidden>
+      <form id="order-form" class="order-modal glass">
+        <button type="button" id="order-close" class="close-button">×</button>
+        <div class="mini-title">APPROVISIONNEMENT</div><h2>Passer une commande</h2>
+        <p>Choisissez un fournisseur et la référence à réapprovisionner.</p>
+        <label for="supplier">Fournisseur</label><select id="supplier" required></select>
+        <label for="sku">Produit</label><select id="sku" required></select>
+        <label for="quantity">Quantité à commander</label><input id="quantity" type="number" min="1" value="250" required>
+        <button class="action-button" type="submit">Confirmer la commande <span>→</span></button>
+        <div id="order-feedback"></div>
+      </form>
+    </div>
+    <div id="npc-modal" class="modal-backdrop" hidden>
+      <section class="order-modal glass npc-modal" role="dialog" aria-modal="true" aria-labelledby="npc-name">
+        <button type="button" id="npc-close" class="close-button" aria-label="Fermer">×</button>
+        <div class="mini-title">ÉCHANGE AVEC L’ÉQUIPE</div><h2 id="npc-name">Membre de l’équipe</h2>
+        <p id="npc-role" class="npc-role"></p><div id="npc-dialogue" class="npc-dialogue"></div>
+        <div class="npc-choices"><button type="button" id="npc-question-one" class="npc-choice"></button><button type="button" id="npc-question-two" class="npc-choice"></button></div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

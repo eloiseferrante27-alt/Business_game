@@ -1,0 +1,31 @@
+[gd_scene format=3 uid="uid://31d4djw2k0hk"]
+
+[ext_resource type="Script" uid="uid://c460vbweqhcwq" path="res://scripts/main_controller.gd" id="1_controller"]
+[ext_resource type="Script" uid="uid://cv8ocbf5q3lfg" path="res://scripts/npc_manager.gd" id="2_npc_manager"]
+
+[sub_resource type="StandardMaterial3D" id="Material_floor"]
+albedo_color = Color(0.18, 0.22, 0.2, 1)
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_floor"]
+size = Vector2(22, 16)
+
+[node name="Main" type="Node3D" unique_id=1510855935]
+script = ExtResource("1_controller")
+
+[node name="Floor" type="MeshInstance3D" parent="." unique_id=201501091]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, 0)
+material_override = SubResource("Material_floor")
+mesh = SubResource("PlaneMesh_floor")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=688305903]
+transform = Transform3D(1, 0, 0, 0, 0.70710677, 0.70710677, 0, -0.70710677, 0.70710677, 0, 13, 15)
+current = true
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1848587633]
+transform = Transform3D(0.9061492, 0.35685998, -0.22703463, -0.016957562, 0.5669986, 0.8235442, 0.42261833, -0.74240386, 0.5198368, 0, 0, 0.078318834)
+
+[node name="HTTPRequest" type="HTTPRequest" parent="." unique_id=540471255]
+timeout = 5.0
+
+[node name="NpcManager" type="Node3D" parent="." unique_id=1814272660]
+script = ExtResource("2_npc_manager")

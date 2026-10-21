@@ -1,0 +1,12 @@
+services:
+  backend:
+    build: .
+    container_name: g-mix-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/data:/data
+    environment:
+      PYTHONUNBUFFERED: "1"
+      GMIX_DB_PATH: /data/gmix.db
