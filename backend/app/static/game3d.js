@@ -185,8 +185,8 @@ function makeGround() {
   box(world, 0.24, 0.24, 30, 0x45665d, -29, 0.12, 0, { metalness: 0.1 });
   box(world, 0.24, 0.24, 30, 0x45665d, 29, 0.12, 0, { metalness: 0.1 });
   box(world, 58, 0.035, 0.12, 0xe5d9ae, 0, 0.02, 1.5, { castShadow: false });
-  // Loading apron with marked supplier and client bays.
-  const apron = new THREE.Mesh(new THREE.PlaneGeometry(58, 8), material(0xb6c3af));
+  // The site has a loading apron, a perimeter service road and a planted central island.
+  const apron = new THREE.Mesh(new THREE.PlaneGeometry(58, 8), material(0xb6c3af, 0.95, 0, "concrete"));
   apron.rotation.x = -Math.PI / 2;
   apron.position.set(0, -0.035, 19);
   world.add(apron);
@@ -207,6 +207,46 @@ function makeGround() {
   for (let x = -26; x <= 26; x += 6.5) box(world, 0.025, 0.009, 30, 0x8d958a, x, 0.008, 0, { castShadow: false });
   box(world, 0.7, 0.018, 0.38, 0x52605a, -18.5, 0.018, 1.65, { castShadow: false });
   for (let x = -18.78; x <= -18.22; x += 0.12) box(world, 0.025, 0.022, 0.34, 0xaeb8ad, x, 0.03, 1.65, { castShadow: false });
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(100, 5), material(0x59625e, 0.92));
+  road.rotation.x = -Math.PI / 2; road.position.set(0, -0.075, 24); road.receiveShadow = true; world.add(road);
+  for (let x = -49; x < 49; x += 4) box(world, 2.2, 0.018, 0.12, 0xe5d9ae, x, -0.045, 24, { castShadow: false });
+  // A planted arrival island breaks up the apron and gives the site a clear front door.
+  const island = new THREE.Mesh(new THREE.CylinderGeometry(3.7, 4.1, 0.22, 32), material(0x718b68));
+  island.position.set(0, 0.02, 20); island.receiveShadow = true; world.add(island);
+  const islandEdge = new THREE.Mesh(new THREE.TorusGeometry(3.9, 0.12, 8, 40), material(0xd2c9a6, 0.75));
+  islandEdge.rotation.x = Math.PI / 2; islandEdge.position.set(0, 0.17, 20); world.add(islandEdge);
+  makeTree(0, 20, 1.05);
+  for (const x of [-2.5, 2.5]) {
+    const shrub = new THREE.Mesh(new THREE.IcosahedronGeometry(0.48, 1), material(0x557d57));
+    shrub.position.set(x, 0.42, 20.2); shrub.scale.set(1.2, 0.8, 0.9); shrub.castShadow = true; world.add(shrub);
+  }
+  for (const [x, z, scale] of [[-28,-13,0.9],[-27,8,0.8],[-24,20,0.9],[-14,20,0.7],[14,20,0.8],[27,19,0.9],[28,7,0.8],[28,-13,0.9],[8,-14,0.7],[-7,-14,0.75]]) makeTree(x, z, scale);
+  for (const [x,z] of [[-27,4],[-27,17],[27,4],[27,17],[-8,20],[8,20]]) makeYardLight(x,z);
+  // Vehicle staging, dock bumpers and painted parking bays.
+  for (const x of [-25,-21,-17,17,21,25]) {
+    box(world, 0.09, 0.025, 3.1, 0xe7e4cf, x, 0.02, 18.4, { castShadow: false });
+    box(world, 2.6, 0.035, 0.12, 0xe7e4cf, x, 0.02, 16.9, { castShadow: false });
+  }
+  for (const x of [-24,-20,20,24]) {
+    cylinder(world, 0.15, 0.15, 0.9, 0x303a37, x, 0.45, 12.7, 12);
+    box(world, 0.14, 0.28, 0.14, 0xd4aa48, x, 0.86, 12.7, { castShadow: false });
+  }
+}
+
+function makeTree(x, z, scale = 1) {
+  const trunk = cylinder(world, 0.18 * scale, 0.26 * scale, 1.5 * scale, 0x70553d, x, 0.72 * scale, z, 9);
+  trunk.castShadow = true;
+  for (const [dx,dy,dz,size,color] of [[0,1.65,0,0.95,0x557b50],[-0.38,1.38,0.12,0.62,0x668b5d],[0.35,1.42,-0.08,0.68,0x789762],[0,2.05,0,0.58,0x769362]]) {
+    const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(size * scale, 1), material(color, 0.94));
+    crown.position.set(x + dx * scale, dy * scale, z + dz * scale); crown.scale.set(1, 0.86, 0.95); crown.castShadow = true; crown.receiveShadow = true; world.add(crown);
+  }
+}
+
+function makeYardLight(x, z) {
+  cylinder(world, 0.065, 0.095, 4.8, 0x53645d, x, 2.4, z, 10);
+  box(world, 0.8, 0.12, 0.28, 0x52635c, x + 0.24, 4.72, z, { metalness: 0.4 });
+  const lamp = box(world, 0.55, 0.045, 0.2, 0xe4d9a4, x + 0.25, 4.63, z, { castShadow: false });
+  lamp.material.emissive.setHex(0x5a512c); lamp.material.emissiveIntensity = 0.18;
 }
 
 function makeShelf(x, z, sku, productName, tone, rackIndex) {
