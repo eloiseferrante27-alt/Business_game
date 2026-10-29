@@ -45,7 +45,7 @@ const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0.02);
 const clock = new THREE.Clock();
 const keys = new Set();
 const player = makePerson("Vous", 0x557c59, true);
-player.position.set(0, 0, 9);
+player.position.set(0, 0, 1.5);
 world.add(player);
 const marker = new THREE.Mesh(
   new THREE.TorusGeometry(0.48, 0.035, 8, 36),
@@ -67,8 +67,9 @@ let tutorialIndex = 0;
 const tutorialSteps = [
   { action: "move", title: "Déplace-toi dans l’atelier", copy: "Utilise W, A, S, D ou clique sur le sol pour guider ton personnage." },
   { action: "inspect", title: "Inspecte les opérations", copy: "Clique sur une étagère, une machine ou un ouvrier pour consulter ses informations." },
-  { action: "order", title: "Réapprovisionne un produit", copy: "Ouvre Commande avec le bouton + ou la touche 1, choisis un fournisseur et valide." },
-  { action: "week", title: "Fais avancer la simulation", copy: "Clique sur Lancer la semaine pour appliquer la production, les livraisons et les aléas." },
+  { action: "order", title: "Commande la matière première", copy: "Ouvre Commande avec le bouton + ou la touche 1, choisis une matière, un fournisseur et la quantité." },
+  { action: "production", title: "Planifie un OF", copy: "Ouvre Ordre fab. avec la touche 4, choisis le produit, le volume et le nombre de lignes." },
+  { action: "week", title: "Fais avancer la simulation", copy: "Clique sur Lancer la semaine pour recevoir les commandes échues, exécuter les OF et livrer les clients." },
 ];
 let playerPath = [];
 let dragging = false;
@@ -164,68 +165,45 @@ function addClickable(group, info) {
 }
 
 function makeGround() {
-  const grass = new THREE.Mesh(new THREE.PlaneGeometry(70, 65), material(0x9bad8e));
+  const grass = new THREE.Mesh(new THREE.PlaneGeometry(100, 75), material(0x9bad8e));
   grass.rotation.x = -Math.PI / 2;
   grass.position.y = -0.2;
   grass.receiveShadow = true;
   world.add(grass);
 
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(32, 24), material(0xffffff, 0.93, 0, "concrete"));
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(58, 30), material(0xffffff, 0.93, 0, "concrete"));
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = 0;
   floor.receiveShadow = true;
   world.add(floor);
-  // Subtle aisle paint and worn safety boundaries give the floor scale.
-  for (const x of [-13.7, -8.5, -2.9, 2.7, 8.3, 13.8]) {
-    box(world, 0.075, 0.008, 20, 0xe5d9ae, x, 0.009, -1, { castShadow: false });
+  // Open sky above the factory: only low site boundaries and room walls remain.
+  box(world, 58, 0.24, 0.24, 0x45665d, 0, 0.12, -15, { metalness: 0.1 });
+  box(world, 58, 0.24, 0.24, 0x45665d, 0, 0.12, 15, { metalness: 0.1 });
+  box(world, 0.24, 0.24, 30, 0x45665d, -29, 0.12, 0, { metalness: 0.1 });
+  box(world, 0.24, 0.24, 30, 0x45665d, 29, 0.12, 0, { metalness: 0.1 });
+  box(world, 58, 0.035, 0.12, 0xe5d9ae, 0, 0.02, 1.5, { castShadow: false });
+  // Loading apron with marked supplier and client bays.
+  const apron = new THREE.Mesh(new THREE.PlaneGeometry(58, 8), material(0xb6c3af));
+  apron.rotation.x = -Math.PI / 2;
+  apron.position.set(0, -0.035, 19);
+  world.add(apron);
+  for (let x = -26; x <= 26; x += 4) {
+    box(world, 1.5, 0.018, 0.12, 0xe8cb77, x, 0.015, 15.2, { castShadow: false });
   }
-  for (let x = -15.4; x < -12.8; x += 0.45) {
-    const stripe = box(world, 0.18, 0.012, 1.55, 0xd8ae55, x, 0.012, 10.4, { castShadow: false });
-    stripe.rotation.y = -0.32;
-  }
-
-  // Three low walls frame the playable warehouse while leaving the front open.
-  box(world, 32, 0.28, 0.28, 0x45665d, 0, 0.14, -12, { metalness: 0.1 });
-  box(world, 0.28, 0.28, 24, 0x45665d, -16, 0.14, 0, { metalness: 0.1 });
-  box(world, 0.28, 0.28, 24, 0x45665d, 16, 0.14, 0, { metalness: 0.1 });
-  for (let x = -14; x <= 14; x += 2) {
-    box(world, 0.035, 0.006, 24, 0xeee6c8, x, 0.023, 0, { castShadow: false });
-  }
-  // Steel portal frames and insulated wall panels.
-  for (const x of [-15.5, -10.5, -5.5, -0.5, 4.5, 9.5, 15.5]) {
-    box(world, 0.24, 7.2, 0.24, 0x596761, x, 3.6, -11.7, { metalness: 0.55, texture: "steel" });
-    box(world, 0.24, 7.2, 0.24, 0x596761, x, 3.6, 11.7, { metalness: 0.55, texture: "steel" });
-    box(world, 0.24, 0.24, 23.4, 0x66736c, x, 7.1, 0, { metalness: 0.55, texture: "steel" });
-  }
-  for (const z of [-11.75, 11.75]) {
-    box(world, 32, 5.7, 0.22, 0xd6d4c7, 0, 3.0, z, { roughness: 0.92 });
-    for (let y = 0.5; y < 6; y += 1.2) box(world, 31.8, 0.025, 0.25, 0xb7b8ac, 0, y, z + (z < 0 ? 0.13 : -0.13), { castShadow: false });
-  }
-  // Visible roof cross-bracing gives the open warehouse a stronger industrial silhouette.
-  for (const x of [-13, -8, -3, 2, 7]) {
-    for (const z of [-9, -4, 1, 6]) {
-      const beamA = box(world, 0.07, 0.07, 7.1, 0x728079, x + 2.5, 6.86, z + 2.5, { metalness: 0.62 });
-      const beamB = box(world, 0.07, 0.07, 7.1, 0x728079, x + 2.5, 6.86, z + 2.5, { metalness: 0.62 });
-      beamA.rotation.y = Math.PI / 4;
-      beamB.rotation.y = -Math.PI / 4;
+  // Marked pedestrian aisle, crossings and loading zones make the open site read as a working factory yard.
+  box(world, 58, 0.018, 1.35, 0x87958c, 0, 0.012, 1.65, { castShadow: false });
+  for (let x = -28; x <= 28; x += 2.2) box(world, 1.05, 0.025, 0.07, 0xf2df9e, x, 0.025, 1.65, { castShadow: false });
+  for (const [x, roomWidth] of [[-21.5, 5], [-16.4, 5], [-10.65, 6.5], [-0.3, 14], [9.7, 6], [16, 6.5], [23, 7]]) {
+    const bollardOffset = Math.min(2.6, roomWidth * 0.44) / 2 + 0.32;
+    for (let stripe = -2; stripe <= 2; stripe++) box(world, 0.16, 0.026, 0.78, stripe % 2 ? 0xe9ece0 : 0x4f7166, x + stripe * 0.35, 0.027, 0.65, { castShadow: false });
+    for (const side of [-1, 1]) {
+      const bollard = cylinder(world, 0.09, 0.11, 0.72, 0xd7a943, x + side * bollardOffset, 0.36, 1.2, 12);
+      bollard.material.metalness = 0.28;
     }
   }
-  for (const x of [-11, -4, 3, 10]) {
-    const fixture = box(world, 2.5, 0.12, 0.42, 0xf1ead2, x, 6.45, -0.5, { castShadow: false });
-    fixture.material.emissive.setHex(0x8b886e);
-    fixture.material.emissiveIntensity = 0.22;
-    const lamp = new THREE.PointLight(0xffedce, 32, 10, 2);
-    lamp.position.set(x, 6.2, -0.5);
-    world.add(lamp);
-  }
-  // Apron, loading bay stripes, and landscaped edge.
-  const apron = new THREE.Mesh(new THREE.PlaneGeometry(32, 8), material(0xb6c3af));
-  apron.rotation.x = -Math.PI / 2;
-  apron.position.set(0, -0.035, 16);
-  world.add(apron);
-  for (let x = -14; x <= 14; x += 4) {
-    box(world, 1.5, 0.018, 0.12, 0xe8cb77, x, 0.015, 10.2, { castShadow: false });
-  }
+  for (let x = -26; x <= 26; x += 6.5) box(world, 0.025, 0.009, 30, 0x8d958a, x, 0.008, 0, { castShadow: false });
+  box(world, 0.7, 0.018, 0.38, 0x52605a, -18.5, 0.018, 1.65, { castShadow: false });
+  for (let x = -18.78; x <= -18.22; x += 0.12) box(world, 0.025, 0.022, 0.34, 0xaeb8ad, x, 0.03, 1.65, { castShadow: false });
 }
 
 function makeShelf(x, z, sku, productName, tone, rackIndex) {
@@ -260,7 +238,7 @@ function makeShelf(x, z, sku, productName, tone, rackIndex) {
   group.add(label);
   world.add(group);
   addObstacle(x, z, 3.8, 1.25);
-  addClickable(group, { type: "stock", sku, title: productName, subtitle: `Emplacement ${sku}` });
+  addClickable(group, { type: sku.startsWith("MAT-") ? "material" : "stock", sku, title: productName, subtitle: `Emplacement ${sku}` });
 }
 
 function makeMachine(x, z, line, accent) {
@@ -269,6 +247,14 @@ function makeMachine(x, z, line, accent) {
   box(group, 2.65, 1.1, 1.7, 0x455d58, 0, 0.72, 0, { metalness: 0.16 });
   box(group, 2.3, 0.72, 1.32, 0x748a7d, 0, 1.42, 0, { metalness: 0.12 });
   box(group, 2.35, 0.18, 1.36, accent, 0, 1.88, 0, { metalness: 0.08 });
+  box(group, 0.82, 0.62, 0.045, 0x314541, -0.72, 1.38, 0.69, { metalness: 0.18, roughness: 0.42 });
+  box(group, 0.7, 0.5, 0.025, 0x71857b, -0.72, 1.38, 0.72, { metalness: 0.12, roughness: 0.35 });
+  box(group, 0.045, 0.11, 0.04, 0xd7b95e, -0.4, 1.35, 0.75, { metalness: 0.42 });
+  for (let i = 0; i < 4; i++) box(group, 0.46, 0.035, 0.035, 0x35433f, 0.22 + i * 0.12, 1.12, 0.69, { castShadow: false });
+  for (let i = 0; i < 9; i++) {
+    const stripe = box(group, 0.12, 0.035, 0.035, i % 2 ? 0x292f2d : 0xe1b64a, -1.05 + i * 0.26, 0.19, 0.86, { castShadow: false });
+    stripe.rotation.y = -0.18;
+  }
   box(group, 0.55, 0.38, 0.035, 0x223c3c, 0.55, 1.43, 0.68, { metalness: 0.15 });
   const screen = box(group, 0.35, 0.2, 0.045, 0x8dc38d, 0.55, 1.44, 0.71, { metalness: 0.1 });
   screen.material.emissive.setHex(0x27552c);
@@ -295,7 +281,7 @@ function makeMachine(x, z, line, accent) {
   addClickable(group, { type: "line", lineId: line.id, title: line.name, subtitle: line.product_sku });
 }
 
-function makeTruck(x, z) {
+function makeTruck(x, z, truckLabel = "G-MIX · LIVRAISON", title = "Quai de livraison", subtitle = "Commandes client et expéditions") {
   const truck = new THREE.Group();
   truck.position.set(x, 0, z);
   box(truck, 4.4, 1.5, 2.25, 0x456b61, -0.2, 0.9, 0);
@@ -307,19 +293,19 @@ function makeTruck(x, z) {
       wheel.rotation.x = Math.PI / 2;
     }
   }
-  const wordmark = labelSprite("G-MIX · LIVRAISON", "#fff9dc", "#28594d");
+  const wordmark = labelSprite(truckLabel, "#fff9dc", "#28594d");
   wordmark.scale.set(2.2, 0.55, 1);
   wordmark.position.set(0, 1.15, 1.15);
   truck.add(wordmark);
   world.add(truck);
-  addClickable(truck, { type: "dock", title: "Quai de livraison", subtitle: "Réceptions fournisseurs" });
+  addClickable(truck, { type: "dock", title, subtitle });
 }
 
 function makePerson(name, jacketColor, isPlayer = false) {
   const person = new THREE.Group();
   person.userData.name = name;
   person.userData.isPlayer = isPlayer;
-  person.userData.role = name.includes("Cariste") ? "Cariste" : name.includes("Atelier") ? "Production" : name.includes("Contrôle") ? "Qualité" : name.includes("Quai") ? "Réception" : "Direction";
+  person.userData.role = name.includes("Cariste") ? "Stock MP" : name.includes("Production") || name.includes("Opérateur") || name.includes("ligne") ? "Production" : name.includes("Contrôle") ? "Qualité" : name.includes("Quai") || name.includes("Réception") ? "Réception" : name.includes("Emball") ? "Emballage" : name.includes("Magasinier PF") ? "Entrepôt PF" : name.includes("Technicien") ? "Maintenance" : name.includes("Pilotage") ? "Pilotage" : "Direction";
   const jacket = material(jacketColor, 0.8);
   const skin = material(0xdcae88, 0.9);
   const dark = material(0x34413d, 0.9);
@@ -399,59 +385,132 @@ function makeForklift() {
       wheel.rotation.x = Math.PI / 2;
     }
   }
-  forklift.position.set(-12, 0, 5);
+  forklift.position.set(-10.8, 0, -0.4);
   world.add(forklift);
   addClickable(forklift, { type: "forklift", title: "Chariot élévateur", subtitle: "Cariste en déplacement" });
   return forklift;
 }
 
+function makeDepartmentStation(x, z, title, subtitle, accent, kind, width = 6.5, depth = 9) {
+  const station = new THREE.Group();
+  station.position.set(x, 0, z);
+  const wallHeight = 3.5;
+  const wallThickness = 0.2;
+  const doorWidth = Math.min(2.6, width * 0.44);
+  const frontZ = depth / 2;
+  const frontSegment = (width - doorWidth) / 2;
+  box(station, width, 0.12, depth, 0xe5e6dc, 0, 0.06, 0, { texture: "concrete", castShadow: false });
+  box(station, width, wallHeight, wallThickness, 0xd6d9d0, 0, wallHeight / 2, -depth / 2, { roughness: 0.92 });
+  box(station, wallThickness, wallHeight, depth, 0xd6d9d0, -width / 2, wallHeight / 2, 0, { roughness: 0.92 });
+  box(station, wallThickness, wallHeight, depth, 0xd6d9d0, width / 2, wallHeight / 2, 0, { roughness: 0.92 });
+  if (frontSegment > 0.4) {
+    box(station, frontSegment, wallHeight, wallThickness, 0xd6d9d0, -doorWidth / 2 - frontSegment / 2, wallHeight / 2, frontZ, { roughness: 0.92 });
+    box(station, frontSegment, wallHeight, wallThickness, 0xd6d9d0, doorWidth / 2 + frontSegment / 2, wallHeight / 2, frontZ, { roughness: 0.92 });
+  }
+  box(station, width, 0.16, 0.24, accent, 0, wallHeight - 0.08, -depth / 2, { castShadow: false });
+  box(station, 0.24, 0.16, depth, accent, -width / 2, wallHeight - 0.08, 0, { castShadow: false });
+  box(station, 0.24, 0.16, depth, accent, width / 2, wallHeight - 0.08, 0, { castShadow: false });
+  const paneMaterial = new THREE.MeshStandardMaterial({ color: 0x9bc8c2, emissive: 0x24423d, emissiveIntensity: 0.18, roughness: 0.3, metalness: 0.12 });
+  const windowCount = Math.max(1, Math.floor(width / 2.1));
+  for (let i = 0; i < windowCount; i++) {
+    const wx = -width / 2 + ((i + 1) * width) / (windowCount + 1);
+    const pane = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.78, 0.055), paneMaterial);
+    pane.position.set(wx, 2.65, -depth / 2 + 0.13);
+    pane.castShadow = false;
+    station.add(pane);
+    box(station, 1.22, 0.055, 0.09, 0x66756e, wx, 2.65, -depth / 2 + 0.08, { metalness: 0.35, castShadow: false });
+    box(station, 0.045, 0.82, 0.09, 0x66756e, wx, 2.65, -depth / 2 + 0.08, { metalness: 0.35, castShadow: false });
+  }
+  cylinder(station, 0.055, 0.055, Math.max(1, width - 0.8), 0x85948b, 0, 0.42, -depth / 2 + 0.25, 12).rotation.z = Math.PI / 2;
+  cylinder(station, 0.035, 0.035, Math.max(1, width - 1), accent, 0, 0.62, -depth / 2 + 0.25, 10).rotation.z = Math.PI / 2;
+  box(station, 3.1, 0.14, 2.55, 0xe4e3d8, 0, 0.08, 0, { castShadow: false });
+  box(station, 2.45, 0.82, 0.72, 0x63756e, 0, 0.62, -0.48, { metalness: 0.12 });
+  box(station, 2.5, 0.08, 0.78, accent, 0, 1.08, -0.48, { metalness: 0.08 });
+  if (kind === "quality") {
+    box(station, 0.72, 0.58, 0.06, 0x203b3b, 0.55, 1.43, -0.08);
+    box(station, 0.62, 0.4, 0.04, 0x72c7c1, 0.55, 1.43, -0.035, { castShadow: false });
+    cylinder(station, 0.2, 0.2, 0.26, 0xd6d7cb, -0.78, 1.27, -0.3, 12);
+  } else if (kind === "packaging") {
+    for (let i = 0; i < 3; i++) box(station, 0.46, 0.42, 0.42, 0xb88a55, -0.68 + i * 0.64, 1.34, 0.48, { texture: "cardboard" });
+    box(station, 0.12, 0.66, 0.12, 0xd3d4c7, 1.08, 1.36, 0.44);
+  } else if (kind === "storage") {
+    for (let level = 0; level < 2; level++) for (let i = 0; i < 2; i++) box(station, 0.62, 0.48, 0.48, 0xb9905d, -0.55 + i * 0.85, 1.28 + level * 0.5, 0.52, { texture: "cardboard" });
+  } else if (kind === "maintenance") {
+    for (let i = 0; i < 4; i++) cylinder(station, 0.12, 0.12, 0.28, [0x89948a, 0x495a55, 0xd2a64f, 0x879f9a][i], -0.86 + i * 0.56, 1.26, 0.46, 10);
+    box(station, 0.55, 0.52, 0.48, 0x283d3a, 0.92, 1.31, 0.42);
+  } else {
+    for (let i = 0; i < 2; i++) box(station, 0.7, 0.48, 0.62, 0xb9905d, -0.5 + i, 0.42, 0.58, { texture: "cardboard" });
+  }
+  const sign = labelSprite(title.toUpperCase(), "#f3f1df", "#245149");
+  sign.scale.set(Math.min(width - 0.4, 3.8), 0.58, 1);
+  sign.position.set(0, wallHeight + 0.62, frontZ + 0.15);
+  station.add(sign);
+  world.add(station);
+  addObstacle(x, z - depth / 2, width, wallThickness + 0.08);
+  addObstacle(x - width / 2, z, wallThickness + 0.08, depth);
+  addObstacle(x + width / 2, z, wallThickness + 0.08, depth);
+  if (frontSegment > 0.4) {
+    addObstacle(x - doorWidth / 2 - frontSegment / 2, z + frontZ, frontSegment, wallThickness + 0.08);
+    addObstacle(x + doorWidth / 2 + frontSegment / 2, z + frontZ, frontSegment, wallThickness + 0.08);
+  }
+  addClickable(station, { type: "department", title, subtitle });
+}
+
 function buildWorld() {
   makeGround();
-  const rackLayout = [
-    [-10.7, -7.7, 0], [-5.1, -7.7, 1], [0.5, -7.7, 2], [6.1, -7.7, 3],
-    [-10.7, -3.9, 1], [-5.1, -3.9, 2], [0.5, -3.9, 3], [6.1, -3.9, 0],
-  ];
-  rackLayout.forEach(([x, z, skuIndex], index) => {
-    const stock = state?.stocks?.[skuIndex] || { sku: `SKU-${String(skuIndex + 1).padStart(2, "0")}`, name: `Produit ${skuIndex + 1}` };
-    makeShelf(x, z, stock.sku, stock.name, [0x79a69b, 0xd4a064, 0x91a96e, 0x7c98b0][skuIndex], index);
+  makeDepartmentStation(-21.5, -4.5, "Fournisseur MP", "Le fournisseur prépare les palettes et livre les matières premières commandées.", 0x8eb7a5, "receiving", 5, 10);
+  makeDepartmentStation(-16.4, -4.5, "Réception", "Le réceptionnaire décharge les camions, contrôle les palettes et isole les non-conformes.", 0x8eb7a5, "receiving", 5, 10);
+  makeDepartmentStation(-10.65, -4.5, "Stock MP", "Le magasinier-cariste range les matières en FIFO, prépare les kits OF et signale les seuils bas.", 0x9cad8d, "storage", 6.5, 10);
+  makeDepartmentStation(-0.3, -4.5, "Production", "Le chef de ligne lance les OF. Les machines en série avancent au rythme du goulot.", 0x70c1bb, "production", 14, 10);
+  makeDepartmentStation(9.7, -4.5, "Contrôle qualité", "Les produits conformes passent à l’emballage, les retouches reviennent en ligne et les rebuts sont isolés.", 0x70c1bb, "quality", 6, 10);
+  makeDepartmentStation(16, -4.5, "Emballage", "Les produits conformes sont mis en carton, étiquetés et regroupés sur une palette.", 0xd4a45c, "packaging", 6.5, 10);
+  makeDepartmentStation(23, -4.5, "Entrepôt PF", "Le magasinier PF range les palettes, prépare les commandes client et suit le stock minimum.", 0x9cad8d, "storage", 7, 10);
+  makeDepartmentStation(-7, 6.3, "Maintenance et PDR", "Le technicien traite les pannes avec une pièce de rechange par intervention.", 0x80958d, "maintenance", 8, 7);
+  makeDepartmentStation(4, 6.3, "Pilotage", "Le responsable suit les indicateurs et transmet les commandes MP et les OF aux équipes.", 0x53766a, "office", 8, 7);
+  makeDepartmentStation(20, 6.3, "Client", "Le client passe ses commandes et reçoit les palettes préparées par l’usine.", 0x8eb7a5, "receiving", 8, 7);
+
+  const rawShelfSpots = [-8, -6, -3, -1].map((z) => [-10.65, z]);
+  (state?.raw_materials || []).filter((item) => item.sku !== "MAT-PDR").forEach((materialStock, index) => {
+    const [x, z] = rawShelfSpots[index];
+    makeShelf(x, z, materialStock.sku, materialStock.name, [0x79a69b, 0xd4a064, 0x91a96e, 0x7c98b0][index % 4], index);
   });
-  const linePositions = [-10.7, -3.55, 3.6, 10.75];
+  (state?.stocks || []).forEach((stock, index) => {
+    const spots = [[21.4, -7], [24.6, -7], [21.4, -3], [24.6, -3]];
+    const [x, z] = spots[index % spots.length];
+    makeShelf(x, z, stock.sku, stock.name, [0x79a69b, 0xd4a064, 0x91a96e, 0x7c98b0][index % 4], index);
+  });
+  const spareParts = state?.raw_materials?.find((item) => item.sku === "MAT-PDR");
+  if (spareParts) makeShelf(-7, 6.3, spareParts.sku, spareParts.name, 0xd4a064, 5);
+
+  const linePositions = [-5.3, -1.8, 1.8, 5.3];
   linePositions.forEach((x, i) => {
     const line = state?.production_lines?.[i] || { id: `LINE-${i + 1}`, name: `Ligne ${i + 1}`, product_sku: `SKU-${String(i + 1).padStart(2, "0")}` };
-    makeMachine(x, 5.9, line, [0x77a99c, 0xdaa05d, 0x93ad6f, 0x8aa8bd][i]);
+    makeMachine(x - 0.3, -4.5, line, [0x77a99c, 0xdaa05d, 0x93ad6f, 0x8aa8bd][i]);
   });
-  makeTruck(11.5, 13.3);
-  const dockLabel = labelSprite("QUAI DE RÉCEPTION", "#f4f1dd", "#4a655b");
-  dockLabel.position.set(11.3, 3.4, 10.8);
-  world.add(dockLabel);
-  const office = new THREE.Group();
-  office.position.set(-13, 0, 7.5);
-  box(office, 3.3, 2.7, 3.0, 0xe4d8bc, 0, 1.35, 0);
-  box(office, 3.5, 0.15, 3.2, 0x53766a, 0, 2.78, 0);
-  box(office, 0.9, 1.0, 0.06, 0x8cb8b6, 0.6, 1.55, 1.53);
-  const officeLabel = labelSprite("BUREAU", "#fff9dc", "#476359");
-  officeLabel.scale.set(1.45, 0.42, 1);
-  officeLabel.position.set(0, 3.35, 0);
-  office.add(officeLabel);
-  world.add(office);
-  addObstacle(-13, 7.5, 3.4, 3.2);
-  addClickable(office, { type: "office", title: "Bureau de direction", subtitle: "Pilotez les opérations de l’atelier" });
+  makeTruck(-22, 13.3, "FOURNISSEUR MP", "Quai fournisseur", "Le chauffeur livre les matières commandées et repart après le déchargement.");
+  makeTruck(24, 13.3, "G-MIX · CLIENT", "Quai de livraison", "Le chauffeur charge les palettes destinées au client.");
   const forklift = makeForklift();
-  for (let i = 0; i < 4; i++) {
-    const worker = makePerson(["Maya · Cariste", "Idriss · Atelier", "Léa · Contrôle", "Noah · Quai"][i], [0x4f8c7c, 0x4b718a, 0x7d8153, 0x8c6855][i]);
-    worker.position.set([-8, -2, 5, 13][i], 0, [1, 1, 1, 0][i]);
-    const workerTargets = [
-      [new THREE.Vector3(-8, 0, 1), new THREE.Vector3(-5, 0, -2), new THREE.Vector3(-8, 0, 7)],
-      [new THREE.Vector3(-2, 0, 2), new THREE.Vector3(-2, 0, 7), new THREE.Vector3(2, 0, 2)],
-      [new THREE.Vector3(5, 0, 2), new THREE.Vector3(5, 0, 7), new THREE.Vector3(9, 0, 2)],
-      [new THREE.Vector3(12, 0, 6), new THREE.Vector3(9, 0, 9), new THREE.Vector3(12, 0, 3)],
-    ][i];
-    worker.userData.targets = workerTargets;
-    worker.userData.targetIndex = i % workerTargets.length;
+  const team = [
+    { name: "Noah · Réceptionnaire", position: [-16, -5], targets: [[-17, -5], [-15, -7], [-16, -1]] },
+    { name: "Maya · Cariste", position: [-11, -5], targets: [[-11, -5], [-9, -7], [-10, -1]] },
+    { name: "Idriss · Chef de ligne", position: [-3, -5], targets: [[-4, -7], [-1, -3], [2, -5]] },
+    { name: "Karim · Opérateur", position: [2, -4], targets: [[2, -7], [0, -2], [5, -5]] },
+    { name: "Léa · Contrôle qualité", position: [9, -5], targets: [[9, -7], [8, -2], [11, -5]] },
+    { name: "Zoé · Emballeuse", position: [16, -5], targets: [[15, -7], [17, -2], [15, -5]] },
+    { name: "Amadou · Magasinier PF", position: [23, -5], targets: [[22, -7], [24, -2], [22, -5]] },
+    { name: "Sam · Technicien", position: [-7, 6], targets: [[-8, 5], [-6, 8], [-7, 4]] },
+    { name: "Alice · Pilotage", position: [4, 6], targets: [[3, 5], [5, 8], [4, 4]] },
+  ];
+  const teamColors = [0x4f8c7c, 0x4b718a, 0x7d8153, 0x8c6855, 0x648f9d, 0xb27c54, 0x71875b, 0x8a7860, 0x799c88];
+  team.forEach((member, i) => {
+    const worker = makePerson(member.name, teamColors[i]);
+    worker.position.set(member.position[0], 0, member.position[1]);
+    worker.userData.targets = member.targets.map(([x, z]) => new THREE.Vector3(x, 0, z));
+    worker.userData.targetIndex = i % worker.userData.targets.length;
     worker.userData.route = [];
     workers.push(worker);
     world.add(worker);
-  }
+  });
   forklift.userData.route = [];
 }
 
@@ -459,7 +518,7 @@ function keyFor(x, z) { return `${x},${z}`; }
 function cellFromKey(key) { return key.split(",").map(Number); }
 
 function walkable(x, z) {
-  if (x < -15 || x > 15 || z < -11 || z > 11) return false;
+  if (x < -27 || x > 27 || z < -13 || z > 13) return false;
   return !obstacles.some((item) => Math.abs(x - item.x) < item.width / 2 + 0.38 && Math.abs(z - item.z) < item.depth / 2 + 0.38);
 }
 
@@ -476,7 +535,7 @@ function nearestWalkable(x, z) {
       }
     }
   }
-  return [Math.max(-15, Math.min(15, centerX)), Math.max(-11, Math.min(11, centerZ))];
+  return [Math.max(-27, Math.min(27, centerX)), Math.max(-13, Math.min(13, centerZ))];
 }
 
 function findPath(start, end) {
@@ -597,17 +656,39 @@ function selectInteraction(info) {
   if (info.type === "stock") {
     const stock = state?.stocks?.find((item) => item.sku === info.sku);
     copy.textContent = `${info.title} · ${info.sku}. ${stock ? `${stock.quantity} unités disponibles, seuil de sécurité ${stock.safety_stock}.` : info.subtitle}`;
-    action.textContent = "Commander ce produit  →";
+    action.textContent = "Planifier une fabrication  →";
+    action.hidden = false;
+    action.onclick = () => { $("#product-sku").value = info.sku; openProduction(); };
+  } else if (info.type === "material") {
+    const stock = state?.raw_materials?.find((item) => item.sku === info.sku);
+    copy.textContent = `${info.title} · ${info.sku}. ${stock ? `${stock.quantity} unités disponibles, seuil de sécurité ${stock.safety_stock}.` : info.subtitle}`;
+    action.textContent = "Commander cette matière →";
     action.hidden = false;
     action.onclick = () => openOrder(info.sku);
   } else if (info.type === "line") {
     const line = state?.production_lines?.find((item) => item.id === info.lineId);
-    copy.textContent = line ? `${line.name} fabrique ${line.product_sku} · capacité ${line.weekly_capacity} unités par semaine · efficacité ${line.efficiency}%.` : info.subtitle;
+    copy.textContent = line ? `${line.name} fabrique ${line.product_sku} · capacité ${line.weekly_capacity} unités par semaine · efficacité ${line.efficiency}%. ${line.machines?.map((machine) => `${machine.operation}: ${machine.cycle_minutes} min, ${machine.state}`).join(" · ") || "Les opérations de la ligne sont en série."}` : info.subtitle;
+    if (line && !line.operational) {
+      action.textContent = state.spare_parts > 0 ? "Réparer la ligne · 1 PDR →" : "Commander une pièce de rechange →";
+      action.hidden = false;
+      action.onclick = () => state.spare_parts > 0 ? requestMaintenance(line.id) : openOrder("MAT-PDR");
+    }
   } else if (info.type === "worker") {
     copy.textContent = `${info.title} · ${info.subtitle}. Cliquez sur « Parler » ou approchez-vous et appuyez sur E.`;
     action.textContent = `Parler avec ${info.title.split(" · ")[0]} →`;
     action.hidden = false;
     action.onclick = () => openNpcDialog(info);
+  } else if (info.type === "department") {
+    const liveInfo = info.title === "Stock MP"
+      ? ` Matières disponibles : ${(state?.raw_materials || []).map((item) => `${item.name} ${item.quantity}/${item.safety_stock} seuil`).join(" · ")}.`
+      : info.title === "Entrepôt PF"
+        ? ` Stocks PF : ${(state?.stocks || []).map((item) => `${item.name} ${item.quantity} u.`).join(" · ")}.`
+        : info.title === "Maintenance et PDR"
+          ? ` ${state?.spare_parts || 0} pièce(s) de rechange disponible(s).`
+          : info.title === "Pilotage"
+            ? ` OTIF ${Number(state?.kpis?.otif || 0).toFixed(1)}% · TRS ${Number(state?.kpis?.trs || 0).toFixed(1)}% · qualité ${Number(state?.kpis?.quality_rate || 0).toFixed(1)}%.`
+            : "";
+    copy.textContent = `${info.subtitle}${liveInfo}`;
   } else {
     copy.textContent = `${info.title}. ${info.subtitle}. Cliquez sur un autre élément pour l’inspecter.`;
   }
@@ -615,9 +696,31 @@ function selectInteraction(info) {
 }
 
 function openOrder(sku = "") {
-  if (sku) $("#sku").value = sku;
+  if (sku) $("#sku").value = sku.replace("SKU-", "MAT-");
   $("#order-modal").hidden = false;
   $("#order-feedback").textContent = "";
+}
+
+function openProduction() {
+  $("#production-modal").hidden = false;
+  $("#production-feedback").textContent = "";
+}
+
+async function requestMaintenance(lineId) {
+  try {
+    const response = await fetch("/api/decisions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ maintenance_line_ids: [lineId] }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.detail || `HTTP ${response.status}`);
+    state = await (await fetch("/api/state")).json();
+    updateHUD(state);
+    showToast("Intervention planifiée pour la prochaine semaine.");
+  } catch (error) {
+    showToast(`Maintenance impossible : ${error.message}`, true);
+  }
 }
 
 function openNpcDialog(info) {
@@ -625,7 +728,7 @@ function openNpcDialog(info) {
   const stock = [...(state?.stocks || [])].sort((a, b) => a.quantity - b.quantity)[0];
   const line = [...(state?.production_lines || [])].sort((a, b) => a.efficiency - b.efficiency)[0];
   const conversations = {
-    Cariste: [
+    "Stock MP": [
       ["As-tu repéré un stock bas ?", stock ? `${stock.name} est à ${stock.quantity} ${stock.unit || "unités"}, pour un seuil de sécurité de ${stock.safety_stock}. On devrait surveiller cette référence.` : "Les rayonnages sont en cours d’inventaire."],
       ["Comment circule le chariot ?", "Les allées sont dégagées. Approche-toi des rayonnages pour vérifier les références et les quantités."],
     ],
@@ -640,6 +743,22 @@ function openNpcDialog(info) {
     Réception: [
       ["Y a-t-il des livraisons à surveiller ?", state?.events?.length ? `Cette semaine, le marché signale : ${state.events.join(" · ")}` : "Aucun aléa signalé cette semaine. Les délais fournisseurs restent à surveiller."],
       ["Où vérifier les réceptions ?", "Le quai est à l’entrée de l’entrepôt. Consulte les délais de chaque fournisseur avant de lancer une commande."],
+    ],
+    Emballage: [
+      ["Comment préparer une palette ?", "Mets les produits en carton, contrôle l’étiquette et le poids, puis filme une palette de six colis."],
+      ["Que se passe-t-il après le contrôle ?", "Les produits conformes arrivent ici. Les pièces à retoucher repartent en production."],
+    ],
+    "Entrepôt PF": [
+      ["Quel stock est le plus bas ?", stock ? `${stock.name} : ${stock.quantity} unités en stock PF, seuil de sécurité ${stock.safety_stock}.` : "Les emplacements PF sont en cours d’inventaire."],
+      ["Quand charger le client ?", "Le client est servi à chaque semaine simulée. L’OTIF indique les quantités livrées complètes et à temps."],
+    ],
+    Maintenance: [
+      ["Y a-t-il une ligne en panne ?", state?.production_lines?.some((item) => !item.operational) ? `${state.production_lines.filter((item) => !item.operational).map((item) => item.name).join(", ")} attend une intervention.` : "Toutes les lignes sont opérationnelles."],
+      ["Combien de pièces de rechange reste-t-il ?", `${state?.spare_parts || 0} pièce(s) disponible(s). Une réparation consomme une pièce.`],
+    ],
+    Pilotage: [
+      ["Quelle décision prendre ?", state?.kpis?.stockouts ? `${state.kpis.stockouts} référence(s) manquent. Planifie un OF et surveille la matière.` : "Vérifie les matières, passe les OF nécessaires, puis lance la semaine."],
+      ["Quels indicateurs suivre ?", `OTIF ${Number(state?.kpis?.otif || 0).toFixed(1)}% · TRS ${Number(state?.kpis?.trs || 0).toFixed(1)}% · qualité ${Number(state?.kpis?.quality_rate || 0).toFixed(1)}%.`],
     ],
   };
   const topics = conversations[role] || conversations.Réception;
@@ -670,24 +789,35 @@ function updateHUD(newState) {
   $("#otif").textContent = Number(state.kpis.otif).toFixed(1).replace(".", ",");
   $("#trs").textContent = Number(state.kpis.trs).toFixed(1).replace(".", ",");
   $("#stock-value").textContent = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(state.kpis.stock_value);
+  $("#quality").textContent = Number(state.kpis.quality_rate ?? 100).toFixed(1).replace(".", ",");
+  $("#delivered").textContent = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(state.kpis.delivered || 0);
+  const lowMaterial = (state.raw_materials || []).find((material) => material.quantity < material.safety_stock);
+  const lowFinished = (state.stocks || []).find((stock) => stock.quantity < stock.safety_stock);
+  const pendingProduction = (state.production_orders || []).length;
   $("#objective").textContent = Number(state.kpis.stockouts) > 0
-    ? `${state.kpis.stockouts} référence(s) en rupture. Commandez avant la prochaine semaine.`
-    : "Explorez l’entrepôt et maintenez un bon niveau de service.";
-  $("#objective-status").textContent = Number(state.kpis.stockouts) > 0 ? "Action requise : réapprovisionnement" : "Votre équipe attend vos décisions.";
+    ? `${state.kpis.stockouts} référence(s) en rupture. Planifiez un OF et surveillez la matière première.`
+    : lowMaterial ? `${lowMaterial.name} approche du seuil de sécurité. Passez une commande fournisseur.`
+      : lowFinished ? `${lowFinished.name} passe sous son seuil PF. Planifiez un OF et vérifiez la matière disponible.`
+        : pendingProduction ? `${pendingProduction} OF en attente. Lancez la semaine pour produire.`
+          : "Planifiez vos OF, surveillez les matières et livrez le client à temps.";
+  $("#objective-status").textContent = pendingProduction ? `${pendingProduction} ordre(s) de fabrication en attente` : lowMaterial ? "Action requise : réapprovisionnement MP" : lowFinished ? "Action requise : OF produit fini" : "Décidez les quantités à produire cette semaine.";
   $("#event-summary").textContent = state.events?.length ? state.events.join(" · ") : "Marché stable cette semaine.";
   $("#people-label").textContent = `${workers.length} ouvriers actifs · ${state.kpis.stockouts ? "priorité stocks" : "activité normale"}`;
-  $("#sku").innerHTML = state.stocks.map((stock) => `<option value="${escapeHTML(stock.sku)}">${escapeHTML(stock.name)} · ${stock.quantity} en stock</option>`).join("");
+  $("#sku").innerHTML = (state.raw_materials || []).map((stock) => `<option value="${escapeHTML(stock.sku)}">${escapeHTML(stock.name)} · ${stock.quantity} en stock</option>`).join("");
+  $("#product-sku").innerHTML = state.stocks.map((stock) => `<option value="${escapeHTML(stock.sku)}">${escapeHTML(stock.name)} · ${stock.quantity} en stock PF</option>`).join("");
   $("#supplier").innerHTML = state.suppliers.filter((supplier) => supplier.active).map((supplier) => `<option value="${escapeHTML(supplier.id)}">${escapeHTML(supplier.name)} · ${escapeHTML(supplier.specialty || "Fournisseur")}, ${escapeHTML(supplier.region || "France")} · ${supplier.lead_time_weeks} sem.</option>`).join("");
-  const selectedSku = currentSelection?.type === "stock" ? currentSelection.sku : "";
-  if (selectedSku) $("#sku").value = selectedSku;
+  const selectedProductSku = currentSelection?.type === "stock" ? currentSelection.sku : "";
+  if (selectedProductSku) $("#product-sku").value = selectedProductSku;
+  const selectedMaterialSku = currentSelection?.type === "material" ? currentSelection.sku : "";
+  if (selectedMaterialSku) $("#sku").value = selectedMaterialSku;
   workers.forEach((worker, index) => {
     let color = 0x4f8c7c;
     if (state.kpis.otif < 75 || state.kpis.stockouts > 0) color = 0xb56d54;
     else if (state.kpis.trs < 65) color = 0xc09a47;
-    else color = [0x4f8c7c, 0x4b718a, 0x7d8153, 0x8c6855][index];
+    else color = [0x4f8c7c, 0x4b718a, 0x7d8153, 0x8c6855][index % 4];
     worker.userData.jacket.color.setHex(color);
   });
-  if (currentSelection?.type === "stock") selectInteraction(currentSelection);
+  if (["stock", "material", "line"].includes(currentSelection?.type)) selectInteraction(currentSelection);
 }
 
 function escapeHTML(value) {
@@ -789,6 +919,7 @@ function setupControls() {
     if (key === "3") cameraDistance = 23;
     if (key === "escape") $("#order-modal").hidden = true;
     if (key === "escape") $("#npc-modal").hidden = true;
+    if (key === "escape") $("#production-modal").hidden = true;
     if (key === "e") interactNearest();
   });
   window.addEventListener("keyup", (event) => keys.delete(event.key.toLowerCase()));
@@ -909,7 +1040,8 @@ async function nextWeek() {
     const nextState = await response.json();
     if (!response.ok) throw new Error(nextState.detail || `HTTP ${response.status}`);
     updateHUD(nextState);
-    showToast(`Semaine ${nextState.current_week} terminée. L’atelier s’adapte à la demande.`);
+    const report = nextState.last_week || {};
+    showToast(`Semaine ${nextState.current_week} · ${report.produced || 0} fabriqués · ${report.reworked || 0} retouchés · ${report.quality_losses || 0} rebutés · ${report.delivered || 0} livrés.`);
     advanceTutorial("week");
   } catch (error) {
     showToast(`Impossible de simuler la semaine : ${error.message}`, true);
@@ -936,10 +1068,39 @@ async function placeOrder(event) {
     const arrival = state.current_week + Number(supplier?.lead_time_weeks || 0);
     $("#order-feedback").textContent = `Commande confirmée · arrivée estimée semaine ${arrival}.`;
     showToast("Commande passée. Le fournisseur la prépare.");
+    state = await (await fetch("/api/state")).json();
+    updateHUD(state);
     advanceTutorial("order");
     setTimeout(() => { $("#order-modal").hidden = true; }, 900);
   } catch (error) {
     $("#order-feedback").textContent = `Commande refusée : ${error.message}`;
+  }
+}
+
+async function placeProductionOrder(event) {
+  event.preventDefault();
+  const order = {
+    sku: $("#product-sku").value,
+    quantity: Number($("#production-quantity").value),
+    line_count: Number($("#line-count").value),
+  };
+  try {
+    const response = await fetch("/api/decisions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ production_orders: [order] }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.detail || `HTTP ${response.status}`);
+    const stock = state.stocks.find((item) => item.sku === order.sku);
+    $("#production-feedback").textContent = `OF pour ${stock?.name || order.sku} enregistré. Lancez la semaine pour produire.`;
+    showToast("Ordre de fabrication transmis à la production.");
+    advanceTutorial("production");
+    state = await (await fetch("/api/state")).json();
+    updateHUD(state);
+    setTimeout(() => { $("#production-modal").hidden = true; }, 1100);
+  } catch (error) {
+    $("#production-feedback").textContent = `OF refusé : ${error.message}`;
   }
 }
 
@@ -971,23 +1132,46 @@ async function startGame() {
   setupControls();
   $("#next-turn").addEventListener("click", nextWeek);
   $("#order-open").addEventListener("click", () => openOrder());
+  $("#production-open").addEventListener("click", openProduction);
   $("#inspect-open").addEventListener("click", () => $("#inspector").classList.toggle("closed"));
-  $("#home-camera").addEventListener("click", () => { cameraDistance = 23; cameraYaw = 0.48; player.position.set(0, 0, 9); playerPath = []; });
+  $("#home-camera").addEventListener("click", () => { cameraDistance = 23; cameraYaw = 0.48; player.position.set(0, 0, 1.5); playerPath = []; });
   $("#close-inspector").addEventListener("click", () => $("#inspector").classList.add("closed"));
   $("#order-close").addEventListener("click", () => { $("#order-modal").hidden = true; });
+  $("#production-close").addEventListener("click", () => { $("#production-modal").hidden = true; });
   $("#npc-close").addEventListener("click", () => { $("#npc-modal").hidden = true; });
   $("#npc-modal").addEventListener("pointerdown", (event) => { if (event.target.id === "npc-modal") event.currentTarget.hidden = true; });
   $("#order-modal").addEventListener("pointerdown", (event) => { if (event.target.id === "order-modal") event.currentTarget.hidden = true; });
+  $("#production-modal").addEventListener("pointerdown", (event) => { if (event.target.id === "production-modal") event.currentTarget.hidden = true; });
   $("#order-form").addEventListener("submit", placeOrder);
+  $("#production-form").addEventListener("submit", placeProductionOrder);
   $("#setup-form").addEventListener("submit", createNewGame);
   $("#resume-game").addEventListener("click", resumeGame);
   $("#add-supplier").addEventListener("click", addSupplierRow);
+  const departmentDetails = {
+    "Fournisseur": "Acteur externe. Prépare les palettes après réception d’une commande MP, puis livre selon le délai et la fiabilité indiqués.",
+    "Réception": "Le réceptionnaire décharge le camion, contrôle les palettes et place les non-conformes en quarantaine avant d’alerter le pilotage.",
+    "Stock MP": "Le magasinier range les matières, suit le stock de sécurité et prépare un kit pour chaque ordre de fabrication.",
+    "Production": "Le chef de ligne lance les OF. Les machines travaillent en série : la plus lente fixe la cadence. Les lignes en parallèle additionnent leurs débits.",
+    "Contrôle qualité": "Chaque lot est contrôlé. Les pièces conformes passent à l’emballage, les pièces à retoucher retournent en production et les rebuts sont écartés.",
+    "Emballage": "Les produits conformes sont mis en colis, étiquetés puis regroupés par six sur une palette avant rangement en stock PF.",
+    "Entrepôt PF": "Le magasinier PF range les palettes, prépare les commandes client et signale les niveaux sous le stock minimum.",
+    "Client": "Le client commande et reçoit les produits finis. L’OTIF mesure les livraisons complètes et à l’heure.",
+    "Pilotage": "Le responsable transmet les commandes MP et les OF, suit OTIF, TRS, qualité et stocks, puis traite les alertes des départements.",
+    "Maintenance et PDR": `Le technicien traite une panne à la fois. ${state?.spare_parts || 0} pièce(s) de rechange disponible(s). L’entretien préventif limite les arrêts non planifiés.`,
+  };
+  document.querySelectorAll(".flow-step").forEach((button) => button.addEventListener("click", () => {
+    document.querySelectorAll(".flow-step").forEach((step) => step.classList.toggle("active", step === button));
+    selectInteraction({ type: "department", title: button.dataset.department, subtitle: departmentDetails[button.dataset.department] });
+    const x = Number(button.dataset.x), z = Number(button.dataset.z);
+    if (Number.isFinite(x) && Number.isFinite(z)) setDestination({ x, z });
+  }));
   $("#tutorial-next").addEventListener("click", () => advanceTutorial("", true));
   $("#tutorial-skip").addEventListener("click", () => { $("#tutorial").hidden = true; });
   window.addEventListener("keydown", (event) => {
     if (event.key === "1") openOrder();
     if (event.key === "2") $("#inspector").classList.remove("closed");
     if (event.key === "3") { cameraDistance = 23; cameraYaw = 0.48; }
+    if (event.key === "4") openProduction();
   });
   cameraPosition();
   animate();

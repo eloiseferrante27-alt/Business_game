@@ -8,6 +8,9 @@ class KPIs(BaseModel):
     trs: float = Field(ge=0, le=100, description="Taux de rendement synthétique (%)")
     stock_value: float = Field(ge=0, description="Valeur totale du stock (€)")
     stockouts: int = Field(ge=0, description="Nombre de références en rupture")
+    produced: int = Field(default=0, ge=0, description="Produits bons fabriqués cette semaine")
+    delivered: int = Field(default=0, ge=0, description="Produits expédiés cette semaine")
+    quality_rate: float = Field(default=100, ge=0, le=100, description="Taux de conformité qualité (%)")
 
 
 class Supplier(BaseModel):
@@ -31,12 +34,37 @@ class Stock(BaseModel):
     unit: str = "pièce"
 
 
+class Machine(BaseModel):
+    id: str
+    operation: str
+    cycle_minutes: float = Field(gt=0)
+    availability: float = Field(default=92, ge=0, le=100)
+    defect_rate: float = Field(default=2, ge=0, le=100)
+    mtbf_hours: float = Field(default=60, gt=0)
+    mttr_hours: float = Field(default=1, ge=0)
+    tool_life_units: int = Field(default=5000, gt=0)
+    produced_since_tool_change: int = Field(default=0, ge=0)
+    state: Literal["marche", "arrêt", "panne", "maintenance"] = "marche"
+
+
 class ProductionLine(BaseModel):
     id: str
     name: str
     product_sku: str
     weekly_capacity: int = Field(gt=0)
     efficiency: float = Field(ge=0, le=100)
+    base_efficiency: float = Field(default=85, ge=0, le=100)
+    machines: list[Machine] = Field(default_factory=list)
+    operational: bool = True
+
+
+class MaterialStock(BaseModel):
+    sku: str
+    name: str
+    quantity: int = Field(ge=0)
+    safety_stock: int = Field(ge=0)
+    unit_value: float = Field(ge=0)
+    unit: str = "unité"
 
 
 class GameState(BaseModel):
@@ -49,6 +77,14 @@ class GameState(BaseModel):
     stocks: list[Stock]
     production_lines: list[ProductionLine]
     events: list[str] = Field(default_factory=list)
+    raw_materials: list[MaterialStock] = Field(default_factory=list)
+    departments: list[str] = Field(default_factory=lambda: ["Réception", "Stock MP", "Production", "Contrôle qualité", "Emballage", "Entrepôt PF", "Pilotage", "Maintenance et PDR"])
+    pending_orders: list[dict[str, object]] = Field(default_factory=list)
+    purchase_orders: list[dict[str, object]] = Field(default_factory=list)
+    production_orders: list[dict[str, object]] = Field(default_factory=list)
+    maintenance_queue: list[str] = Field(default_factory=list)
+    spare_parts: int = Field(default=3, ge=0)
+    last_week: dict[str, int | float] = Field(default_factory=dict)
 
 
 class SupplierOrder(BaseModel):
@@ -57,8 +93,16 @@ class SupplierOrder(BaseModel):
     quantity: int = Field(gt=0)
 
 
+class ProductionOrder(BaseModel):
+    sku: str
+    quantity: int = Field(gt=0, le=10000)
+    line_count: int = Field(default=1, ge=1, le=3)
+
+
 class DecisionsRequest(BaseModel):
     orders: list[SupplierOrder] = Field(default_factory=list)
+    production_orders: list[ProductionOrder] = Field(default_factory=list)
+    maintenance_line_ids: list[str] = Field(default_factory=list)
 
 
 class NewGameRequest(BaseModel):

@@ -44,11 +44,25 @@
       <button id="next-turn" class="week-button"><span>▶</span> Lancer la semaine</button>
     </header>
 
+    <nav class="factory-flow glass" aria-label="Parcours de l’usine">
+      <button type="button" data-department="Fournisseur" data-x="-21.5" data-z="1.5" class="flow-step active">Fournisseur</button>
+      <button type="button" data-department="Réception" data-x="-16.4" data-z="1.5" class="flow-step">Réception</button>
+      <button type="button" data-department="Stock MP" data-x="-10.65" data-z="1.5" class="flow-step">Stock MP</button>
+      <button type="button" data-department="Production" data-x="-0.3" data-z="1.5" class="flow-step">Production</button>
+      <button type="button" data-department="Contrôle qualité" data-x="9.7" data-z="1.5" class="flow-step">Qualité</button>
+      <button type="button" data-department="Emballage" data-x="16" data-z="1.5" class="flow-step">Emballage</button>
+      <button type="button" data-department="Entrepôt PF" data-x="23" data-z="1.5" class="flow-step">Entrepôt PF</button>
+      <button type="button" data-department="Client" data-x="20" data-z="10.5" class="flow-step">Client</button>
+      <button type="button" data-department="Pilotage" data-x="4" data-z="10.5" class="flow-step flow-support">Pilotage</button>
+      <button type="button" data-department="Maintenance et PDR" data-x="-7" data-z="10.5" class="flow-step flow-support">Maintenance et PDR</button>
+    </nav>
+
     <section class="left-hud glass">
       <div class="hud-heading"><div><small>VOTRE ENTREPRISE</small><h1 id="company-name">L’atelier</h1></div><span class="season">● EN LIGNE</span></div>
       <div class="kpi-row"><span><i class="kpi-dot otif"></i>OTIF clients</span><b><span id="otif">—</span>%</b></div>
       <div class="kpi-row"><span><i class="kpi-dot trs"></i>TRS usine</span><b><span id="trs">—</span>%</b></div>
       <div class="kpi-row"><span><i class="kpi-dot inventory"></i>Valeur du stock</span><b><span id="stock-value">—</span> €</b></div>
+      <div class="kpi-row"><span><i class="kpi-dot quality"></i>Qualité · livré</span><b><span id="quality">—</span>% · <span id="delivered">—</span></b></div>
       <div class="hud-divider"></div>
       <div class="mini-title">OBJECTIF DE LA SEMAINE</div>
       <p id="objective">Explorez l’entrepôt et maintenez un bon niveau de service.</p>
@@ -70,6 +84,7 @@
       <div class="movement-hint glass"><span class="key">W</span><span class="key-cluster"><i>A</i><i>S</i><i>D</i></span><span>Se déplacer</span><b class="hint-divider"></b><span class="key">CLIC</span><span>Aller / interagir</span><span class="key">E</span><span>Parler</span></div>
       <div class="action-bar glass">
         <button id="order-open" class="action-slot" title="Commander"><span class="slot-icon">＋</span><small>COMMANDE</small><kbd>1</kbd></button>
+        <button id="production-open" class="action-slot" title="Lancer un ordre de fabrication"><span class="slot-icon">⚙</span><small>ORDRE FAB.</small><kbd>4</kbd></button>
         <button id="inspect-open" class="action-slot active" title="Inspecter"><span class="slot-icon">⌕</span><small>INSPECTER</small><kbd>2</kbd></button>
         <button id="home-camera" class="action-slot" title="Recentrer la caméra"><span class="slot-icon">◎</span><small>CAMÉRA</small><kbd>3</kbd></button>
       </div>
@@ -80,12 +95,24 @@
       <form id="order-form" class="order-modal glass">
         <button type="button" id="order-close" class="close-button">×</button>
         <div class="mini-title">APPROVISIONNEMENT</div><h2>Passer une commande</h2>
-        <p>Choisissez un fournisseur et la référence à réapprovisionner.</p>
+        <p>Choisissez le fournisseur et la matière première à commander. Les pièces de rechange sont dans la liste.</p>
         <label for="supplier">Fournisseur</label><select id="supplier" required></select>
-        <label for="sku">Produit</label><select id="sku" required></select>
+        <label for="sku">Matière première</label><select id="sku" required></select>
         <label for="quantity">Quantité à commander</label><input id="quantity" type="number" min="1" value="250" required>
         <button class="action-button" type="submit">Confirmer la commande <span>→</span></button>
         <div id="order-feedback"></div>
+      </form>
+    </div>
+    <div id="production-modal" class="modal-backdrop" hidden>
+      <form id="production-form" class="order-modal glass">
+        <button type="button" id="production-close" class="close-button" aria-label="Fermer">×</button>
+        <div class="mini-title">PILOTAGE · ORDRE DE FABRICATION</div><h2>Planifier la production</h2>
+        <p>La matière disponible limite la quantité fabriquée. La ligne avance au rythme de son opération la plus lente.</p>
+        <label for="product-sku">Produit fini</label><select id="product-sku" required></select>
+        <label for="production-quantity">Quantité prévue</label><input id="production-quantity" type="number" min="1" max="10000" value="300" required>
+        <label for="line-count">Lignes en parallèle</label><select id="line-count"><option value="1">1 ligne</option><option value="2">2 lignes</option><option value="3">3 lignes</option></select>
+        <button class="action-button" type="submit">Envoyer l’OF à la production <span>→</span></button>
+        <div id="production-feedback"></div>
       </form>
     </div>
     <div id="npc-modal" class="modal-backdrop" hidden>

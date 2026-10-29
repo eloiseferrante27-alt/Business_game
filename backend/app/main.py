@@ -38,7 +38,7 @@ def submit_decisions(decisions: DecisionsRequest) -> dict[str, int | str]:
         accepted = simulation.submit_decisions(decisions)
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
-    return {"status": "accepted", "orders_queued": accepted}
+    return {"status": "accepted", "orders_queued": accepted, "production_orders_queued": len(decisions.production_orders)}
 
 
 @app.post("/api/next-turn", response_model=GameState)

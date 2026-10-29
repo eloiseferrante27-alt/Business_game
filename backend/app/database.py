@@ -13,7 +13,9 @@ DB_PATH = Path(os.getenv("GMIX_DB_PATH", Path(__file__).resolve().parents[1] / "
 def _connect() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(DB_PATH, timeout=10)
-    connection.execute("PRAGMA journal_mode=WAL")
+    # WAL uses shared-memory sidecar files that are unreliable on Windows bind mounts.
+    # The default rollback journal works with the Docker volume and a single game writer.
+    connection.execute("PRAGMA journal_mode=DELETE")
     return connection
 
 

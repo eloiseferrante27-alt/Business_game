@@ -2,7 +2,7 @@ import random
 
 from .agents import GMSClientAgent, MarketAgent, SupplierAgent
 from .database import load_snapshot, save_snapshot
-from .models import DecisionsRequest, GameState, KPIs, NewGameRequest, ProductionLine, Stock, Supplier
+from .models import DecisionsRequest, GameState, KPIs, Machine, MaterialStock, NewGameRequest, ProductionLine, Stock, Supplier
 
 
 SUPPLIER_CATALOG = [
@@ -30,6 +30,20 @@ PRODUCT_CATALOG = [
 LINE_NAMES = ["Conditionnement", "Assemblage", "Moulage", "Contrôle qualité"]
 
 
+def _line_machines(line_number: int, availability: float) -> list[Machine]:
+    operations = [
+        ("Préparation", 2.0, 2.0, 40, 1.0),
+        ("Assemblage", 1.5, 1.0, 80, .5),
+        ("Finition", 3.0, 3.0, 60, 1.0),
+        ("Vérification", 1.0, 2.0, 100, .5),
+    ]
+    return [
+        Machine(id=f"L{line_number}-M{index}", operation=operation, cycle_minutes=cycle,
+                availability=availability, defect_rate=defect, mtbf_hours=mtbf, mttr_hours=mttr)
+        for index, (operation, cycle, defect, mtbf, mttr) in enumerate(operations, start=1)
+    ]
+
+
 class SimulationEngine:
     """État de partie chargé depuis SQLite et sauvegardé après chaque action."""
 
@@ -48,7 +62,8 @@ class SimulationEngine:
         lines = [
             ProductionLine(
                 id=f"LINE-{i:02d}", name=f"Ligne {LINE_NAMES[i - 1]}",
-                product_sku=f"SKU-{i:02d}", weekly_capacity=300, efficiency=85.0,
+                product_sku=f"SKU-{i:02d}", weekly_capacity=800, efficiency=85.0, base_efficiency=85.0,
+                machines=_line_machines(i, 85.0),
             )
             for i in range(1, 5)
         ]
@@ -58,6 +73,11 @@ class SimulationEngine:
             suppliers=suppliers,
             stocks=stocks,
             production_lines=lines,
+            raw_materials=[
+                MaterialStock(sku=f"MAT-{i:02d}", name=f"Composant · {item[0]}", quantity=1200,
+                              safety_stock=300, unit_value=round(item[3] * .28, 2))
+                for i, item in enumerate(PRODUCT_CATALOG, start=1)
+            ] + [MaterialStock(sku="MAT-PDR", name="Pièces de rechange", quantity=3, safety_stock=2, unit_value=24)],
         )
         self.pending_orders: list[dict[str, object]] = []
         self.supplier_agent = SupplierAgent()
@@ -71,6 +91,21 @@ class SimulationEngine:
             if "started" not in saved_state:
                 saved_state["started"] = True
             self.state = GameState.model_validate(saved_state)
+            if not self.state.raw_materials:
+                self.state.raw_materials = [
+                    MaterialStock(sku=f"MAT-{i:02d}", name=f"Composant · {item[0]}", quantity=1200,
+                                  safety_stock=300, unit_value=round(item[3] * .28, 2))
+                    for i, item in enumerate(PRODUCT_CATALOG, start=1)
+                ] + [MaterialStock(sku="MAT-PDR", name="Pièces de rechange", quantity=3, safety_stock=2, unit_value=24)]
+                self._save()
+            migrated_lines = False
+            for index, line in enumerate(self.state.production_lines, start=1):
+                if not line.machines:
+                    line.machines = _line_machines(index, line.efficiency)
+                    line.base_efficiency = line.efficiency
+                    migrated_lines = True
+            if migrated_lines:
+                self._save()
             self._enrich_seed_data()
         else:
             self._save()
@@ -128,9 +163,9 @@ class SimulationEngine:
     def new_game(self, setup: NewGameRequest) -> GameState:
         """Reset the simulation using the selected company profile and difficulty."""
         profiles = {
-            "facile": {"stock": 700, "efficiency": 90.0, "reliability": 98.0, "otif": 97.0, "capacity": 340},
-            "normal": {"stock": 500, "efficiency": 85.0, "reliability": 92.0, "otif": 94.0, "capacity": 300},
-            "difficile": {"stock": 300, "efficiency": 72.0, "reliability": 78.0, "otif": 82.0, "capacity": 250},
+            "facile": {"stock": 700, "efficiency": 90.0, "reliability": 98.0, "otif": 97.0, "capacity": 900},
+            "normal": {"stock": 500, "efficiency": 85.0, "reliability": 92.0, "otif": 94.0, "capacity": 800},
+            "difficile": {"stock": 300, "efficiency": 72.0, "reliability": 78.0, "otif": 82.0, "capacity": 600},
         }
         profile = profiles[setup.difficulty]
         suppliers = [
@@ -156,7 +191,7 @@ class SimulationEngine:
             for i, item in enumerate(PRODUCT_CATALOG, start=1)
         ]
         lines = [
-            ProductionLine(id=f"LINE-{i:02d}", name=f"Ligne {LINE_NAMES[i - 1]}", product_sku=f"SKU-{i:02d}", weekly_capacity=profile["capacity"], efficiency=profile["efficiency"])
+            ProductionLine(id=f"LINE-{i:02d}", name=f"Ligne {LINE_NAMES[i - 1]}", product_sku=f"SKU-{i:02d}", weekly_capacity=profile["capacity"], efficiency=profile["efficiency"], base_efficiency=profile["efficiency"], machines=_line_machines(i, profile["efficiency"]))
             for i in range(1, 5)
         ]
         self.state = GameState(
@@ -166,6 +201,13 @@ class SimulationEngine:
             started=True,
             kpis=KPIs(otif=profile["otif"], trs=profile["efficiency"], stock_value=0, stockouts=0),
             suppliers=suppliers, stocks=stocks, production_lines=lines,
+            raw_materials=[
+                MaterialStock(sku=f"MAT-{i:02d}", name=f"Composant · {item[0]}",
+                              quantity=int(profile["stock"] * 1.8), safety_stock=max(100, int(item[4] * .8)),
+                              unit_value=round(item[3] * .28, 2))
+                for i, item in enumerate(PRODUCT_CATALOG, start=1)
+            ] + [MaterialStock(sku="MAT-PDR", name="Pièces de rechange", quantity=3, safety_stock=2, unit_value=24)],
+            production_orders=[], pending_orders=[], purchase_orders=[], last_week={}, maintenance_queue=[], spare_parts=3,
         )
         self.pending_orders = []
         self.rng = random.Random(42)
@@ -175,12 +217,23 @@ class SimulationEngine:
 
     def submit_decisions(self, decisions: DecisionsRequest) -> int:
         suppliers = {supplier.id: supplier for supplier in self.state.suppliers}
-        stock_skus = {stock.sku for stock in self.state.stocks}
+        stock_skus = {stock.sku for stock in self.state.raw_materials}
         for order in decisions.orders:
             if order.supplier_id not in suppliers:
                 raise ValueError(f"Fournisseur inconnu : {order.supplier_id}")
             if order.sku not in stock_skus:
-                raise ValueError(f"Référence inconnue : {order.sku}")
+                raise ValueError(f"Matière première inconnue : {order.sku}")
+        known_products = {stock.sku for stock in self.state.stocks}
+        for order in decisions.production_orders:
+            if order.sku not in known_products:
+                raise ValueError(f"Produit inconnu : {order.sku}")
+        known_lines = {line.id for line in self.state.production_lines}
+        for line_id in decisions.maintenance_line_ids:
+            if line_id not in known_lines:
+                raise ValueError(f"Ligne inconnue : {line_id}")
+            line = next(item for item in self.state.production_lines if item.id == line_id)
+            if line.operational:
+                raise ValueError(f"La ligne {line.name} n’a pas besoin d’intervention.")
 
         for order in decisions.orders:
             supplier = suppliers[order.supplier_id]
@@ -190,6 +243,11 @@ class SimulationEngine:
                 "quantity": order.quantity,
                 "arrival_week": self.state.current_week + supplier.lead_time_weeks,
             })
+        for order in decisions.production_orders:
+            self.state.production_orders.append(order.model_dump())
+        self.state.maintenance_queue = list(dict.fromkeys([*self.state.maintenance_queue, *decisions.maintenance_line_ids]))
+        self.state.pending_orders = [dict(order) for order in self.pending_orders]
+        self.state.purchase_orders = [dict(order) for order in self.pending_orders]
         self._save()
         return len(decisions.orders)
 
@@ -198,7 +256,30 @@ class SimulationEngine:
         self.state.current_week += 1
         event = self.market_agent.generate_event(self.rng)
         self.state.events = [event.description] if event else []
-        self.market_agent.apply_cost_impact(self.state.stocks, event)
+        self.market_agent.apply_cost_impact(self.state.raw_materials, event)
+
+        repair_queue = []
+        technician_used = False
+        for line_id in self.state.maintenance_queue:
+            line = next((item for item in self.state.production_lines if item.id == line_id), None)
+            if line is None:
+                continue
+            if self.state.spare_parts <= 0 or technician_used:
+                repair_queue.append(line_id)
+                continue
+            for machine in line.machines:
+                if machine.state == "panne":
+                    machine.state = "maintenance"
+                    machine.availability = max(machine.availability, line.base_efficiency)
+                    machine.state = "marche"
+            line.efficiency = line.base_efficiency
+            line.operational = True
+            self.state.spare_parts -= 1
+            technician_used = True
+            parts_stock = next((item for item in self.state.raw_materials if item.sku == "MAT-PDR"), None)
+            if parts_stock and parts_stock.quantity > 0:
+                parts_stock.quantity -= 1
+        self.state.maintenance_queue = repair_queue
 
         delivered, self.pending_orders = self.supplier_agent.process_orders(
             self.pending_orders,
@@ -207,32 +288,102 @@ class SimulationEngine:
             self.rng,
             delay_risk=event.delivery_delay_risk if event else 0.0,
         )
-        stocks_by_sku = {stock.sku: stock for stock in self.state.stocks}
+        materials_by_sku = {stock.sku: stock for stock in self.state.raw_materials}
         for order in delivered:
-            stocks_by_sku[str(order["sku"])].quantity += int(order["quantity"])
+            if str(order["sku"]) in materials_by_sku:
+                materials_by_sku[str(order["sku"])].quantity += int(order["quantity"])
+                if str(order["sku"]) == "MAT-PDR":
+                    self.state.spare_parts += int(order["quantity"])
+        received_rejections = sum(int(order.get("nonconforming", 0)) for order in delivered)
+        if received_rejections:
+            self.state.events.append(f"Réception : {received_rejections} unité(s) non conformes mises en quarantaine.")
 
-        line_by_sku = {line.product_sku: line for line in self.state.production_lines}
-        for stock in self.state.stocks:
-            line = line_by_sku[stock.sku]
-            produced = int(line.weekly_capacity * line.efficiency / 100)
-            stock.quantity += produced
+        materials_by_product = {item.sku.replace("MAT-", "SKU-"): item for item in self.state.raw_materials}
+        lines_by_product: dict[str, list[ProductionLine]] = {}
+        for line in self.state.production_lines:
+            lines_by_product.setdefault(line.product_sku, []).append(line)
+        total_good = 0
+        total_scrap = 0
+        total_reworked = 0
+        queued: dict[str, dict[str, int]] = {}
+        for order in self.state.production_orders:
+            sku = str(order["sku"])
+            queued.setdefault(sku, {"quantity": 0, "line_count": 1})
+            queued[sku]["quantity"] += int(order["quantity"])
+            queued[sku]["line_count"] = max(queued[sku]["line_count"], int(order.get("line_count", 1)))
+        for sku, order in queued.items():
+            material = materials_by_product.get(sku)
+            lines = lines_by_product.get(sku, [])
+            if material is None or not lines:
+                continue
+            active_lines = max(1, min(3, order["line_count"]))
+            running_lines = [line for line in lines if line.operational]
+            capacity = sum(
+                min(line.weekly_capacity, int(8 * 60 * 5 / max(machine.cycle_minutes for machine in line.machines)))
+                * line.efficiency / 100
+                for line in running_lines
+            ) * active_lines
+            made = min(order["quantity"], int(capacity), material.quantity)
+            if made <= 0:
+                continue
+            defect_rate = sum(machine.defect_rate for line in running_lines for machine in line.machines) / max(1, sum(len(line.machines) for line in running_lines))
+            defective = min(made, int(made * defect_rate / 100))
+            reworked = int(defective * .65)
+            recovered = int(reworked * .75)
+            scrap = defective - recovered
+            material.quantity -= made
+            good = made - scrap
+            next(stock for stock in self.state.stocks if stock.sku == sku).quantity += good
+            total_good += good
+            total_scrap += scrap
+            total_reworked += reworked
+            for line in running_lines:
+                for machine in line.machines:
+                    machine.produced_since_tool_change += made
+                    if machine.produced_since_tool_change >= machine.tool_life_units:
+                        machine.state = "maintenance"
+                        machine.produced_since_tool_change = 0
+                        machine.state = "marche"
+                    elif self.rng.random() > machine.mtbf_hours / (machine.mtbf_hours + 5):
+                        machine.state = "panne"
+                        machine.availability = max(20, machine.availability - machine.mttr_hours * 10)
+                        line.operational = False
+                        line.efficiency = 0
+                        self.state.events.append(f"Panne sur {line.name}, machine {machine.id} : intervention maintenance nécessaire.")
+                        break
+        self.state.production_orders = []
+        self.state.kpis.produced = total_good
+        self.state.kpis.quality_rate = round(100 * total_good / max(1, total_good + total_scrap), 1)
 
+        inventory_before_delivery = sum(stock.quantity for stock in self.state.stocks)
         self.state.kpis.otif, self.state.kpis.stockouts = self.gms_agent.serve(
             self.state.stocks,
-            demand_multiplier=event.demand_multiplier if event else 1.0,
+            demand_multiplier=5 * (event.demand_multiplier if event else 1.0) * self.rng.uniform(.9, 1.1),
         )
+        self.state.kpis.delivered = inventory_before_delivery - sum(stock.quantity for stock in self.state.stocks)
         self.state.kpis.trs = round(
             sum(line.efficiency for line in self.state.production_lines)
             / len(self.state.production_lines),
             2,
         )
+        self.state.pending_orders = [dict(order) for order in self.pending_orders]
+        self.state.purchase_orders = [dict(order) for order in self.pending_orders]
+        self.state.last_week = {
+            "produced": total_good,
+            "quality_losses": total_scrap,
+            "reworked": total_reworked,
+            "delivered": self.state.kpis.delivered,
+            "received_orders": len(delivered),
+            "quarantined": received_rejections,
+        }
         self._refresh_stock_kpis()
         self._save()
         return self.state
 
     def _refresh_stock_kpis(self) -> None:
         self.state.kpis.stock_value = round(
-            sum(stock.quantity * stock.unit_value for stock in self.state.stocks), 2
+            sum(stock.quantity * stock.unit_value for stock in self.state.stocks)
+            + sum(stock.quantity * stock.unit_value for stock in self.state.raw_materials), 2
         )
 
 

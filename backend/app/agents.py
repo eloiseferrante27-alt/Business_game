@@ -36,7 +36,11 @@ class SupplierAgent:
             supplier = supplier_by_id[str(order["supplier_id"])]
             delivery_probability = (supplier.reliability / 100) * (1 - delay_risk)
             if rng.random() <= delivery_probability:
-                delivered.append(order)
+                received_order = dict(order)
+                rejected = int(int(order["quantity"]) * .02)
+                received_order["quantity"] = int(order["quantity"]) - rejected
+                received_order["nonconforming"] = rejected
+                delivered.append(received_order)
             else:
                 delayed_order = dict(order)
                 delayed_order["arrival_week"] = current_week + 1
