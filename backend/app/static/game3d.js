@@ -76,6 +76,9 @@ let dragging = false;
 let lastPointer = { x: 0, y: 0 };
 let currentSelection = null;
 let toastTimer = 0;
+const npcSessions = new Map();
+let activeNpcSession = null;
+const helpbotHistory = [];
 
 function makeGrainTexture(base, kind, size = 128) {
   const canvas = document.createElement("canvas");
@@ -626,9 +629,36 @@ function addSupplierRow() {
   if (list.children.length >= 20) return;
   const row = document.createElement("div");
   row.className = "supplier-entry";
-  row.innerHTML = '<input data-field="name" aria-label="Nom du fournisseur" placeholder="Nom" maxlength="40" required><input data-field="lead_time_weeks" aria-label="Délai en semaines" title="Délai en semaines" type="number" min="1" max="8" value="2" required><input data-field="reliability" aria-label="Fiabilité en pourcentage" title="Fiabilité en pourcentage" type="number" min="0" max="100" value="92" required><input data-field="unit_cost" aria-label="Coût unitaire en euros" title="Coût unitaire en euros" type="number" min="0" step="0.01" value="2" required><button class="remove-supplier" type="button" aria-label="Supprimer ce fournisseur">×</button>';
+  row.innerHTML = '<input data-field="name" aria-label="Nom du fournisseur" placeholder="Nom" maxlength="40" required><input data-field="lead_time_weeks" aria-label="Délai en semaines" title="Délai sem." type="number" min="1" max="8" value="2" required><input data-field="reliability" aria-label="Fiabilité en pourcentage" title="Fiabilité %" type="number" min="0" max="100" value="92" required><input data-field="unit_cost" aria-label="Coût unitaire en euros" title="Coût €" type="number" min="0" step="0.01" value="2" required><input data-field="specialty" aria-label="Spécialité" placeholder="Spécialité" value="Fournisseur généraliste" maxlength="50" required><input data-field="region" aria-label="Région" placeholder="Région" value="France" maxlength="50" required><button class="remove-supplier" type="button" aria-label="Supprimer ce fournisseur">×</button>';
   row.querySelector(".remove-supplier").addEventListener("click", () => row.remove());
   list.append(row);
+}
+
+function refreshMaterialChoices() {
+  const names = [...new Set([...$("#product-list").querySelectorAll('[data-field="name"]')].map((input) => input.value.trim() || "Produit"))];
+  $("#material-list").querySelectorAll('[data-field="product_name"]').forEach((select) => {
+    const selected = select.value;
+    select.innerHTML = names.map((name) => `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`).join("");
+    if (names.includes(selected)) select.value = selected;
+  });
+}
+
+function addSetupRow(kind) {
+  const configs = {
+    product: { container: "#product-list", className: "setup-product-row", fields: [["name","Nom","Produit", "text"],["category","Catégorie","Divers","text"],["unit","Unité","pièce","text"],["unit_value","Valeur €","10","number"],["quantity","Stock","500","number"],["safety_stock","Seuil","100","number"],["demand_per_week","Demande/sem.","100","number"],["weekly_capacity","Capacité/sem.","800","number"]] },
+    material: { container: "#material-list", className: "setup-material-row", fields: [["name","Nom","Matière", "text"],["unit","Unité","unité","text"],["unit_value","Valeur €","2","number"],["quantity","Stock","500","number"],["safety_stock","Seuil","100","number"],["product_name","Produit associé","Produit", "text"]] },
+  }[kind];
+  const list = $(config.container);
+  if (list.children.length >= 30) return;
+  const row = document.createElement("div"); row.className = config.className;
+  row.innerHTML = config.fields.map(([field,label,value,type]) => field === "product_name" ? `<select data-field="${field}" aria-label="${label}" required></select>` : `<input data-field="${field}" aria-label="${label}" placeholder="${label}" value="${value}" type="${type}" ${type === "number" ? 'min="0" step="0.01"' : 'maxlength="50"'} required>`).join("") + '<button class="remove-supplier" type="button" aria-label="Supprimer">×</button>';
+  row.querySelector("button").addEventListener("click", () => row.remove()); list.append(row);
+  if (kind === "product") {
+    const nameField = row.querySelector('[data-field="name"]');
+    nameField.addEventListener("input", refreshMaterialChoices);
+    row.querySelector("button").addEventListener("click", refreshMaterialChoices);
+  }
+  if (kind === "material") refreshMaterialChoices();
 }
 
 function cameraPosition() {
@@ -761,17 +791,64 @@ function openNpcDialog(info) {
       ["Quels indicateurs suivre ?", `OTIF ${Number(state?.kpis?.otif || 0).toFixed(1)}% · TRS ${Number(state?.kpis?.trs || 0).toFixed(1)}% · qualité ${Number(state?.kpis?.quality_rate || 0).toFixed(1)}%.`],
     ],
   };
-  const topics = conversations[role] || conversations.Réception;
   const name = info.title.split(" · ")[0];
+  const topics = ({
+    "Stock MP": ["Quelle matière faut-il surveiller ?", "Comment éviter une rupture de matière ?"],
+    Production: ["Quelle ligne est prioritaire ?", "Comment améliorer la cadence ?"],
+    Qualité: ["Que nous apprend le taux de qualité ?", "Comment éviter les défauts ?"],
+    Réception: ["Y a-t-il un risque fournisseur ?", "Que contrôler à l’arrivée ?"],
+    Emballage: ["Comment préparer une palette conforme ?", "Comment éviter les erreurs d’expédition ?"],
+    "Entrepôt PF": ["Quel produit fini faut-il surveiller ?", "Comment préparer la prochaine livraison ?"],
+    Maintenance: ["Quelle ligne nécessite une intervention ?", "Comment réduire les pannes ?"],
+    Pilotage: ["Quelle décision prendre cette semaine ?", "Quels indicateurs surveiller ?"],
+  })[role] || ["Comment se passe le travail cette semaine ?", "Sur quoi devrais-je agir en premier ?"];
+  activeNpcSession = npcSessions.get(name) || { name, role, history: [], transcript: `${name} : Bonjour ! Pose-moi une question sur l’usine.` };
+  activeNpcSession.role = role;
+  npcSessions.set(name, activeNpcSession);
   $("#npc-name").textContent = name;
   $("#npc-role").textContent = role;
-  $("#npc-dialogue").textContent = `${name} : Bonjour ! Que veux-tu savoir ?`;
+  $("#npc-dialogue").textContent = activeNpcSession.transcript;
   ["#npc-question-one", "#npc-question-two"].forEach((selector, index) => {
     const button = $(selector);
-    button.textContent = topics[index][0];
-    button.onclick = () => { $("#npc-dialogue").textContent = `${name} : ${topics[index][1]}`; };
+    button.textContent = topics[index];
+    button.onclick = () => askNpc(topics[index]);
   });
+  $("#npc-chat-input").value = "";
   $("#npc-modal").hidden = false;
+}
+
+async function askNpc(question) {
+  if (!activeNpcSession || !question.trim()) return;
+  const session = activeNpcSession;
+  const name = session.name;
+  const dialogue = $("#npc-dialogue");
+  const send = $("#npc-chat-form button");
+  const userQuestion = question.trim();
+  session.history.push({ role: "user", content: userQuestion });
+  session.transcript += `\n\nToi : ${userQuestion}\n${name} : réfléchit…`;
+  dialogue.textContent = session.transcript;
+  dialogue.scrollTop = dialogue.scrollHeight;
+  send.disabled = true;
+  try {
+    const response = await fetch("/api/npc-chat", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, role: session.role, question: userQuestion, history: session.history.slice(0, -1) }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.detail || `HTTP ${response.status}`);
+    session.history.push({ role: "assistant", content: result.answer });
+    session.transcript = session.transcript.replace(`${name} : réfléchit…`, `${name} : ${result.answer}`);
+  } catch (error) {
+    session.history.pop();
+    session.transcript = session.transcript.replace(`${name} : réfléchit…`, `${name} : Je n’arrive pas à joindre le modèle IA. Réessaie dans un instant.`);
+    showToast(`Dialogue indisponible : ${error.message}`, true);
+  } finally {
+    if (activeNpcSession === session && !$("#npc-modal").hidden) {
+      dialogue.textContent = session.transcript;
+      dialogue.scrollTop = dialogue.scrollHeight;
+    }
+    send.disabled = false;
+  }
 }
 
 function showToast(message, isError = false) {
@@ -995,6 +1072,16 @@ async function loadState() {
 
 async function createNewGame(event) {
   event.preventDefault();
+  if (!$("#product-list").children.length || !$("#material-list").children.length || !$("#custom-supplier-list").children.length) {
+    $("#setup-note").textContent = "Ajoute au moins un fournisseur, un produit fini et sa matière première.";
+    return;
+  }
+  const productNames = [...$("#product-list").querySelectorAll('[data-field="name"]')].map((input) => input.value.trim());
+  const mappedMaterials = [...$("#material-list").querySelectorAll('[data-field="product_name"]')].map((input) => input.value.trim());
+  if (productNames.some((name) => !mappedMaterials.includes(name))) {
+    $("#setup-note").textContent = "Associe chaque matière à un produit : le nom associé doit être identique au nom du produit fini.";
+    return;
+  }
   if (savedState?.started && !window.confirm("Créer une nouvelle partie remplacera la sauvegarde actuelle. Continuer ?")) return;
   const button = $("#start-new-game");
   button.disabled = true;
@@ -1005,12 +1092,16 @@ async function createNewGame(event) {
       body: JSON.stringify({
         company_name: $("#company-input").value.trim(),
         difficulty: $("#difficulty-input").value,
-        additional_suppliers: [...$("#custom-supplier-list").querySelectorAll(".supplier-entry")].map((row) => ({
+        suppliers: [...$("#custom-supplier-list").querySelectorAll(".supplier-entry")].map((row) => ({
           name: row.querySelector('[data-field="name"]').value.trim(),
           lead_time_weeks: Number(row.querySelector('[data-field="lead_time_weeks"]').value),
           reliability: Number(row.querySelector('[data-field="reliability"]').value),
           unit_cost: Number(row.querySelector('[data-field="unit_cost"]').value),
+          specialty: row.querySelector('[data-field="specialty"]').value.trim(),
+          region: row.querySelector('[data-field="region"]').value.trim(),
         })),
+        products: [...$("#product-list").children].map((row) => Object.fromEntries([...row.querySelectorAll("[data-field]")].map((input) => [input.dataset.field, input.type === "number" ? Number(input.value) : input.value.trim()]))),
+        materials: [...$("#material-list").children].map((row) => Object.fromEntries([...row.querySelectorAll("[data-field]")].map((input) => [input.dataset.field, input.type === "number" ? Number(input.value) : input.value.trim()]))),
       }),
     });
     const result = await response.json();
@@ -1139,6 +1230,53 @@ async function startGame() {
   $("#order-close").addEventListener("click", () => { $("#order-modal").hidden = true; });
   $("#production-close").addEventListener("click", () => { $("#production-modal").hidden = true; });
   $("#npc-close").addEventListener("click", () => { $("#npc-modal").hidden = true; });
+  $("#npc-chat-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const input = $("#npc-chat-input");
+    const question = input.value.trim();
+    if (!question) return;
+    input.value = "";
+    askNpc(question);
+  });
+  const helpPanel = $("#helpbot-panel"), helpLog = $("#helpbot-log");
+  $("#helpbot-toggle").addEventListener("click", () => { helpPanel.hidden = !helpPanel.hidden; });
+  $("#helpbot-close").addEventListener("click", () => { helpPanel.hidden = true; });
+  $("#helpbot-check").addEventListener("click", async () => {
+    helpLog.textContent = "Vérification du jeu et du modèle local…";
+    try {
+      const [health, models] = await Promise.all([fetch("/health"), fetch("http://127.0.0.1:11434/api/tags")]);
+      const available = await models.json();
+      const modelReady = available.models?.some((model) => model.name === "qwen2.5:1.5b");
+      helpLog.textContent = health.ok && models.ok && modelReady
+        ? "Tout est connecté : le jeu et le modèle IA local répondent. Si le chat personnage reste bloqué, ferme sa fenêtre et rouvre-la, puis renvoie ta question."
+        : "Le jeu répond, mais le modèle IA ne semble pas prêt. Vérifie qu’Ollama est ouvert et que qwen2.5:1.5b est installé.";
+    } catch {
+      helpLog.textContent = "Connexion IA impossible. Vérifie qu’Ollama est lancé, puis actualise le jeu sur http://127.0.0.1:8001/.";
+    }
+  });
+  $("#helpbot-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const input = $("#helpbot-input"), question = input.value.trim();
+    const send = $("#helpbot-form button");
+    if (!question || send.disabled) return;
+    input.value = "";
+    helpbotHistory.push({ role: "user", content: question });
+    helpLog.textContent += `\n\nToi : ${question}\nAide G-mix : réfléchit…`;
+    helpLog.scrollTop = helpLog.scrollHeight;
+    send.disabled = true;
+    fetch("/api/help-chat", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, history: helpbotHistory.slice(0, -1) }),
+    }).then(async (response) => {
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.detail || `HTTP ${response.status}`);
+      helpbotHistory.push({ role: "assistant", content: result.answer });
+      helpLog.textContent = helpLog.textContent.replace("Aide G-mix : réfléchit…", `Aide G-mix : ${result.answer}`);
+    }).catch((error) => {
+      helpbotHistory.pop();
+      helpLog.textContent = helpLog.textContent.replace("Aide G-mix : réfléchit…", `Aide G-mix : Je n’ai pas pu répondre (${error.message}). Clique sur « Vérifier la connexion IA » et réessaie.`);
+    }).finally(() => { send.disabled = false; helpLog.scrollTop = helpLog.scrollHeight; });
+  });
   $("#npc-modal").addEventListener("pointerdown", (event) => { if (event.target.id === "npc-modal") event.currentTarget.hidden = true; });
   $("#order-modal").addEventListener("pointerdown", (event) => { if (event.target.id === "order-modal") event.currentTarget.hidden = true; });
   $("#production-modal").addEventListener("pointerdown", (event) => { if (event.target.id === "production-modal") event.currentTarget.hidden = true; });
@@ -1146,7 +1284,10 @@ async function startGame() {
   $("#production-form").addEventListener("submit", placeProductionOrder);
   $("#setup-form").addEventListener("submit", createNewGame);
   $("#resume-game").addEventListener("click", resumeGame);
-  $("#add-supplier").addEventListener("click", addSupplierRow);
+  $("#product-list").addEventListener("input", refreshMaterialChoices);
+  $("#product-list").addEventListener("click", (event) => { if (event.target.matches(".remove-supplier")) setTimeout(refreshMaterialChoices, 0); });
+  ["#custom-supplier-list", "#material-list"].forEach((selector) => $(selector).addEventListener("click", (event) => { if (event.target.matches(".remove-supplier")) event.target.closest(".supplier-entry, .setup-material-row")?.remove(); }));
+  refreshMaterialChoices();
   const departmentDetails = {
     "Fournisseur": "Acteur externe. Prépare les palettes après réception d’une commande MP, puis livre selon le délai et la fiabilité indiqués.",
     "Réception": "Le réceptionnaire décharge le camion, contrôle les palettes et place les non-conformes en quarantaine avant d’alerter le pilotage.",

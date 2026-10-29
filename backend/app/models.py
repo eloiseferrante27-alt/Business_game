@@ -32,6 +32,8 @@ class Stock(BaseModel):
     unit_value: float = Field(ge=0, description="Valeur unitaire (€)")
     category: str = "Produit fini"
     unit: str = "pièce"
+    demand_per_week: int = Field(default=100, ge=0)
+    weekly_capacity: int = Field(default=800, gt=0)
 
 
 class Machine(BaseModel):
@@ -65,6 +67,7 @@ class MaterialStock(BaseModel):
     safety_stock: int = Field(ge=0)
     unit_value: float = Field(ge=0)
     unit: str = "unité"
+    product_sku: str = ""
 
 
 class GameState(BaseModel):
@@ -108,7 +111,9 @@ class DecisionsRequest(BaseModel):
 class NewGameRequest(BaseModel):
     company_name: str = Field(min_length=2, max_length=32)
     difficulty: Literal["facile", "normal", "difficile"] = "normal"
-    additional_suppliers: list["NewSupplierRequest"] = Field(default_factory=list, max_length=20)
+    suppliers: list["NewSupplierRequest"] = Field(min_length=1, max_length=20)
+    products: list["NewProductRequest"] = Field(min_length=1, max_length=20)
+    materials: list["NewMaterialRequest"] = Field(min_length=1, max_length=30)
 
 
 class NewSupplierRequest(BaseModel):
@@ -118,4 +123,24 @@ class NewSupplierRequest(BaseModel):
     unit_cost: float = Field(ge=0)
     specialty: str = Field(default="Fournisseur généraliste", max_length=50)
     region: str = Field(default="France", max_length=50)
+
+
+class NewProductRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=50)
+    category: str = Field(default="Produit fini", max_length=50)
+    unit: str = Field(default="pièce", max_length=20)
+    unit_value: float = Field(ge=0)
+    quantity: int = Field(ge=0)
+    safety_stock: int = Field(ge=0)
+    demand_per_week: int = Field(ge=0)
+    weekly_capacity: int = Field(gt=0)
+
+
+class NewMaterialRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=50)
+    unit: str = Field(default="unité", max_length=20)
+    unit_value: float = Field(ge=0)
+    quantity: int = Field(ge=0)
+    safety_stock: int = Field(ge=0)
+    product_name: str = Field(min_length=2, max_length=50)
 

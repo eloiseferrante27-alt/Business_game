@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#182c31">
   <title>G-mix — Atelier vivant</title>
-  <link rel="stylesheet" href="/static/game3d.css">
-  <script type="module" src="/static/game3d.js"></script>
+  <link rel="stylesheet" href="/static/game3d.css?v=multi-product-bom">
+  <script type="module" src="/static/game3d.js?v=multi-product-bom"></script>
 </head>
 <body>
   <main id="game">
@@ -26,9 +26,12 @@
           <option value="normal" selected>Équilibré · conditions standard</option>
           <option value="difficile">Expert · stocks et fiabilité réduits</option>
         </select>
-        <div class="supplier-setup-heading"><label>Fournisseurs à ajouter</label><button id="add-supplier" type="button">＋ Ajouter</button></div>
-        <p class="supplier-setup-help">Nom · délai en semaines · fiabilité en % · coût unitaire en €</p>
-        <div id="custom-supplier-list" class="custom-supplier-list"></div>
+        <div class="supplier-setup-heading"><label>Fournisseurs</label><button id="add-supplier" type="button">＋ Ajouter</button></div>
+        <p class="supplier-setup-help">Nom · délai · fiabilité · coût · spécialité · région</p><div id="custom-supplier-list" class="custom-supplier-list"><div class="supplier-entry"><input data-field="name" placeholder="Nom fournisseur" required><input data-field="lead_time_weeks" type="number" min="1" max="8" value="2" required><input data-field="reliability" type="number" min="0" max="100" value="92" required><input data-field="unit_cost" type="number" min="0" step="0.01" value="2" required><input data-field="specialty" placeholder="Spécialité" value="Fournisseur généraliste" required><input data-field="region" placeholder="Région" value="France" required><button class="remove-supplier" type="button">×</button></div></div>
+        <div class="supplier-setup-heading"><label>Produits finis</label><button id="add-product" type="button">＋ Ajouter</button></div>
+        <p class="supplier-setup-help">Nom · catégorie · unité · valeur · stock · seuil · demande/sem. · capacité/sem.</p><div id="product-list" class="custom-supplier-list"><div class="setup-product-row"><input data-field="name" placeholder="Nom produit" value="Produit" required><input data-field="category" placeholder="Catégorie" value="Divers" required><input data-field="unit" placeholder="Unité" value="pièce" required><input data-field="unit_value" type="number" min="0" step="0.01" value="10" required><input data-field="quantity" type="number" min="0" value="500" required><input data-field="safety_stock" type="number" min="0" value="100" required><input data-field="demand_per_week" type="number" min="0" value="100" required><input data-field="weekly_capacity" type="number" min="1" value="800" required><button class="remove-supplier" type="button">×</button></div></div>
+        <div class="supplier-setup-heading"><label>Matières premières</label><button id="add-material" type="button">＋ Ajouter</button></div>
+        <p class="supplier-setup-help">Nom · unité · valeur · stock · seuil · produit associé</p><div id="material-list" class="custom-supplier-list"><div class="setup-material-row"><input data-field="name" placeholder="Nom matière" value="Matière première" required><input data-field="unit" placeholder="Unité" value="unité" required><input data-field="unit_value" type="number" min="0" step="0.01" value="2" required><input data-field="quantity" type="number" min="0" value="500" required><input data-field="safety_stock" type="number" min="0" value="100" required><select data-field="product_name" required><option value="Produit">Produit</option></select><button class="remove-supplier" type="button">×</button></div></div>
         <label class="tutorial-choice"><input id="tutorial-enabled" type="checkbox" checked> Lancer le didacticiel après le démarrage</label>
         <button id="start-new-game" class="setup-primary" type="submit">Créer une nouvelle partie <span>→</span></button>
         <button id="resume-game" class="setup-secondary" type="button" hidden>Reprendre la sauvegarde</button>
@@ -121,8 +124,67 @@
         <div class="mini-title">ÉCHANGE AVEC L’ÉQUIPE</div><h2 id="npc-name">Membre de l’équipe</h2>
         <p id="npc-role" class="npc-role"></p><div id="npc-dialogue" class="npc-dialogue"></div>
         <div class="npc-choices"><button type="button" id="npc-question-one" class="npc-choice"></button><button type="button" id="npc-question-two" class="npc-choice"></button></div>
+        <form id="npc-chat-form" class="npc-chat-form"><input id="npc-chat-input" maxlength="700" placeholder="Pose ta question…" autocomplete="off" required><button type="submit" aria-label="Envoyer">➤</button></form>
       </section>
     </div>
+    <aside id="helpbot" class="helpbot" aria-label="Aide du jeu">
+      <section id="helpbot-panel" class="helpbot-panel glass" hidden>
+        <header class="helpbot-head"><div><b>Aide G-mix</b><small>ASSISTANT DE DÉPANNAGE</small></div><button type="button" id="helpbot-close" aria-label="Fermer">×</button></header>
+        <div id="helpbot-log" class="helpbot-log" aria-live="polite">Bonjour ! Je peux t’aider si un dialogue ou une commande ne fonctionne pas.</div>
+        <form id="helpbot-form" class="helpbot-form"><input id="helpbot-input" placeholder="Décris ton problème…" maxlength="400" autocomplete="off" required><button type="submit">Envoyer</button></form>
+        <button type="button" id="helpbot-check" class="helpbot-check">Vérifier la connexion IA</button>
+      </section>
+      <button type="button" id="helpbot-toggle" class="helpbot-toggle"><span>?</span> Besoin d’aide</button>
+    </aside>
   </main>
+  <script>
+    document.addEventListener('input', function (event) {
+      const field = event.target;
+      if (!field.matches('#product-list [data-field="name"]')) return;
+      const productRows = [...document.querySelectorAll('#product-list .setup-product-row')];
+      const productIndex = productRows.indexOf(field.closest('.setup-product-row'));
+      const names = productRows.map((row) => row.querySelector('[data-field="name"]').value.trim() || 'Produit');
+      const linkedRow = document.querySelectorAll('#material-list .setup-material-row')[productIndex];
+      document.querySelectorAll('#material-list [data-field="product_name"]').forEach(function (select) {
+        const prior = select.value;
+        select.innerHTML = names.map((name) => '<option value="' + name.replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;') + '">' + name.replaceAll('&','&amp;').replaceAll('<','&lt;') + '</option>').join('');
+        if (select === linkedRow?.querySelector('[data-field="product_name"]')) select.value = names[productIndex];
+        else if (names.includes(prior)) select.value = prior;
+      });
+    });
+    document.addEventListener('click', function (event) {
+      const button = event.target.closest('#add-supplier, #add-product, #add-material, .remove-supplier');
+      if (!button) return;
+      if (button.matches('.remove-supplier')) { event.preventDefault(); button.closest('.supplier-entry, .setup-product-row, .setup-material-row')?.remove(); return; }
+      event.preventDefault();
+      const config = button.id === 'add-supplier' ? ['#custom-supplier-list', '.supplier-entry'] : button.id === 'add-product' ? ['#product-list', '.setup-product-row'] : ['#material-list', '.setup-material-row'];
+      const list = document.querySelector(config[0]);
+      if (list.children.length >= 30) return;
+      const row = list.querySelector(config[1]).cloneNode(true);
+      const index = list.children.length + 1;
+      let addedProductName = '';
+      row.querySelectorAll('input').forEach(function (input) {
+        if (input.dataset.field === 'name') { input.value = (button.id === 'add-product' ? 'Produit ' : button.id === 'add-material' ? 'Matière ' : 'Fournisseur ') + index; if (button.id === 'add-product') addedProductName = input.value; }
+        else if (input.type === 'number' && input.dataset.field !== 'lead_time_weeks' && input.dataset.field !== 'reliability' && input.dataset.field !== 'unit_cost') input.value = input.defaultValue;
+      });
+      row.querySelectorAll('select').forEach(function (select) { select.selectedIndex = 0; });
+      list.append(row);
+      if (button.id === 'add-product') {
+        const materials = document.querySelector('#material-list');
+        const materialRow = materials.querySelector('.setup-material-row').cloneNode(true);
+        materialRow.querySelector('[data-field="name"]').value = 'Matière ' + index;
+        const linked = materialRow.querySelector('[data-field="product_name"]');
+        linked.innerHTML = '<option value="' + addedProductName + '">' + addedProductName + '</option>';
+        linked.value = addedProductName;
+        materials.append(materialRow);
+      }
+      const products = [...document.querySelectorAll('#product-list [data-field="name"]')].map((input) => input.value.trim()).filter(Boolean);
+      document.querySelectorAll('#material-list [data-field="product_name"]').forEach(function (select) {
+        const selected = select.value;
+        select.innerHTML = products.map((name) => '<option value="' + name.replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;') + '">' + name.replaceAll('&','&amp;').replaceAll('<','&lt;') + '</option>').join('');
+        if (products.includes(selected)) select.value = selected;
+      });
+    });
+  </script>
 </body>
 </html>

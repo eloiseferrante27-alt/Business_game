@@ -91,13 +91,6 @@ class SimulationEngine:
             if "started" not in saved_state:
                 saved_state["started"] = True
             self.state = GameState.model_validate(saved_state)
-            if not self.state.raw_materials:
-                self.state.raw_materials = [
-                    MaterialStock(sku=f"MAT-{i:02d}", name=f"Composant · {item[0]}", quantity=1200,
-                                  safety_stock=300, unit_value=round(item[3] * .28, 2))
-                    for i, item in enumerate(PRODUCT_CATALOG, start=1)
-                ] + [MaterialStock(sku="MAT-PDR", name="Pièces de rechange", quantity=3, safety_stock=2, unit_value=24)]
-                self._save()
             migrated_lines = False
             for index, line in enumerate(self.state.production_lines, start=1):
                 if not line.machines:
@@ -112,6 +105,12 @@ class SimulationEngine:
 
     def _save(self) -> None:
         save_snapshot(self.state.model_dump(), self.pending_orders)
+
+    def clear_catalog(self) -> GameState:
+        self.state = GameState(current_week=1, started=False, kpis=KPIs(otif=0, trs=0, stock_value=0, stockouts=0), suppliers=[], stocks=[], production_lines=[], raw_materials=[], spare_parts=0)
+        self.pending_orders = []
+        self._save()
+        return self.state
 
     def _enrich_seed_data(self) -> None:
         changed = False
@@ -168,31 +167,27 @@ class SimulationEngine:
             "difficile": {"stock": 300, "efficiency": 72.0, "reliability": 78.0, "otif": 82.0, "capacity": 600},
         }
         profile = profiles[setup.difficulty]
+        product_skus = {item.name.strip(): f"SKU-{i:02d}" for i, item in enumerate(setup.products, start=1)}
+        if any(item.product_name.strip() not in product_skus for item in setup.materials):
+            raise ValueError("Chaque matière doit être liée au nom exact d’un produit fini.")
+        if set(item.product_name.strip() for item in setup.materials) != set(product_skus):
+            raise ValueError("Ajoute au moins une matière associée à chaque produit fini.")
         suppliers = [
-            Supplier(
-                id=f"SUP-{i:02d}", name=item[0], specialty=item[1], region=item[2],
-                lead_time_weeks=item[3],
-                reliability=max(45.0, min(100.0, item[4] + profile["reliability"] - 92.0)),
-                unit_cost=item[5],
-            )
-            for i, item in enumerate(SUPPLIER_CATALOG, start=1)
-        ]
-        suppliers.extend(
             Supplier(
                 id=f"SUP-{i:02d}", name=item.name.strip(),
                 lead_time_weeks=item.lead_time_weeks,
                 reliability=item.reliability, unit_cost=item.unit_cost,
                 specialty=item.specialty.strip(), region=item.region.strip(),
             )
-            for i, item in enumerate(setup.additional_suppliers, start=15)
-        )
+            for i, item in enumerate(setup.suppliers, start=1)
+        ]
         stocks = [
-            Stock(sku=f"SKU-{i:02d}", name=item[0], category=item[1], unit=item[2], quantity=max(item[4], int(profile["stock"] * (1.0 + (i - 2) * 0.08))), safety_stock=item[4], unit_value=item[3])
-            for i, item in enumerate(PRODUCT_CATALOG, start=1)
+            Stock(sku=f"SKU-{i:02d}", name=item.name.strip(), category=item.category.strip(), unit=item.unit.strip(), quantity=item.quantity, safety_stock=item.safety_stock, unit_value=item.unit_value, demand_per_week=item.demand_per_week, weekly_capacity=item.weekly_capacity)
+            for i, item in enumerate(setup.products, start=1)
         ]
         lines = [
-            ProductionLine(id=f"LINE-{i:02d}", name=f"Ligne {LINE_NAMES[i - 1]}", product_sku=f"SKU-{i:02d}", weekly_capacity=profile["capacity"], efficiency=profile["efficiency"], base_efficiency=profile["efficiency"], machines=_line_machines(i, profile["efficiency"]))
-            for i in range(1, 5)
+            ProductionLine(id=f"LINE-{i:02d}", name=f"Ligne {LINE_NAMES[(i - 1) % len(LINE_NAMES)]}", product_sku=f"SKU-{i:02d}", weekly_capacity=stocks[i - 1].weekly_capacity, efficiency=profile["efficiency"], base_efficiency=profile["efficiency"], machines=_line_machines(i, profile["efficiency"]))
+            for i in range(1, len(stocks) + 1)
         ]
         self.state = GameState(
             current_week=1,
@@ -201,12 +196,7 @@ class SimulationEngine:
             started=True,
             kpis=KPIs(otif=profile["otif"], trs=profile["efficiency"], stock_value=0, stockouts=0),
             suppliers=suppliers, stocks=stocks, production_lines=lines,
-            raw_materials=[
-                MaterialStock(sku=f"MAT-{i:02d}", name=f"Composant · {item[0]}",
-                              quantity=int(profile["stock"] * 1.8), safety_stock=max(100, int(item[4] * .8)),
-                              unit_value=round(item[3] * .28, 2))
-                for i, item in enumerate(PRODUCT_CATALOG, start=1)
-            ] + [MaterialStock(sku="MAT-PDR", name="Pièces de rechange", quantity=3, safety_stock=2, unit_value=24)],
+            raw_materials=[MaterialStock(sku=f"MAT-{i:02d}", name=item.name.strip(), quantity=item.quantity, safety_stock=item.safety_stock, unit_value=item.unit_value, unit=item.unit.strip(), product_sku=product_skus[item.product_name.strip()]) for i, item in enumerate(setup.materials, start=1)],
             production_orders=[], pending_orders=[], purchase_orders=[], last_week={}, maintenance_queue=[], spare_parts=3,
         )
         self.pending_orders = []
@@ -298,7 +288,7 @@ class SimulationEngine:
         if received_rejections:
             self.state.events.append(f"Réception : {received_rejections} unité(s) non conformes mises en quarantaine.")
 
-        materials_by_product = {item.sku.replace("MAT-", "SKU-"): item for item in self.state.raw_materials}
+        materials_by_product = {item.product_sku: item for item in self.state.raw_materials if item.product_sku}
         lines_by_product: dict[str, list[ProductionLine]] = {}
         for line in self.state.production_lines:
             lines_by_product.setdefault(line.product_sku, []).append(line)

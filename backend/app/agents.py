@@ -84,7 +84,7 @@ class GMSClientAgent:
         total_served = 0
         stockouts = 0
         for stock in stocks:
-            demand = round(100 * demand_multiplier)
+            demand = round(stock.demand_per_week * demand_multiplier)
             served = min(stock.quantity, demand)
             stock.quantity -= served
             total_demand += demand
