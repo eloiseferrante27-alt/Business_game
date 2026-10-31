@@ -26,25 +26,40 @@ def initialize_database() -> None:
             "id INTEGER PRIMARY KEY CHECK (id = 1), state_json TEXT NOT NULL, "
             "pending_orders_json TEXT NOT NULL)"
         )
+        connection.execute(
+            "CREATE TABLE IF NOT EXISTS archived_snapshot ("
+            "archived_at TEXT DEFAULT CURRENT_TIMESTAMP, state_json TEXT NOT NULL, "
+            "pending_orders_json TEXT NOT NULL)"
+        )
 
 
-def load_snapshot() -> tuple[dict[str, Any], list[dict[str, Any]]] | None:
+def load_snapshot(expected_version: int) -> dict[str, Any] | None:
+    """Return the saved state, or None when there is no save of the expected schema version.
+
+    An older save (e.g. a v1 game) is moved to `archived_snapshot` instead of being lost.
+    """
     initialize_database()
     with _connect() as connection:
         row = connection.execute(
             "SELECT state_json, pending_orders_json FROM game_snapshot WHERE id = 1"
         ).fetchone()
-    if row is None:
-        return None
-    return json.loads(row[0]), json.loads(row[1])
+        if row is None:
+            return None
+        state = json.loads(row[0])
+        if state.get("schema_version") != expected_version:
+            connection.execute(
+                "INSERT INTO archived_snapshot (state_json, pending_orders_json) VALUES (?, ?)", row
+            )
+            connection.execute("DELETE FROM game_snapshot WHERE id = 1")
+            return None
+    return state
 
 
-def save_snapshot(state: dict[str, Any], pending_orders: list[dict[str, Any]]) -> None:
+def save_snapshot(state: dict[str, Any]) -> None:
     initialize_database()
     with _connect() as connection:
         connection.execute(
-            "INSERT INTO game_snapshot (id, state_json, pending_orders_json) VALUES (1, ?, ?) "
-            "ON CONFLICT(id) DO UPDATE SET state_json=excluded.state_json, "
-            "pending_orders_json=excluded.pending_orders_json",
-            (json.dumps(state, ensure_ascii=False), json.dumps(pending_orders, ensure_ascii=False)),
+            "INSERT INTO game_snapshot (id, state_json, pending_orders_json) VALUES (1, ?, '[]') "
+            "ON CONFLICT(id) DO UPDATE SET state_json=excluded.state_json",
+            (json.dumps(state, ensure_ascii=False),),
         )
