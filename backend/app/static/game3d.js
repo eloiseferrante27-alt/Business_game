@@ -62,6 +62,10 @@ hoverRing.visible = false;
 world.add(hoverRing);
 
 let state = null;
+// Monde v3 : un seul stock, découpé en catégories MP, SF, PF (+ PDR pour la maintenance).
+const stocksOf = (...categories) => (state?.stocks || []).filter((item) => categories.includes(item.category));
+const stockBySku = (sku) => (state?.stocks || []).find((item) => item.sku === sku);
+const spareCount = () => stockBySku("MAT-PDR")?.quantity || 0;
 let savedState = null;
 let tutorialIndex = 0;
 const tutorialSteps = [
@@ -469,17 +473,17 @@ function buildWorld() {
   makeDepartmentStation(4, 6.3, "Pilotage", "Le responsable suit les indicateurs et transmet les commandes MP et les OF aux équipes.", 0x53766a, "office", 8, 7);
   makeDepartmentStation(20, 6.3, "Client", "Le client passe ses commandes et reçoit les palettes préparées par l’usine.", 0x8eb7a5, "receiving", 8, 7);
 
-  const rawShelfSpots = [-8, -6, -3, -1].map((z) => [-10.65, z]);
-  (state?.raw_materials || []).filter((item) => item.sku !== "MAT-PDR").forEach((materialStock, index) => {
+  const rawShelfSpots = [-8.5, -6.6, -4.7, -2.8, -0.9].map((z) => [-10.65, z]);
+  stocksOf("MP").slice(0, rawShelfSpots.length).forEach((materialStock, index) => {
     const [x, z] = rawShelfSpots[index];
     makeShelf(x, z, materialStock.sku, materialStock.name, [0x79a69b, 0xd4a064, 0x91a96e, 0x7c98b0][index % 4], index);
   });
-  (state?.stocks || []).forEach((stock, index) => {
+  stocksOf("PF").forEach((stock, index) => {
     const spots = [[21.4, -7], [24.6, -7], [21.4, -3], [24.6, -3]];
     const [x, z] = spots[index % spots.length];
     makeShelf(x, z, stock.sku, stock.name, [0x79a69b, 0xd4a064, 0x91a96e, 0x7c98b0][index % 4], index);
   });
-  const spareParts = state?.raw_materials?.find((item) => item.sku === "MAT-PDR");
+  const spareParts = stockBySku("MAT-PDR");
   if (spareParts) makeShelf(-7, 6.3, spareParts.sku, spareParts.name, 0xd4a064, 5);
 
   const linePositions = [-5.3, -1.8, 1.8, 5.3];
@@ -654,14 +658,14 @@ function selectInteraction(info) {
   const action = $("#inspector-action");
   action.hidden = true;
   if (info.type === "stock") {
-    const stock = state?.stocks?.find((item) => item.sku === info.sku);
-    copy.textContent = `${info.title} · ${info.sku}. ${stock ? `${stock.quantity} unités disponibles, seuil de sécurité ${stock.safety_stock}.` : info.subtitle}`;
+    const stock = stockBySku(info.sku);
+    copy.textContent = `${info.title} · ${info.sku}. ${stock ? `${stock.quantity} unités disponibles · minimum ${stock.minimum} · point de commande ${stock.reorder_point} · capacité ${stock.capacity_max}.` : info.subtitle}`;
     action.textContent = "Planifier une fabrication  →";
     action.hidden = false;
     action.onclick = () => { $("#product-sku").value = info.sku; openProduction(); };
   } else if (info.type === "material") {
-    const stock = state?.raw_materials?.find((item) => item.sku === info.sku);
-    copy.textContent = `${info.title} · ${info.sku}. ${stock ? `${stock.quantity} unités disponibles, seuil de sécurité ${stock.safety_stock}.` : info.subtitle}`;
+    const stock = stockBySku(info.sku);
+    copy.textContent = `${info.title} · ${info.sku}. ${stock ? `${stock.quantity} unités disponibles · minimum ${stock.minimum} · point de commande ${stock.reorder_point} (commander ${stock.reorder_qty}) · capacité ${stock.capacity_max}.` : info.subtitle}`;
     action.textContent = "Commander cette matière →";
     action.hidden = false;
     action.onclick = () => openOrder(info.sku);
@@ -669,9 +673,9 @@ function selectInteraction(info) {
     const line = state?.production_lines?.find((item) => item.id === info.lineId);
     copy.textContent = line ? `${line.name} fabrique ${line.product_sku} · capacité ${line.weekly_capacity} unités par semaine · efficacité ${line.efficiency}%. ${line.machines?.map((machine) => `${machine.operation}: ${machine.cycle_minutes} min, ${machine.state}`).join(" · ") || "Les opérations de la ligne sont en série."}` : info.subtitle;
     if (line && !line.operational) {
-      action.textContent = state.spare_parts > 0 ? "Réparer la ligne · 1 PDR →" : "Commander une pièce de rechange →";
+      action.textContent = spareCount() > 0 ? "Réparer la ligne · 1 PDR →" : "Commander une pièce de rechange →";
       action.hidden = false;
-      action.onclick = () => state.spare_parts > 0 ? requestMaintenance(line.id) : openOrder("MAT-PDR");
+      action.onclick = () => spareCount() > 0 ? requestMaintenance(line.id) : openOrder("MAT-PDR");
     }
   } else if (info.type === "worker") {
     copy.textContent = `${info.title} · ${info.subtitle}. Cliquez sur « Parler » ou approchez-vous et appuyez sur E.`;
@@ -680,11 +684,11 @@ function selectInteraction(info) {
     action.onclick = () => openNpcDialog(info);
   } else if (info.type === "department") {
     const liveInfo = info.title === "Stock MP"
-      ? ` Matières disponibles : ${(state?.raw_materials || []).map((item) => `${item.name} ${item.quantity}/${item.safety_stock} seuil`).join(" · ")}.`
+      ? ` Matières disponibles : ${stocksOf("MP").map((item) => `${item.name} ${item.quantity}/${item.reorder_point} pt cde`).join(" · ")}.`
       : info.title === "Entrepôt PF"
-        ? ` Stocks PF : ${(state?.stocks || []).map((item) => `${item.name} ${item.quantity} u.`).join(" · ")}.`
+        ? ` Stocks PF : ${stocksOf("PF").map((item) => `${item.name} ${item.quantity} u.`).join(" · ")}.`
         : info.title === "Maintenance et PDR"
-          ? ` ${state?.spare_parts || 0} pièce(s) de rechange disponible(s).`
+          ? ` ${spareCount()} pièce(s) de rechange disponible(s).`
           : info.title === "Pilotage"
             ? ` OTIF ${Number(state?.kpis?.otif || 0).toFixed(1)}% · TRS ${Number(state?.kpis?.trs || 0).toFixed(1)}% · qualité ${Number(state?.kpis?.quality_rate || 0).toFixed(1)}%.`
             : "";
@@ -695,8 +699,18 @@ function selectInteraction(info) {
   advanceTutorial("inspect");
 }
 
+function refreshSupplierOptions() {
+  const sku = $("#sku").value;
+  const sellers = (state?.suppliers || []).filter((supplier) => supplier.active && supplier.prices?.[sku] !== undefined)
+    .sort((a, b) => a.prices[sku] - b.prices[sku]);
+  $("#supplier").innerHTML = sellers.length
+    ? sellers.map((supplier) => `<option value="${escapeHTML(supplier.id)}">${escapeHTML(supplier.name)} · ${supplier.prices[sku].toFixed(2).replace(".", ",")} €/u · ${supplier.lead_time_weeks} sem. · fiabilité ${supplier.reliability}%</option>`).join("")
+    : '<option value="">Aucun fournisseur pour cette matière</option>';
+}
+
 function openOrder(sku = "") {
   if (sku) $("#sku").value = sku.replace("SKU-", "MAT-");
+  refreshSupplierOptions();
   $("#order-modal").hidden = false;
   $("#order-feedback").textContent = "";
 }
@@ -725,11 +739,11 @@ async function requestMaintenance(lineId) {
 
 function openNpcDialog(info) {
   const role = info.role || "Réception";
-  const stock = [...(state?.stocks || [])].sort((a, b) => a.quantity - b.quantity)[0];
+  const stock = [...stocksOf("PF")].sort((a, b) => a.quantity - b.quantity)[0];
   const line = [...(state?.production_lines || [])].sort((a, b) => a.efficiency - b.efficiency)[0];
   const conversations = {
     "Stock MP": [
-      ["As-tu repéré un stock bas ?", stock ? `${stock.name} est à ${stock.quantity} ${stock.unit || "unités"}, pour un seuil de sécurité de ${stock.safety_stock}. On devrait surveiller cette référence.` : "Les rayonnages sont en cours d’inventaire."],
+      ["As-tu repéré un stock bas ?", stock ? `${stock.name} est à ${stock.quantity} ${stock.unit || "unités"}, pour un stock minimum de ${stock.minimum}. On devrait surveiller cette référence.` : "Les rayonnages sont en cours d’inventaire."],
       ["Comment circule le chariot ?", "Les allées sont dégagées. Approche-toi des rayonnages pour vérifier les références et les quantités."],
     ],
     Production: [
@@ -749,12 +763,12 @@ function openNpcDialog(info) {
       ["Que se passe-t-il après le contrôle ?", "Les produits conformes arrivent ici. Les pièces à retoucher repartent en production."],
     ],
     "Entrepôt PF": [
-      ["Quel stock est le plus bas ?", stock ? `${stock.name} : ${stock.quantity} unités en stock PF, seuil de sécurité ${stock.safety_stock}.` : "Les emplacements PF sont en cours d’inventaire."],
+      ["Quel stock est le plus bas ?", stock ? `${stock.name} : ${stock.quantity} unités en stock PF, stock minimum ${stock.minimum}.` : "Les emplacements PF sont en cours d’inventaire."],
       ["Quand charger le client ?", "Le client est servi à chaque semaine simulée. L’OTIF indique les quantités livrées complètes et à temps."],
     ],
     Maintenance: [
       ["Y a-t-il une ligne en panne ?", state?.production_lines?.some((item) => !item.operational) ? `${state.production_lines.filter((item) => !item.operational).map((item) => item.name).join(", ")} attend une intervention.` : "Toutes les lignes sont opérationnelles."],
-      ["Combien de pièces de rechange reste-t-il ?", `${state?.spare_parts || 0} pièce(s) disponible(s). Une réparation consomme une pièce.`],
+      ["Combien de pièces de rechange reste-t-il ?", `${spareCount()} pièce(s) disponible(s). Une réparation consomme une pièce.`],
     ],
     Pilotage: [
       ["Quelle décision prendre ?", state?.kpis?.stockouts ? `${state.kpis.stockouts} référence(s) manquent. Planifie un OF et surveille la matière.` : "Vérifie les matières, passe les OF nécessaires, puis lance la semaine."],
@@ -791,21 +805,23 @@ function updateHUD(newState) {
   $("#stock-value").textContent = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(state.kpis.stock_value);
   $("#quality").textContent = Number(state.kpis.quality_rate ?? 100).toFixed(1).replace(".", ",");
   $("#delivered").textContent = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(state.kpis.delivered || 0);
-  const lowMaterial = (state.raw_materials || []).find((material) => material.quantity < material.safety_stock);
-  const lowFinished = (state.stocks || []).find((stock) => stock.quantity < stock.safety_stock);
+  const lowMaterial = stocksOf("MP", "PDR").find((material) => material.quantity <= material.reorder_point);
+  const lowFinished = stocksOf("PF").find((stock) => stock.quantity < stock.minimum);
   const pendingProduction = (state.production_orders || []).length;
   $("#objective").textContent = Number(state.kpis.stockouts) > 0
     ? `${state.kpis.stockouts} référence(s) en rupture. Planifiez un OF et surveillez la matière première.`
-    : lowMaterial ? `${lowMaterial.name} approche du seuil de sécurité. Passez une commande fournisseur.`
-      : lowFinished ? `${lowFinished.name} passe sous son seuil PF. Planifiez un OF et vérifiez la matière disponible.`
+    : lowMaterial ? `${lowMaterial.name} est sous son point de commande. Passez une commande fournisseur.`
+      : lowFinished ? `${lowFinished.name} passe sous son stock minimum PF. Planifiez un OF et vérifiez la matière disponible.`
         : pendingProduction ? `${pendingProduction} OF en attente. Lancez la semaine pour produire.`
           : "Planifiez vos OF, surveillez les matières et livrez le client à temps.";
-  $("#objective-status").textContent = pendingProduction ? `${pendingProduction} ordre(s) de fabrication en attente` : lowMaterial ? "Action requise : réapprovisionnement MP" : lowFinished ? "Action requise : OF produit fini" : "Décidez les quantités à produire cette semaine.";
+  $("#objective-status").textContent = state.alerts?.length ? `Alerte stock : ${state.alerts[0]}` : pendingProduction ? `${pendingProduction} ordre(s) de fabrication en attente` : lowMaterial ? "Action requise : réapprovisionnement MP" : lowFinished ? "Action requise : OF produit fini" : "Décidez les quantités à produire cette semaine.";
   $("#event-summary").textContent = state.events?.length ? state.events.join(" · ") : "Marché stable cette semaine.";
   $("#people-label").textContent = `${workers.length} ouvriers actifs · ${state.kpis.stockouts ? "priorité stocks" : "activité normale"}`;
-  $("#sku").innerHTML = (state.raw_materials || []).map((stock) => `<option value="${escapeHTML(stock.sku)}">${escapeHTML(stock.name)} · ${stock.quantity} en stock</option>`).join("");
-  $("#product-sku").innerHTML = state.stocks.map((stock) => `<option value="${escapeHTML(stock.sku)}">${escapeHTML(stock.name)} · ${stock.quantity} en stock PF</option>`).join("");
-  $("#supplier").innerHTML = state.suppliers.filter((supplier) => supplier.active).map((supplier) => `<option value="${escapeHTML(supplier.id)}">${escapeHTML(supplier.name)} · ${escapeHTML(supplier.specialty || "Fournisseur")}, ${escapeHTML(supplier.region || "France")} · ${supplier.lead_time_weeks} sem.</option>`).join("");
+  const selectedSku = $("#sku").value;
+  $("#sku").innerHTML = stocksOf("MP", "PDR").map((stock) => `<option value="${escapeHTML(stock.sku)}">${escapeHTML(stock.name)} · ${stock.quantity} en stock</option>`).join("");
+  if (selectedSku && stockBySku(selectedSku)) $("#sku").value = selectedSku;
+  $("#product-sku").innerHTML = stocksOf("PF").map((stock) => `<option value="${escapeHTML(stock.sku)}">${escapeHTML(stock.name)} · ${stock.quantity} en stock PF</option>`).join("");
+  refreshSupplierOptions();
   const selectedProductSku = currentSelection?.type === "stock" ? currentSelection.sku : "";
   if (selectedProductSku) $("#product-sku").value = selectedProductSku;
   const selectedMaterialSku = currentSelection?.type === "material" ? currentSelection.sku : "";
@@ -1082,7 +1098,6 @@ async function placeProductionOrder(event) {
   const order = {
     sku: $("#product-sku").value,
     quantity: Number($("#production-quantity").value),
-    line_count: Number($("#line-count").value),
   };
   try {
     const response = await fetch("/api/decisions", {
@@ -1092,7 +1107,7 @@ async function placeProductionOrder(event) {
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.detail || `HTTP ${response.status}`);
-    const stock = state.stocks.find((item) => item.sku === order.sku);
+    const stock = stockBySku(order.sku);
     $("#production-feedback").textContent = `OF pour ${stock?.name || order.sku} enregistré. Lancez la semaine pour produire.`;
     showToast("Ordre de fabrication transmis à la production.");
     advanceTutorial("production");
@@ -1143,6 +1158,7 @@ async function startGame() {
   $("#order-modal").addEventListener("pointerdown", (event) => { if (event.target.id === "order-modal") event.currentTarget.hidden = true; });
   $("#production-modal").addEventListener("pointerdown", (event) => { if (event.target.id === "production-modal") event.currentTarget.hidden = true; });
   $("#order-form").addEventListener("submit", placeOrder);
+  $("#sku").addEventListener("change", refreshSupplierOptions);
   $("#production-form").addEventListener("submit", placeProductionOrder);
   $("#setup-form").addEventListener("submit", createNewGame);
   $("#resume-game").addEventListener("click", resumeGame);
@@ -1157,7 +1173,7 @@ async function startGame() {
     "Entrepôt PF": "Le magasinier PF range les palettes, prépare les commandes client et signale les niveaux sous le stock minimum.",
     "Client": "Le client commande et reçoit les produits finis. L’OTIF mesure les livraisons complètes et à l’heure.",
     "Pilotage": "Le responsable transmet les commandes MP et les OF, suit OTIF, TRS, qualité et stocks, puis traite les alertes des départements.",
-    "Maintenance et PDR": `Le technicien traite une panne à la fois. ${state?.spare_parts || 0} pièce(s) de rechange disponible(s). L’entretien préventif limite les arrêts non planifiés.`,
+    "Maintenance et PDR": `Le technicien traite une panne à la fois. ${spareCount()} pièce(s) de rechange disponible(s). L’entretien préventif limite les arrêts non planifiés.`,
   };
   document.querySelectorAll(".flow-step").forEach((button) => button.addEventListener("click", () => {
     document.querySelectorAll(".flow-step").forEach((step) => step.classList.toggle("active", step === button));
