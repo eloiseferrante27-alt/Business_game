@@ -88,6 +88,7 @@ One department = one engine file + one UI page. **Only edit the files of the tas
 - **When done:** set status `done`, write a Handoff log entry (what you did, what's left, open questions).
 - **Stuck on a decision only the human can make:** status `blocked`, explain in the Handoff log, move to another task.
 - Review: Amine (human) merges. Claude may be asked to review PRs against the spec.
+- **Local Codex/Kimi coordination:** use `scripts/orchestrate.py` and read `docs/orchestration.md`. Codex handles engine/API work and reviews Kimi Pro UI work. Each prepared task gets its own worktree; never switch branches in another agent’s shared checkout. Dependencies and references must be committed in `contribution_amine` before dispatch. The dispatcher checks scope and pytest, records handoffs, and never merges.
 
 ## 7. Decisions already made
 
@@ -102,7 +103,7 @@ Status: `todo` · `in progress` · `blocked` · `review` · `done`. Owner is a s
 
 | ID | Task | Depends on | Suggested owner | Status |
 |---|---|---|---|---|
-| ORCH-01 | Configure local Codex/Kimi Pro coordination: isolated task worktrees, scoped dispatch, handoffs and checks | — | Codex | in progress |
+| ORCH-01 | Configure local Codex/Kimi Pro coordination: isolated task worktrees, scoped dispatch, handoffs and checks | — | Codex | done |
 | ENV-01 | Install user-requested `openai`, `python-dotenv`, `requests` in local `.venv` | — | Codex | done |
 | T00 | Human decisions: time unit/period, spreadsheet lib, map lib (§25) | — | Amine | todo |
 | T01 | **Gap report** (Livrable 1): inventory current code vs spec, list present / to complete / missing, map AL-03…AL-13 → `docs/rapport-ecart.md` | — | Codex | in progress |
@@ -128,6 +129,8 @@ Status: `todo` · `in progress` · `blocked` · `review` · `done`. Owner is a s
 ## 9. Handoff log
 
 Newest first. Format: `YYYY-MM-DD · agent · task · what changed · what's left · questions`.
+
+- 2026-11-01 · Codex + Kimi Pro · ORCH-01 · Configured local CLI coordination with isolated worktrees, scoped dispatch, dependency checks, pytest, read-only review and handoffs. Kept existing Codex auth and kimi-code/k3.1-pro; both live connection probes passed. Kimi reviewed the coordinator; fixed its five findings: resumable preparation failures, branch recovery preserving commits, inherited execution locks with run/PGID tracking and fail-closed crash recovery, ORCH/ENV dependencies, and explicit verified integration proof after squash/rebase. Verified 43 pytest tests in ORCH worktree and 46 in installed project; copied only seven orchestration files. · Amine reviews/merges the PR; source docs/dependencies must be committed in contribution_amine before task preparation. Surviving worker groups require manual shutdown; missing crash metadata requires inspection before --confirm-stopped. No game runtime code changed. · No new decisions.
 
 - 2026-11-01 · Codex · ENV-01 · Ran `.venv/bin/python -m pip install openai python-dotenv requests` and verified all three imports: openai 3.42.0, python-dotenv 1.2.4 (already installed), requests 2.34.2. Local environment installation only; application code and dependency manifests unchanged. · Nothing left for this installation. · No questions.
 
