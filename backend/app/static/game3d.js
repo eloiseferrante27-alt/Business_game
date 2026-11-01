@@ -1,15 +1,23 @@
+// Monde 3D G-mix — version v3 (« Mon monde v3 – blocs, agents et assets »).
+// Le STOCK (MP, semi-finis, PF) est en haut ; l'USINE (cadre en pointillés) regroupe 8 blocs.
+// Le joueur n'a pas de bureau : il pilote l'usine avec sa tablette.
 import * as THREE from "./three.module.js";
+import { createKit } from "./kit.js";
+import { createAssets } from "./assets.js";
+import { ZONES, FACTORY_FRAME, WALK_BOUNDS, DOCKS, FLOW, SUPPORT, BLOCK_ROLES, ROLE_OUTFITS } from "./layout.js";
+import { createTablet } from "./tablet.js";
 
 const $ = (selector) => document.querySelector(selector);
 const canvas = $("#world");
 const loading = $("#loading");
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xcbd9d1);
-scene.fog = new THREE.Fog(0xcbd9d1, 32, 78);
+scene.fog = new THREE.Fog(0xcbd9d1, 40, 95);
 
-const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 130);
-let cameraYaw = 0.48;
-let cameraDistance = 23;
+const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 160);
+const CAMERA_HOME = { yaw: 0.35, distance: 25 };
+let cameraYaw = CAMERA_HOME.yaw;
+let cameraDistance = CAMERA_HOME.distance;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.7));
 renderer.setSize(innerWidth, innerHeight);
@@ -20,300 +28,368 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 
 scene.add(new THREE.HemisphereLight(0xe5f3ef, 0x52635b, 1.25));
-const sun = new THREE.DirectionalLight(0xffedcf, 2.65);
-sun.position.set(-13, 24, 11);
+const sun = new THREE.DirectionalLight(0xffedcf, 2.5);
+sun.position.set(-16, 30, 14);
 sun.castShadow = true;
-sun.shadow.mapSize.set(3072, 3072);
-sun.shadow.camera.left = -25;
-sun.shadow.camera.right = 25;
-sun.shadow.camera.top = 25;
-sun.shadow.camera.bottom = -25;
+sun.shadow.mapSize.set(4096, 4096);
+Object.assign(sun.shadow.camera, { left: -36, right: 36, top: 30, bottom: -30 });
 sun.shadow.bias = -0.00015;
 sun.shadow.normalBias = 0.025;
-sun.shadow.radius = 3;
 scene.add(sun);
+
+const kit = createKit(renderer);
+const { box, cylinder, floorMark, labelSprite } = kit;
+const assets = createAssets(kit);
 
 const world = new THREE.Group();
 scene.add(world);
 const obstacles = [];
 const interactables = [];
 const workers = [];
-const products = new Map();
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0.02);
 const clock = new THREE.Clock();
 const keys = new Set();
-const player = makePerson("Vous", 0x557c59, true);
-player.position.set(0, 0, 1.5);
-world.add(player);
-const marker = new THREE.Mesh(
-  new THREE.TorusGeometry(0.48, 0.035, 8, 36),
-  new THREE.MeshBasicMaterial({ color: 0xd8f18a, transparent: true, opacity: 0.9 }),
-);
-marker.rotation.x = Math.PI / 2;
-marker.position.y = 0.035;
-marker.visible = false;
-world.add(marker);
-const hoverRing = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.025, 8, 40), new THREE.MeshBasicMaterial({ color: 0xd9ef83, transparent: true, opacity: 0.78 }));
-hoverRing.rotation.x = Math.PI / 2;
-hoverRing.position.y = 0.04;
-hoverRing.visible = false;
-world.add(hoverRing);
+
+// Ce que le monde doit refléter quand l'état change.
+const visuals = { racks: [], sfCarts: [], lines: new Map(), quarantine: null, pdrLabel: null, conformParts: [], reworkParts: [], shipping: [], dockDoors: {} };
+const truckActors = [];
+const dockQueues = { fournisseur: [], livraison: [], client: [] };
+let forklift = null;
+let roof = null;
 
 let state = null;
-// Monde v3 : un seul stock, découpé en catégories MP, SF, PF (+ PDR pour la maintenance).
-const stocksOf = (...categories) => (state?.stocks || []).filter((item) => categories.includes(item.category));
-const stockBySku = (sku) => (state?.stocks || []).find((item) => item.sku === sku);
-const spareCount = () => stockBySku("MAT-PDR")?.quantity || 0;
 let savedState = null;
-let tutorialIndex = 0;
-const tutorialSteps = [
-  { action: "move", title: "Déplace-toi dans l’atelier", copy: "Utilise W, A, S, D ou clique sur le sol pour guider ton personnage." },
-  { action: "inspect", title: "Inspecte les opérations", copy: "Clique sur une étagère, une machine ou un ouvrier pour consulter ses informations." },
-  { action: "order", title: "Commande la matière première", copy: "Ouvre Commande avec le bouton + ou la touche 1, choisis une matière, un fournisseur et la quantité." },
-  { action: "production", title: "Planifie un OF", copy: "Ouvre Ordre fab. avec la touche 4, choisis le produit, le volume et le nombre de lignes." },
-  { action: "week", title: "Fais avancer la simulation", copy: "Clique sur Lancer la semaine pour recevoir les commandes échues, exécuter les OF et livrer les clients." },
-];
 let playerPath = [];
 let dragging = false;
 let lastPointer = { x: 0, y: 0 };
 let currentSelection = null;
 let toastTimer = 0;
+let tutorialIndex = 0;
+const tutorialSteps = [
+  { action: "move", title: "Déplace-toi dans l’usine", copy: "W, A, S, D ou un clic sur le sol. Le stock est en haut, l’usine en dessous, dans le cadre en pointillés." },
+  { action: "inspect", title: "Inspecte un bloc", copy: "Clique sur un bloc, un rack, une machine ou un agent. La barre du haut suit le chemin de la matière." },
+  { action: "order", title: "Achète de la matière avec ta tablette", copy: "Tu n’as pas de bureau : ouvre la tablette (touche 1 ou T), compare les fournisseurs puis passe une commande dans Achats MP." },
+  { action: "production", title: "Lance un ordre de fabrication", copy: "Toujours depuis la tablette, onglet Ordres de fabrication : choisis le produit et la quantité." },
+  { action: "week", title: "Fais avancer la semaine", copy: "Clique sur Lancer la semaine : camions fournisseurs au quai, production, contrôle, emballage, puis expéditions." },
+];
 
-function makeGrainTexture(base, kind, size = 128) {
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = `#${base.toString(16).padStart(6, "0")}`;
-  ctx.fillRect(0, 0, size, size);
-  for (let i = 0; i < size * size * 0.12; i++) {
-    const v = Math.floor(105 + Math.random() * 100);
-    ctx.fillStyle = `rgba(${v},${v},${v},${Math.random() * 0.10})`;
-    ctx.fillRect(Math.random() * size, Math.random() * size, 1 + Math.random() * 2, 1 + Math.random() * 2);
+const stocksOf = (...categories) => (state?.stocks || []).filter((item) => categories.includes(item.category));
+const stockBySku = (sku) => (state?.stocks || []).find((item) => item.sku === sku);
+const spareCount = () => stockBySku("MAT-PDR")?.quantity || 0;
+const blockName = (id) => state?.blocks?.find((block) => block.id === id)?.name || id;
+const agentsIn = (blockId) => (state?.agents || []).filter((agent) => agent.block_id === blockId || agent.also_in?.includes(blockId));
+const fmt = (value, digits = 0) => new Intl.NumberFormat("fr-FR", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value ?? 0);
+
+function addObstacle(x, z, width, depth) { obstacles.push({ x, z, width, depth }); }
+function addClickable(group, info) { group.userData.interaction = info; interactables.push(group); }
+
+// Coordonnées locales d'un bloc : lx vers la droite, lz positif vers son entrée.
+function toWorld(zone, lx, lz) { return [zone.x + lx, zone.z + zone.door * lz]; }
+function facing(zone) { return zone.door === 1 ? 0 : Math.PI; }
+
+function place(id, x, z, opts = {}) {
+  const g = assets.make(id, opts);
+  g.position.set(x, opts.y || 0, z);
+  g.rotation.y = opts.rot || 0;
+  (opts.parent || world).add(g);
+  if (opts.solid) addObstacle(x, z, opts.solid[0], opts.solid[1]);
+  if (opts.click !== false) addClickable(g, { type: "asset", title: g.userData.asset.label, subtitle: g.userData.asset.block, ...(opts.info || {}) });
+  return g;
+}
+function placeIn(zoneId, id, lx, lz, opts = {}) {
+  const zone = ZONES[zoneId];
+  const [x, z] = toWorld(zone, lx, lz);
+  const solid = opts.solid && (opts.turn ? [opts.solid[1], opts.solid[0]] : opts.solid);
+  return place(id, x, z, { flipText: zone.door === -1, ...opts, solid, rot: facing(zone) + (opts.turn || 0), info: { zone: zoneId, ...(opts.info || {}) } });
+}
+
+// ------------------------------------------------------------------- bâtiment
+// Murs « coupés » : bas côté caméra (vers +z) pour voir l'intérieur des blocs.
+function wallHeightAt(zWall, zCenter, axis) {
+  if (axis === "z") return 2.2;
+  return zWall > zCenter + 0.1 ? 1.0 : 3.2;
+}
+function wall(x1, z1, x2, z2, height = 3.2, color = 0xd6d9d0) {
+  const horizontal = Math.abs(z2 - z1) < 0.01;
+  const length = horizontal ? Math.abs(x2 - x1) : Math.abs(z2 - z1);
+  if (length < 0.05) return;
+  const cx = (x1 + x2) / 2, cz = (z1 + z2) / 2;
+  box(world, horizontal ? length : 0.2, height, horizontal ? 0.2 : length, color, cx, height / 2, cz, { roughness: 0.92 });
+  addObstacle(cx, cz, horizontal ? length : 0.28, horizontal ? 0.28 : length);
+}
+// Mur avec ouvertures : `openings` = [[centre, largeur], ...] le long du mur.
+function wallWithOpenings(fixed, from, to, openings, axis, height, color) {
+  let cursor = from;
+  for (const [center, width] of [...openings].sort((a, b) => a[0] - b[0])) {
+    const start = center - width / 2;
+    if (axis === "x") wall(cursor, fixed, start, fixed, height, color); else wall(fixed, cursor, fixed, start, height, color);
+    if (height > 2) { if (axis === "x") box(world, width, 0.35, 0.2, 0x4d665e, center, height - 0.17, fixed); else box(world, 0.2, 0.35, width, 0x4d665e, fixed, height - 0.17, center); }
+    cursor = center + width / 2;
   }
-  if (kind === "concrete") {
-    for (let i = 0; i < 180; i++) {
-      ctx.fillStyle = `rgba(56,62,58,${Math.random() * 0.09})`;
-      ctx.beginPath(); ctx.arc(Math.random() * size, Math.random() * size, Math.random() * 2.4, 0, Math.PI * 2); ctx.fill();
-    }
-  } else if (kind === "cardboard") {
-    ctx.strokeStyle = "rgba(85,57,30,.12)";
-    for (let y = 8; y < size; y += 16) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(size, y + Math.random() * 3); ctx.stroke(); }
-  }
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-  return tex;
-}
-
-const textures = {
-  concrete: makeGrainTexture(0xb5b8ae, "concrete"),
-  cardboard: makeGrainTexture(0xb58958, "cardboard"),
-  steel: makeGrainTexture(0x63736e, "steel"),
-};
-
-function material(color, roughness = 0.8, metalness = 0, texture = null) {
-  const map = texture ? textures[texture] : null;
-  if (map) map.repeat.set(texture === "concrete" ? 7 : 1.2, texture === "concrete" ? 5 : 1.2);
-  return new THREE.MeshStandardMaterial({ color, map, roughness, metalness });
-}
-
-function box(parent, width, height, depth, color, x, y, z, options = {}) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material(color, options.roughness ?? 0.82, options.metalness ?? 0, options.texture ?? null));
-  mesh.position.set(x, y, z);
-  mesh.castShadow = options.castShadow !== false;
-  mesh.receiveShadow = true;
-  parent.add(mesh);
-  return mesh;
-}
-
-function cylinder(parent, radiusTop, radiusBottom, height, color, x, y, z, segments = 12) {
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radiusTop, radiusBottom, height, segments), material(color));
-  mesh.position.set(x, y, z);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  parent.add(mesh);
-  return mesh;
-}
-
-function labelSprite(text, color = "#fff9dc", bg = "#183a36") {
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 128;
-  const context = canvas.getContext("2d");
-  context.fillStyle = bg;
-  context.beginPath();
-  context.roundRect(8, 10, 496, 108, 24);
-  context.fill();
-  context.fillStyle = color;
-  context.font = "600 42px Arial";
-  context.textAlign = "center";
-  context.textBaseline = "middle";
-  context.fillText(text, 256, 64, 460);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }));
-  sprite.scale.set(2.45, 0.61, 1);
-  return sprite;
-}
-
-function addObstacle(x, z, width, depth) {
-  obstacles.push({ x, z, width, depth });
-}
-
-function addClickable(group, info) {
-  group.userData.interaction = info;
-  interactables.push(group);
+  if (axis === "x") wall(cursor, fixed, to, fixed, height, color); else wall(fixed, cursor, fixed, to, height, color);
 }
 
 function makeGround() {
-  const grass = new THREE.Mesh(new THREE.PlaneGeometry(100, 75), material(0x9bad8e));
+  const grass = new THREE.Mesh(new THREE.PlaneGeometry(140, 90), kit.material(0x9bad8e));
   grass.rotation.x = -Math.PI / 2;
   grass.position.y = -0.2;
   grass.receiveShadow = true;
   world.add(grass);
-
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(58, 30), material(0xffffff, 0.93, 0, "concrete"));
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(56, 28), kit.material(0xffffff, 0.93, 0, "concrete"));
   floor.rotation.x = -Math.PI / 2;
-  floor.position.y = 0;
+  floor.position.set(0, 0, -0.3);
   floor.receiveShadow = true;
   world.add(floor);
-  // Open sky above the factory: only low site boundaries and room walls remain.
-  box(world, 58, 0.24, 0.24, 0x45665d, 0, 0.12, -15, { metalness: 0.1 });
-  box(world, 58, 0.24, 0.24, 0x45665d, 0, 0.12, 15, { metalness: 0.1 });
-  box(world, 0.24, 0.24, 30, 0x45665d, -29, 0.12, 0, { metalness: 0.1 });
-  box(world, 0.24, 0.24, 30, 0x45665d, 29, 0.12, 0, { metalness: 0.1 });
-  box(world, 58, 0.035, 0.12, 0xe5d9ae, 0, 0.02, 1.5, { castShadow: false });
-  // Loading apron with marked supplier and client bays.
-  const apron = new THREE.Mesh(new THREE.PlaneGeometry(58, 8), material(0xb6c3af));
-  apron.rotation.x = -Math.PI / 2;
-  apron.position.set(0, -0.035, 19);
-  world.add(apron);
-  for (let x = -26; x <= 26; x += 4) {
-    box(world, 1.5, 0.018, 0.12, 0xe8cb77, x, 0.015, 15.2, { castShadow: false });
+  // Cours camions : à gauche les fournisseurs, à droite les expéditions.
+  for (const side of [-1, 1]) {
+    const yard = new THREE.Mesh(new THREE.PlaneGeometry(30, 12), kit.material(0x6f7873, 0.95));
+    yard.rotation.x = -Math.PI / 2;
+    yard.position.set(side * 42, -0.03, -0.5);
+    yard.receiveShadow = true;
+    world.add(yard);
+    for (let x = 29; x < 56; x += 3) box(world, 1.4, 0.02, 0.12, 0xf2df9e, side * x, 0, -0.5, { castShadow: false });
   }
-  // Marked pedestrian aisle, crossings and loading zones make the open site read as a working factory yard.
-  box(world, 58, 0.018, 1.35, 0x87958c, 0, 0.012, 1.65, { castShadow: false });
-  for (let x = -28; x <= 28; x += 2.2) box(world, 1.05, 0.025, 0.07, 0xf2df9e, x, 0.025, 1.65, { castShadow: false });
-  for (const [x, roomWidth] of [[-21.5, 5], [-16.4, 5], [-10.65, 6.5], [-0.3, 14], [9.7, 6], [16, 6.5], [23, 7]]) {
-    const bollardOffset = Math.min(2.6, roomWidth * 0.44) / 2 + 0.32;
-    for (let stripe = -2; stripe <= 2; stripe++) box(world, 0.16, 0.026, 0.78, stripe % 2 ? 0xe9ece0 : 0x4f7166, x + stripe * 0.35, 0.027, 0.65, { castShadow: false });
-    for (const side of [-1, 1]) {
-      const bollard = cylinder(world, 0.09, 0.11, 0.72, 0xd7a943, x + side * bollardOffset, 0.36, 1.2, 12);
-      bollard.material.metalness = 0.28;
-    }
+  // Marquage des allées : voie engins (jaune) et passage piétons (vert).
+  for (const z of [-6, 5]) {
+    box(world, 52, 0.02, 0.08, 0xe8c54a, 0, 0.01, z - 0.55, { castShadow: false });
+    box(world, 52, 0.02, 0.08, 0xe8c54a, 0, 0.01, z + 0.55, { castShadow: false });
+    for (let x = -25; x <= 25; x += 2.4) box(world, 1.1, 0.022, 0.5, 0x7fb08f, x, 0.011, z, { castShadow: false });
   }
-  for (let x = -26; x <= 26; x += 6.5) box(world, 0.025, 0.009, 30, 0x8d958a, x, 0.008, 0, { castShadow: false });
-  box(world, 0.7, 0.018, 0.38, 0x52605a, -18.5, 0.018, 1.65, { castShadow: false });
-  for (let x = -18.78; x <= -18.22; x += 0.12) box(world, 0.025, 0.022, 0.34, 0xaeb8ad, x, 0.03, 1.65, { castShadow: false });
+  // Cadre en pointillés de l'USINE (comme sur le croquis).
+  const { x1, x2, z1, z2 } = FACTORY_FRAME;
+  for (let x = x1; x < x2; x += 1.2) { box(world, 0.6, 0.03, 0.12, 0x2f5d50, x + 0.3, 0.02, z1, { castShadow: false }); box(world, 0.6, 0.03, 0.12, 0x2f5d50, x + 0.3, 0.02, z2, { castShadow: false }); }
+  for (let z = z1; z < z2; z += 1.2) { box(world, 0.12, 0.03, 0.6, 0x2f5d50, x1, 0.02, z + 0.3, { castShadow: false }); box(world, 0.12, 0.03, 0.6, 0x2f5d50, x2, 0.02, z + 0.3, { castShadow: false }); }
+  const usine = labelSprite("USINE", "#f3f1df", "#2f5d50");
+  usine.scale.set(2.6, 0.62, 1);
+  usine.position.set(x1 + 1.6, 0.5, z2 + 0.6);
+  world.add(usine);
+  // Toit : masqué par défaut pour voir l'intérieur ; la touche R l'affiche.
+  roof = new THREE.Group();
+  for (const x of [-27.2, -13.5, 0, 13.5, 27.2]) for (const z of [-13.8, 13.2]) cylinder(roof, 0.16, 0.16, 6.2, 0x55615c, x, 3.1, z, 8, { metalness: 0.4 });
+  for (const x of [-27.2, -13.5, 0, 13.5, 27.2]) box(roof, 0.3, 0.4, 27.2, 0x55615c, x, 6.2, -0.3, { metalness: 0.4 });
+  for (const [z, tilt] of [[-7, 0.08], [6.4, -0.08]]) {
+    const panel = box(roof, 55, 0.12, 13.8, 0x8f9c96, 0, 6.9, z, { texture: "ribbed", metalness: 0.3 });
+    panel.rotation.x = tilt;
+  }
+  roof.visible = false;
+  world.add(roof);
+  // Murs extérieurs dans les allées, avec la porte d'accès piétons.
+  wall(-27.1, -7.3, -27.1, -4.7, 3.2, 0xc8ccc2);
+  wallWithOpenings(-27.1, 3.9, 6.3, [[5, 1.4]], "z", 3.2, 0xc8ccc2);
+  wall(27.1, -7.3, 27.1, -4.7, 3.2, 0xc8ccc2);
+  wall(27.1, 3.9, 27.1, 6.3, 3.2, 0xc8ccc2);
+  place("porte_pietons", -27.1, 5, { rot: Math.PI / 2 });
 }
 
-function makeShelf(x, z, sku, productName, tone, rackIndex) {
-  const group = new THREE.Group();
-  group.position.set(x, 0, z);
-  for (const px of [-1.6, 1.6]) {
-    for (const pz of [-0.43, 0.43]) {
-      box(group, 0.12, 3.25, 0.12, 0x415c56, px, 1.62, pz, { metalness: 0.35 });
-    }
+function makeBlockShell(zoneId) {
+  const zone = ZONES[zoneId];
+  const { x, z, w, d, door: s } = zone;
+  const front = z + s * d / 2, back = z - s * d / 2;
+  const hBack = wallHeightAt(back, z, "x"), hFront = wallHeightAt(front, z, "x"), hSide = wallHeightAt(0, 0, "z");
+  const floorPlate = box(world, w - 0.2, 0.02, d - 0.2, 0xe5e6dc, x, 0.012, z, { castShadow: false, texture: "concrete" });
+  floorPlate.material = kit.material(0xffffff, 0.9, 0, "concrete", { unique: true });
+  floorPlate.material.color.setHex(0xf1f1ea).lerp(new THREE.Color(zone.accent), 0.12);
+  // Arrière (fenêtres), côtés, façade avec entrée.
+  wall(x - w / 2, back, x + w / 2, back, hBack);
+  for (let i = 1; hBack > 2 && i < Math.floor(w / 2.4); i++) {
+    box(world, 1.1, 0.7, 0.06, 0x9bc8c2, x - w / 2 + i * (w / Math.floor(w / 2.4)), 2.35, back + s * 0.12, { opacity: 0.85, roughness: 0.2, castShadow: false });
   }
-  for (const level of [0.25, 1.22, 2.19, 3.16]) {
-    box(group, 3.35, 0.12, 1.02, 0xb78043, 0, level, 0, { metalness: 0.34, texture: "steel" });
-    box(group, 3.4, 0.035, 0.055, 0xe0c277, 0, level - 0.035, 0.52, { castShadow: false });
+  for (const side of [-1, 1]) {
+    const sx = x + side * w / 2;
+    if (zone.dockSide === side) {
+      const lo = Math.min(front, back), hi = Math.max(front, back);
+      wallWithOpenings(sx, lo, hi, zone.dockBays.map((offset) => [z + offset, 2.9]), "z", 3.2);
+    } else wall(sx, back, sx, front, hSide);
   }
-  for (const pz of [-0.48, 0.48]) {
-    const braceA = box(group, 0.055, 3.3, 0.055, 0x63746e, 0, 1.6, pz, { metalness: 0.45 });
-    const braceB = box(group, 0.055, 3.3, 0.055, 0x63746e, 0, 1.6, pz, { metalness: 0.45 });
-    braceA.rotation.z = 0.9;
-    braceB.rotation.z = -0.9;
-  }
-  const tones = [tone, 0xc7905b, 0xe0c16c, 0x78a6a0];
-  for (let level = 0; level < 3; level++) {
-    for (let slot = 0; slot < 3; slot++) {
-      const carton = box(group, 0.72, 0.68, 0.7, tones[(rackIndex + level + slot) % tones.length], -1.08 + slot * 1.08, 0.63 + level * 0.97, 0, { roughness: 0.95, texture: "cardboard" });
-      box(group, 0.73, 0.035, 0.71, 0xe8ddc4, -1.08 + slot * 1.08, 0.75 + level * 0.97, 0.01, { castShadow: false });
-      box(group, 0.07, 0.69, 0.715, 0xb89b70, -1.08 + slot * 1.08, 0.63 + level * 0.97, 0.004, { castShadow: false });
-      if (slot === 1) carton.material.color.setHex(tones[(rackIndex + level) % tones.length]);
-    }
-  }
-  const label = labelSprite(`RACK ${String(rackIndex + 1).padStart(2, "0")} · ${sku}`);
-  label.position.set(0, 3.75, 0);
+  wallWithOpenings(front, x - w / 2, x + w / 2, [[x, 2.6]], "x", hFront);
+  // Liseré de couleur du bloc.
+  box(world, w, 0.12, 0.24, zone.accent, x, hBack + 0.06, back, { castShadow: false });
+  box(world, w, 0.12, 0.24, zone.accent, x, hFront + 0.06, front, { castShadow: false });
+  // Panneau de signalisation du bloc, avec ses agents.
+  const blockId = zone.block;
+  const title = zone.title || blockName(blockId);
+  const agentNames = zone.block === "stock" ? "" : agentsIn(blockId).filter((agent) => !agent.external).map((agent) => agent.role_label).filter((v, i, a) => a.indexOf(v) === i).join(" · ");
+  place("panneau_bloc", x, front, { text: title, width: Math.min(w - 0.5, 4.4), agents: agentNames, click: false });
+  // Extincteur près de chaque entrée.
+  placeIn(zoneId, "extincteur", 1.9, d / 2 - 0.35, {});
+  // Le sol du bloc est cliquable : il ouvre la fiche du bloc.
+  addClickable(floorPlate, { type: "block", zone: zoneId, title });
+}
+
+function makeDock(zoneId, offset, kind) {
+  const zone = ZONES[zoneId];
+  const x = zone.x + zone.dockSide * zone.w / 2;
+  const z = zone.z + offset;
+  const rot = zone.dockSide === -1 ? -Math.PI / 2 : Math.PI / 2;
+  const door = place("quai_porte_sectionnelle", x, z, { rot, info: { zone: zoneId } });
+  visuals.dockDoors[kind] = door.getObjectByName("sectional-door");
+  place("niveleur_quai", x - zone.dockSide * 1.05, z, { rot, click: false });
+  const label = labelSprite(kind === "fournisseur" ? "QUAI DE DÉCHARGEMENT" : kind === "client" ? "QUAI D’EXPÉDITION · CLIENTS" : "QUAI D’EXPÉDITION · NOS CAMIONS", "#fff9dc", "#34465d");
+  label.scale.set(3.2, 0.5, 1);
+  label.position.set(x + zone.dockSide * 0.8, 3.85, z);
+  world.add(label);
+}
+
+// ---------------------------------------------------------------- intérieurs
+function rackLabel(group, text, y = 3.75) {
+  const label = labelSprite(text, "#fff9dc", "#183a36");
+  label.scale.set(2.4, 0.5, 1);
+  label.position.set(0, y, 0);
   group.add(label);
-  world.add(group);
-  addObstacle(x, z, 3.8, 1.25);
-  addClickable(group, { type: sku.startsWith("MAT-") ? "material" : "stock", sku, title: productName, subtitle: `Emplacement ${sku}` });
+  return label;
 }
 
-function makeMachine(x, z, line, accent) {
-  const group = new THREE.Group();
-  group.position.set(x, 0, z);
-  box(group, 2.65, 1.1, 1.7, 0x455d58, 0, 0.72, 0, { metalness: 0.16 });
-  box(group, 2.3, 0.72, 1.32, 0x748a7d, 0, 1.42, 0, { metalness: 0.12 });
-  box(group, 2.35, 0.18, 1.36, accent, 0, 1.88, 0, { metalness: 0.08 });
-  box(group, 0.82, 0.62, 0.045, 0x314541, -0.72, 1.38, 0.69, { metalness: 0.18, roughness: 0.42 });
-  box(group, 0.7, 0.5, 0.025, 0x71857b, -0.72, 1.38, 0.72, { metalness: 0.12, roughness: 0.35 });
-  box(group, 0.045, 0.11, 0.04, 0xd7b95e, -0.4, 1.35, 0.75, { metalness: 0.42 });
-  for (let i = 0; i < 4; i++) box(group, 0.46, 0.035, 0.035, 0x35433f, 0.22 + i * 0.12, 1.12, 0.69, { castShadow: false });
-  for (let i = 0; i < 9; i++) {
-    const stripe = box(group, 0.12, 0.035, 0.035, i % 2 ? 0x292f2d : 0xe1b64a, -1.05 + i * 0.26, 0.19, 0.86, { castShadow: false });
-    stripe.rotation.y = -0.18;
-  }
-  box(group, 0.55, 0.38, 0.035, 0x223c3c, 0.55, 1.43, 0.68, { metalness: 0.15 });
-  const screen = box(group, 0.35, 0.2, 0.045, 0x8dc38d, 0.55, 1.44, 0.71, { metalness: 0.1 });
-  screen.material.emissive.setHex(0x27552c);
-  for (const px of [-0.85, 0.85]) {
-    cylinder(group, 0.22, 0.22, 0.14, 0x293c3a, px, 0.2, 0.9, 16).rotation.x = Math.PI / 2;
-    cylinder(group, 0.22, 0.22, 0.14, 0x293c3a, px, 0.2, -0.9, 16).rotation.x = Math.PI / 2;
-  }
-  // Short conveyor feeding each line.
-  box(group, 1.35, 0.22, 0.8, 0x425b54, 0, 0.57, 1.48);
-  for (let i = 0; i < 5; i++) {
-    const roller = cylinder(group, 0.08, 0.08, 0.78, 0xbfc4b2, -0.52 + i * 0.26, 0.62, 1.48, 10);
-    roller.rotation.z = Math.PI / 2;
-  }
-  for (const [index, color] of [0x75d28b, 0xe5b74e, 0xd86759].entries()) {
-    const light = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 8), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.65, roughness: 0.25 }));
-    light.position.set(-0.85 + index * 0.2, 2.0, 0.68);
-    group.add(light);
-  }
-  const label = labelSprite(line.name, "#f3f1df", "#245149");
-  label.position.set(0, 2.55, 0);
-  group.add(label);
-  world.add(group);
-  addObstacle(x, z, 3.4, 3.2);
-  addClickable(group, { type: "line", lineId: line.id, title: line.name, subtitle: line.product_sku });
+function furnishStock() {
+  // Commun aux 3 stocks : panneau de zone, racks ; le magasinier-cariste les suit tous.
+  const mp = stocksOf("MP");
+  [-6.1, -3.05, 0, 3.05, 6.1].forEach((lx, index) => {
+    const item = mp[index];
+    if (!item) return;
+    const rack = placeIn("stock_mp", "rack_palettes", lx, -1.85, { bays: 2, color: [0xb88a55, 0xc79c63, 0xa98450, 0x9c7b52, 0xc9a874][index], solid: [2.9, 1.2], info: { type: "stock", sku: item.sku, title: item.name } });
+    visuals.racks.push({ group: rack, sku: item.sku, label: rackLabel(rack, item.sku) });
+  });
+  placeIn("stock_mp", "etagere_bacs", -7.2, 0.6, { turn: Math.PI / 2, solid: [1.9, 0.6] });
+  placeIn("stock_mp", "palette_mp", -6, 2.2, { solid: [1.2, 1.1], info: { subtitle: "Stock de MP (réutilisée du quai)" } });
+  placeIn("stock_mp", "borne_recharge", 6.6, 1.6, { solid: [0.6, 0.4] });
+  placeIn("stock_mp", "panneau_zone", 0, 0.6, { lines: ["MP", "Matières premières"], bg: "#5e7a4f", click: false });
+  forklift = placeIn("stock_mp", "chariot_elevateur", 2, 0.9, { info: { type: "forklift", title: "Chariot élévateur", subtitle: "Magasinier-cariste · Stock" } });
+  forklift.userData.patrol = { zone: "stock_mp", points: [[-4, 0.9], [4.8, 0.9], [5.4, 1.4], [-4, 0.9]], index: 0 };
+
+  const sf = stocksOf("SF");
+  [-5.25, -1.75, 1.75, 5.25].forEach((lx, index) => {
+    const item = sf[index];
+    if (!item) return;
+    const cart = placeIn("stock_sf", "chariot_semi_finis", lx, -0.6, { solid: [1.1, 0.7], info: { type: "stock", sku: item.sku, title: item.name } });
+    visuals.sfCarts.push({ group: cart, sku: item.sku, label: rackLabel(cart, item.sku, 1.7) });
+  });
+  placeIn("stock_sf", "etagere_bacs", -4, -2.4, { color: 0xd9a441, solid: [1.9, 0.6] });
+  placeIn("stock_sf", "etagere_bacs", 4, -2.4, { color: 0xd9a441, solid: [1.9, 0.6] });
+  placeIn("stock_sf", "bac_plastique", 0, -2.5, {});
+  placeIn("stock_sf", "panneau_zone", 0, 1, { lines: ["SF", "Produits semi-finis"], bg: "#8a7340", click: false });
+
+  const pf = stocksOf("PF");
+  [-5.7, -1.9, 1.9, 5.7].forEach((lx, index) => {
+    const item = pf[index];
+    if (!item) return;
+    const rack = placeIn("stock_pf", "rack_palettes", lx, -1.85, { bays: 2, color: 0xa9a37c, wrapped: true, solid: [2.9, 1.2], info: { type: "stock", sku: item.sku, title: item.name } });
+    visuals.racks.push({ group: rack, sku: item.sku, label: rackLabel(rack, item.sku) });
+  });
+  placeIn("stock_pf", "palette_pf_filmee", 4.2, 1.9, { solid: [1.2, 1.1] });
+  placeIn("stock_pf", "panneau_zone", 0, 0.6, { lines: ["PF", "Produits finis"], bg: "#3f6577", click: false });
+
+  const header = labelSprite("STOCK · magasinier-cariste · mêmes paramètres pour les 3 parties", "#fff9dc", "#2f5d50");
+  header.scale.set(9, 0.62, 1);
+  header.position.set(0, 5.2, -13.3);
+  world.add(header);
 }
 
-function makeTruck(x, z, truckLabel = "G-MIX · LIVRAISON", title = "Quai de livraison", subtitle = "Commandes client et expéditions") {
-  const truck = new THREE.Group();
-  truck.position.set(x, 0, z);
-  box(truck, 4.4, 1.5, 2.25, 0x456b61, -0.2, 0.9, 0);
-  box(truck, 1.45, 1.65, 2.15, 0xe8e6d8, 2.65, 0.95, 0);
-  box(truck, 0.95, 0.57, 0.055, 0xa6c5bd, 2.8, 1.17, 1.1, { metalness: 0.15 });
-  for (const wx of [-1.65, 1.3, 3.05]) {
-    for (const wz of [-0.85, 0.85]) {
-      const wheel = cylinder(truck, 0.42, 0.42, 0.24, 0x293638, wx, 0.42, wz, 18);
-      wheel.rotation.x = Math.PI / 2;
-    }
-  }
-  const wordmark = labelSprite(truckLabel, "#fff9dc", "#28594d");
-  wordmark.scale.set(2.2, 0.55, 1);
-  wordmark.position.set(0, 1.15, 1.15);
-  truck.add(wordmark);
-  world.add(truck);
-  addClickable(truck, { type: "dock", title, subtitle });
+function furnishQuai() {
+  placeIn("quai_dechargement", "zone_depose", 0.8, -1.6, { w: 3.6, d: 2.6 });
+  placeIn("quai_dechargement", "palette_mp", 0.1, -1.7, { solid: [1.2, 1.1] });
+  placeIn("quai_dechargement", "palette_mp", 1.6, -1.7, { solid: [1.2, 1.1] });
+  placeIn("quai_dechargement", "transpalette", 0.6, 1.6, { turn: Math.PI / 2 });
 }
 
-function makePerson(name, jacketColor, isPlayer = false) {
+function furnishReception() {
+  placeIn("bureau_reception", "bureau_chaise", 0, -3.2, { solid: [1.7, 0.9] });
+  placeIn("bureau_reception", "ordinateur", -0.35, -3.2, {});
+  placeIn("bureau_reception", "lecteur_code_barres", 0.25, -3.1, {});
+  placeIn("bureau_reception", "imprimante_etiquettes", 0.6, -3.35, {});
+  placeIn("bureau_reception", "bon_livraison", 0.05, -2.95, {});
+  placeIn("bureau_reception", "balance_sol", -1.9, 0.4, {});
+  placeIn("bureau_reception", "zone_quarantaine", 1.5, 0.2, { w: 2.2, d: 2 });
+  visuals.quarantine = placeIn("bureau_reception", "palette_mp", 1.5, 0.2, { info: { subtitle: "Palette en quarantaine (non conforme)" } });
+}
+
+function furnishProduction() {
+  const lines = state?.production_lines || [];
+  const rows = [-3.25, -1.75, -0.25, 1.25];
+  const accents = [0x77a99c, 0xdaa05d, 0x93ad6f, 0x8aa8bd];
+  rows.forEach((lz, row) => {
+    const line = lines[row];
+    if (!line) return;
+    const info = { type: "line", lineId: line.id, title: line.name };
+    placeIn("chaine_production", "convoyeur", -8.2, lz, { length: 1.4, click: false });
+    const machines = [];
+    [-6.3, -3.4, -0.5, 2.4].forEach((lx, index) => {
+      const machine = line.machines[index];
+      machines.push(placeIn("chaine_production", "machine", lx, lz, { rank: index + 1, accent: accents[row], tag: machine?.id || `M${index + 1}`, info }));
+      if (index < 3) {
+        placeIn("chaine_production", "table_attente", lx + 1.45, lz, { click: false });
+        placeIn("chaine_production", "piece_en_cours", lx + 1.45, lz, { y: 0.78, click: false });
+      }
+    });
+    placeIn("chaine_production", "convoyeur", 4.3, lz, { length: 1.6, click: false });
+    addObstacle(...toWorld(ZONES.chaine_production, -1.9, lz), 13.4, 1.05);
+    const tag = labelSprite(`L${row + 1} · ${stockBySku(line.product_sku)?.name || line.product_sku}`, "#fff9dc", "#245149");
+    tag.scale.set(2.3, 0.42, 1);
+    const [tx, tz] = toWorld(ZONES.chaine_production, -8.2, lz);
+    tag.position.set(tx, 1.45, tz);
+    world.add(tag);
+    visuals.lines.set(line.id, machines);
+  });
+  placeIn("chaine_production", "tableau_ligne", -6.5, 3.75, { solid: [1.8, 0.3] });
+  placeIn("chaine_production", "etabli", 7.4, -2.6, { turn: -Math.PI / 2, solid: [1.6, 0.8] });
+  placeIn("chaine_production", "bac_dechets", 6.6, 3.4, { solid: [0.6, 0.6] });
+  placeIn("chaine_production", "chariot_semi_finis", 7.5, 1.2, { solid: [1.1, 0.7], info: { subtitle: "Transfert vers le stock de semi-finis" } });
+}
+
+function furnishQuality() {
+  placeIn("controle_qualite", "table_controle", -4.2, -2.2, { solid: [1.8, 0.9] });
+  placeIn("controle_qualite", "instruments_mesure", -4.4, -2.2, {});
+  placeIn("controle_qualite", "ordinateur", -3.6, -2.25, { y: 0.1, info: { subtitle: "Ordinateur de saisie (réutilisé du bureau de réception)" } });
+  placeIn("controle_qualite", "banc_essai", -0.6, -2.3, { solid: [1.5, 0.8] });
+  placeIn("controle_qualite", "zone_conforme", 3.2, -1.3, { w: 2.6, d: 2.2 });
+  placeIn("controle_qualite", "zone_retouche", 6.1, -1.3, { w: 2.2, d: 2.2 });
+  placeIn("controle_qualite", "bac_rebut", -6.4, 1.4, { solid: [0.6, 0.6] });
+  for (let i = 0; i < 6; i++) visuals.conformParts.push(placeIn("controle_qualite", "piece_en_cours", 2.5 + (i % 3) * 0.6, -1.7 + Math.floor(i / 3) * 0.6, { click: false }));
+  for (let i = 0; i < 3; i++) visuals.reworkParts.push(placeIn("controle_qualite", "piece_en_cours", 5.6 + i * 0.5, -1.5, { click: false }));
+}
+
+function furnishPackaging() {
+  placeIn("emballage", "table_emballage", -1.4, -3, { solid: [2, 1] });
+  placeIn("emballage", "carton_ruban", -1.3, -3, {});
+  placeIn("emballage", "imprimante_etiquettes", -0.3, -3.2, { y: 0.1, info: { subtitle: "Emballage (réutilisée du bureau de réception)" } });
+  placeIn("emballage", "balance_table", -2.1, -3.1, {});
+  placeIn("emballage", "filmeuse", 1.6, -1.6, { solid: [2.2, 1.9] });
+  placeIn("emballage", "palette_pf_filmee", 1.6, 1.6, { solid: [1.2, 1.1], info: { subtitle: "Vers le stock PF (même modèle que le stock PF)" } });
+}
+
+function furnishLogistics() {
+  placeIn("logistique_transport", "zone_preparation", -1.6, -0.3, { w: 3.6, d: 3.2 });
+  for (let i = 0; i < 4; i++) {
+    visuals.shipping.push(placeIn("logistique_transport", "palette_pf_filmee", -2.4 + (i % 2) * 1.5, -1 + Math.floor(i / 2) * 1.35, { click: false }));
+  }
+  placeIn("logistique_transport", "transpalette", -1.4, 2.6, { turn: Math.PI / 2, info: { subtitle: "Logistique (réutilisé du quai)" } });
+}
+
+function furnishEngineering() {
+  placeIn("bureau_etude", "bureau_chaise", -3, -2.3, { solid: [1.7, 0.9] });
+  placeIn("bureau_etude", "ordinateur", -3.3, -2.3, {});
+  placeIn("bureau_etude", "tableau_planning", 2.4, -2.95, { solid: [2.2, 0.3] });
+  placeIn("bureau_etude", "armoire_dossiers", 5.8, -2.85, { solid: [0.9, 0.5] });
+  placeIn("bureau_etude", "armoire_dossiers", 6.8, -2.85, { solid: [0.9, 0.5] });
+}
+
+function furnishMaintenance() {
+  placeIn("maintenance_pdr", "etabli_etau", -4.6, -2.65, { solid: [1.6, 0.8] });
+  placeIn("maintenance_pdr", "piece_rechange", -4.9, -2.6, { y: 0.92 });
+  placeIn("maintenance_pdr", "servante_outils", -2.4, -1.4, { solid: [0.8, 0.5] });
+  const cabinet = placeIn("maintenance_pdr", "armoire_pdr", 0.8, -2.8, { solid: [1.4, 0.6] });
+  visuals.pdrLabel = rackLabel(cabinet, "PDR", 2.5);
+  placeIn("maintenance_pdr", "kit_consignation", 3.2, -3.05, {});
+  placeIn("maintenance_pdr", "tableau_interventions", 5.8, -2.95, { solid: [1.8, 0.3] });
+}
+
+// --------------------------------------------------------------- personnages
+function makePerson(name, outfit, info, isPlayer = false) {
   const person = new THREE.Group();
-  person.userData.name = name;
-  person.userData.isPlayer = isPlayer;
-  person.userData.role = name.includes("Cariste") ? "Stock MP" : name.includes("Production") || name.includes("Opérateur") || name.includes("ligne") ? "Production" : name.includes("Contrôle") ? "Qualité" : name.includes("Quai") || name.includes("Réception") ? "Réception" : name.includes("Emball") ? "Emballage" : name.includes("Magasinier PF") ? "Entrepôt PF" : name.includes("Technicien") ? "Maintenance" : name.includes("Pilotage") ? "Pilotage" : "Direction";
-  const jacket = material(jacketColor, 0.8);
-  const skin = material(0xdcae88, 0.9);
-  const dark = material(0x34413d, 0.9);
-  const pant = material(0x334b4a, 0.9);
+  const jacket = kit.material(outfit.jacket, 0.8, 0, null, { unique: true });
+  const skin = kit.material(0xdcae88, 0.9);
+  const dark = kit.material(0x34413d, 0.9);
+  const pant = kit.material(0x334b4a, 0.9);
   const body = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.3, 0.73, 10), jacket);
   body.position.y = 0.96;
   body.castShadow = true;
@@ -322,23 +398,17 @@ function makePerson(name, jacketColor, isPlayer = false) {
   head.position.y = 1.51;
   head.castShadow = true;
   person.add(head);
-  const hardhat = new THREE.Mesh(new THREE.SphereGeometry(0.245, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), material(isPlayer ? 0xd8ed82 : 0xe4bd54));
+  const hardhat = new THREE.Mesh(new THREE.SphereGeometry(0.245, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), kit.material(outfit.helmet));
   hardhat.position.y = 1.65;
-  hardhat.castShadow = true;
   person.add(hardhat);
-  const helmetBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.035, 18), material(isPlayer ? 0xc2d86e : 0xc49c43, 0.55));
-  helmetBrim.position.y = 1.62;
-  person.add(helmetBrim);
-  const reflective = material(isPlayer ? 0xd8ef83 : 0xf1d36b, 0.38, 0.12);
+  const reflective = kit.material(isPlayer ? 0xd8ef83 : 0xf1d36b, 0.38, 0.12);
   for (const y of [0.91, 1.12]) {
     const band = new THREE.Mesh(new THREE.TorusGeometry(0.245, 0.022, 6, 18), reflective);
     band.rotation.x = Math.PI / 2;
     band.position.y = y;
     person.add(band);
   }
-  box(person, 0.12, 0.16, 0.025, 0xe7e4d2, 0.12, 1.27, 0.22, { castShadow: false });
-  const legPivots = [];
-  const armPivots = [];
+  const legs = [], arms = [];
   for (const side of [-1, 1]) {
     const legPivot = new THREE.Group();
     legPivot.position.set(side * 0.12, 0.65, 0);
@@ -349,215 +419,257 @@ function makePerson(name, jacketColor, isPlayer = false) {
     shoe.position.set(0, -0.52, 0.07);
     legPivot.add(shoe);
     person.add(legPivot);
-    legPivots.push(legPivot);
-
+    legs.push(legPivot);
     const armPivot = new THREE.Group();
     armPivot.position.set(side * 0.27, 1.18, 0);
     const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.07, 0.48, 8), jacket);
     arm.position.y = -0.22;
     armPivot.add(arm);
     person.add(armPivot);
-    armPivots.push(armPivot);
+    arms.push(armPivot);
   }
-  person.userData.jacket = jacket;
-  person.userData.legs = legPivots;
-  person.userData.arms = armPivots;
-  person.userData.walkPhase = Math.random() * Math.PI * 2;
+  if (isPlayer) {
+    // Le joueur tient sa tablette.
+    arms[1].rotation.x = -1.0;
+    const tablet = assets.make("tablette");
+    tablet.position.set(0.12, 1.02, 0.36);
+    tablet.rotation.x = -0.9;
+    person.add(tablet);
+    person.userData.fixedArm = true;
+  }
+  Object.assign(person.userData, { jacket, legs, arms, walkPhase: Math.random() * Math.PI * 2, route: [] });
   const tag = labelSprite(name, "#f5f2e3", isPlayer ? "#526d39" : "#294940");
-  tag.scale.set(isPlayer ? 1.55 : 1.9, 0.48, 1);
+  tag.scale.set(isPlayer ? 1.55 : 2.2, 0.48, 1);
   tag.position.y = 2.22;
   person.add(tag);
-  addClickable(person, { type: isPlayer ? "player" : "worker", title: name, role: person.userData.role, subtitle: isPlayer ? "Directeur · avatar joueur" : `${person.userData.role} · membre de l’équipe` });
+  addClickable(person, info);
   return person;
 }
 
-function makeForklift() {
-  const forklift = new THREE.Group();
-  box(forklift, 1.4, 0.65, 1.0, 0xd8ad4f, 0, 0.62, 0);
-  box(forklift, 0.85, 0.1, 0.8, 0x354947, -0.1, 1.0, 0);
-  box(forklift, 0.1, 1.85, 0.12, 0x44534c, 0.62, 1.02, -0.43);
-  box(forklift, 0.1, 1.85, 0.12, 0x44534c, 0.62, 1.02, 0.43);
-  box(forklift, 0.72, 0.09, 0.9, 0xc6aa72, 1.05, 0.22, 0);
-  box(forklift, 0.5, 0.1, 0.38, 0x253b39, -0.18, 0.96, 0);
-  box(forklift, 0.12, 0.52, 0.38, 0x253b39, -0.38, 1.18, 0);
-  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 8), new THREE.MeshStandardMaterial({ color: 0xffb339, emissive: 0xff8a18, emissiveIntensity: 1.4, roughness: 0.25 }));
-  beacon.position.set(-0.25, 1.42, -0.28);
-  forklift.add(beacon);
-  for (const x of [-0.42, 0.42]) {
-    for (const z of [-0.51, 0.51]) {
-      const wheel = cylinder(forklift, 0.23, 0.23, 0.17, 0x293536, x, 0.23, z, 14);
-      wheel.rotation.x = Math.PI / 2;
-    }
-  }
-  forklift.position.set(-10.8, 0, -0.4);
-  world.add(forklift);
-  addClickable(forklift, { type: "forklift", title: "Chariot élévateur", subtitle: "Cariste en déplacement" });
-  return forklift;
+const player = makePerson("Vous · tablette", { jacket: 0x557c59, helmet: 0xd8ed82 }, { type: "player", title: "Vous", subtitle: "Pilote de l’usine, sans bureau : tout passe par la tablette." }, true);
+player.position.set(-2, 0, 5);
+world.add(player);
+const marker = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.035, 8, 36), new THREE.MeshBasicMaterial({ color: 0xd8f18a, transparent: true, opacity: 0.9 }));
+marker.rotation.x = Math.PI / 2;
+marker.position.y = 0.035;
+marker.visible = false;
+world.add(marker);
+const hoverRing = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.025, 8, 40), new THREE.MeshBasicMaterial({ color: 0xd9ef83, transparent: true, opacity: 0.78 }));
+hoverRing.rotation.x = Math.PI / 2;
+hoverRing.visible = false;
+world.add(hoverRing);
+
+function zoneOfBlock(blockId) {
+  return Object.keys(ZONES).filter((id) => ZONES[id].block === blockId);
 }
-
-function makeDepartmentStation(x, z, title, subtitle, accent, kind, width = 6.5, depth = 9) {
-  const station = new THREE.Group();
-  station.position.set(x, 0, z);
-  const wallHeight = 3.5;
-  const wallThickness = 0.2;
-  const doorWidth = Math.min(2.6, width * 0.44);
-  const frontZ = depth / 2;
-  const frontSegment = (width - doorWidth) / 2;
-  box(station, width, 0.12, depth, 0xe5e6dc, 0, 0.06, 0, { texture: "concrete", castShadow: false });
-  box(station, width, wallHeight, wallThickness, 0xd6d9d0, 0, wallHeight / 2, -depth / 2, { roughness: 0.92 });
-  box(station, wallThickness, wallHeight, depth, 0xd6d9d0, -width / 2, wallHeight / 2, 0, { roughness: 0.92 });
-  box(station, wallThickness, wallHeight, depth, 0xd6d9d0, width / 2, wallHeight / 2, 0, { roughness: 0.92 });
-  if (frontSegment > 0.4) {
-    box(station, frontSegment, wallHeight, wallThickness, 0xd6d9d0, -doorWidth / 2 - frontSegment / 2, wallHeight / 2, frontZ, { roughness: 0.92 });
-    box(station, frontSegment, wallHeight, wallThickness, 0xd6d9d0, doorWidth / 2 + frontSegment / 2, wallHeight / 2, frontZ, { roughness: 0.92 });
-  }
-  box(station, width, 0.16, 0.24, accent, 0, wallHeight - 0.08, -depth / 2, { castShadow: false });
-  box(station, 0.24, 0.16, depth, accent, -width / 2, wallHeight - 0.08, 0, { castShadow: false });
-  box(station, 0.24, 0.16, depth, accent, width / 2, wallHeight - 0.08, 0, { castShadow: false });
-  const paneMaterial = new THREE.MeshStandardMaterial({ color: 0x9bc8c2, emissive: 0x24423d, emissiveIntensity: 0.18, roughness: 0.3, metalness: 0.12 });
-  const windowCount = Math.max(1, Math.floor(width / 2.1));
-  for (let i = 0; i < windowCount; i++) {
-    const wx = -width / 2 + ((i + 1) * width) / (windowCount + 1);
-    const pane = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.78, 0.055), paneMaterial);
-    pane.position.set(wx, 2.65, -depth / 2 + 0.13);
-    pane.castShadow = false;
-    station.add(pane);
-    box(station, 1.22, 0.055, 0.09, 0x66756e, wx, 2.65, -depth / 2 + 0.08, { metalness: 0.35, castShadow: false });
-    box(station, 0.045, 0.82, 0.09, 0x66756e, wx, 2.65, -depth / 2 + 0.08, { metalness: 0.35, castShadow: false });
-  }
-  cylinder(station, 0.055, 0.055, Math.max(1, width - 0.8), 0x85948b, 0, 0.42, -depth / 2 + 0.25, 12).rotation.z = Math.PI / 2;
-  cylinder(station, 0.035, 0.035, Math.max(1, width - 1), accent, 0, 0.62, -depth / 2 + 0.25, 10).rotation.z = Math.PI / 2;
-  box(station, 3.1, 0.14, 2.55, 0xe4e3d8, 0, 0.08, 0, { castShadow: false });
-  box(station, 2.45, 0.82, 0.72, 0x63756e, 0, 0.62, -0.48, { metalness: 0.12 });
-  box(station, 2.5, 0.08, 0.78, accent, 0, 1.08, -0.48, { metalness: 0.08 });
-  if (kind === "quality") {
-    box(station, 0.72, 0.58, 0.06, 0x203b3b, 0.55, 1.43, -0.08);
-    box(station, 0.62, 0.4, 0.04, 0x72c7c1, 0.55, 1.43, -0.035, { castShadow: false });
-    cylinder(station, 0.2, 0.2, 0.26, 0xd6d7cb, -0.78, 1.27, -0.3, 12);
-  } else if (kind === "packaging") {
-    for (let i = 0; i < 3; i++) box(station, 0.46, 0.42, 0.42, 0xb88a55, -0.68 + i * 0.64, 1.34, 0.48, { texture: "cardboard" });
-    box(station, 0.12, 0.66, 0.12, 0xd3d4c7, 1.08, 1.36, 0.44);
-  } else if (kind === "storage") {
-    for (let level = 0; level < 2; level++) for (let i = 0; i < 2; i++) box(station, 0.62, 0.48, 0.48, 0xb9905d, -0.55 + i * 0.85, 1.28 + level * 0.5, 0.52, { texture: "cardboard" });
-  } else if (kind === "maintenance") {
-    for (let i = 0; i < 4; i++) cylinder(station, 0.12, 0.12, 0.28, [0x89948a, 0x495a55, 0xd2a64f, 0x879f9a][i], -0.86 + i * 0.56, 1.26, 0.46, 10);
-    box(station, 0.55, 0.52, 0.48, 0x283d3a, 0.92, 1.31, 0.42);
-  } else {
-    for (let i = 0; i < 2; i++) box(station, 0.7, 0.48, 0.62, 0xb9905d, -0.5 + i, 0.42, 0.58, { texture: "cardboard" });
-  }
-  const sign = labelSprite(title.toUpperCase(), "#f3f1df", "#245149");
-  sign.scale.set(Math.min(width - 0.4, 3.8), 0.58, 1);
-  sign.position.set(0, wallHeight + 0.62, frontZ + 0.15);
-  station.add(sign);
-  world.add(station);
-  addObstacle(x, z - depth / 2, width, wallThickness + 0.08);
-  addObstacle(x - width / 2, z, wallThickness + 0.08, depth);
-  addObstacle(x + width / 2, z, wallThickness + 0.08, depth);
-  if (frontSegment > 0.4) {
-    addObstacle(x - doorWidth / 2 - frontSegment / 2, z + frontZ, frontSegment, wallThickness + 0.08);
-    addObstacle(x + doorWidth / 2 + frontSegment / 2, z + frontZ, frontSegment, wallThickness + 0.08);
-  }
-  addClickable(station, { type: "department", title, subtitle });
+function insidePoints(zoneId) {
+  const zone = ZONES[zoneId];
+  const points = [];
+  for (const lx of [-zone.w / 2 + 1.5, -1, 1, zone.w / 2 - 1.5]) points.push(toWorld(zone, lx, zone.d / 2 - 1.1));
+  points.push(toWorld(zone, 0, zone.d / 2 + 0.9));
+  return points;
 }
-
-function buildWorld() {
-  makeGround();
-  makeDepartmentStation(-21.5, -4.5, "Fournisseur MP", "Le fournisseur prépare les palettes et livre les matières premières commandées.", 0x8eb7a5, "receiving", 5, 10);
-  makeDepartmentStation(-16.4, -4.5, "Réception", "Le réceptionnaire décharge les camions, contrôle les palettes et isole les non-conformes.", 0x8eb7a5, "receiving", 5, 10);
-  makeDepartmentStation(-10.65, -4.5, "Stock MP", "Le magasinier-cariste range les matières en FIFO, prépare les kits OF et signale les seuils bas.", 0x9cad8d, "storage", 6.5, 10);
-  makeDepartmentStation(-0.3, -4.5, "Production", "Le chef de ligne lance les OF. Les machines en série avancent au rythme du goulot.", 0x70c1bb, "production", 14, 10);
-  makeDepartmentStation(9.7, -4.5, "Contrôle qualité", "Les produits conformes passent à l’emballage, les retouches reviennent en ligne et les rebuts sont isolés.", 0x70c1bb, "quality", 6, 10);
-  makeDepartmentStation(16, -4.5, "Emballage", "Les produits conformes sont mis en carton, étiquetés et regroupés sur une palette.", 0xd4a45c, "packaging", 6.5, 10);
-  makeDepartmentStation(23, -4.5, "Entrepôt PF", "Le magasinier PF range les palettes, prépare les commandes client et suit le stock minimum.", 0x9cad8d, "storage", 7, 10);
-  makeDepartmentStation(-7, 6.3, "Maintenance et PDR", "Le technicien traite les pannes avec une pièce de rechange par intervention.", 0x80958d, "maintenance", 8, 7);
-  makeDepartmentStation(4, 6.3, "Pilotage", "Le responsable suit les indicateurs et transmet les commandes MP et les OF aux équipes.", 0x53766a, "office", 8, 7);
-  makeDepartmentStation(20, 6.3, "Client", "Le client passe ses commandes et reçoit les palettes préparées par l’usine.", 0x8eb7a5, "receiving", 8, 7);
-
-  const rawShelfSpots = [-8.5, -6.6, -4.7, -2.8, -0.9].map((z) => [-10.65, z]);
-  stocksOf("MP").slice(0, rawShelfSpots.length).forEach((materialStock, index) => {
-    const [x, z] = rawShelfSpots[index];
-    makeShelf(x, z, materialStock.sku, materialStock.name, [0x79a69b, 0xd4a064, 0x91a96e, 0x7c98b0][index % 4], index);
-  });
-  stocksOf("PF").forEach((stock, index) => {
-    const spots = [[21.4, -7], [24.6, -7], [21.4, -3], [24.6, -3]];
-    const [x, z] = spots[index % spots.length];
-    makeShelf(x, z, stock.sku, stock.name, [0x79a69b, 0xd4a064, 0x91a96e, 0x7c98b0][index % 4], index);
-  });
-  const spareParts = stockBySku("MAT-PDR");
-  if (spareParts) makeShelf(-7, 6.3, spareParts.sku, spareParts.name, 0xd4a064, 5);
-
-  const linePositions = [-5.3, -1.8, 1.8, 5.3];
-  linePositions.forEach((x, i) => {
-    const line = state?.production_lines?.[i] || { id: `LINE-${i + 1}`, name: `Ligne ${i + 1}`, product_sku: `SKU-${String(i + 1).padStart(2, "0")}` };
-    makeMachine(x - 0.3, -4.5, line, [0x77a99c, 0xdaa05d, 0x93ad6f, 0x8aa8bd][i]);
-  });
-  makeTruck(-22, 13.3, "FOURNISSEUR MP", "Quai fournisseur", "Le chauffeur livre les matières commandées et repart après le déchargement.");
-  makeTruck(24, 13.3, "G-MIX · CLIENT", "Quai de livraison", "Le chauffeur charge les palettes destinées au client.");
-  const forklift = makeForklift();
-  const team = [
-    { name: "Noah · Réceptionnaire", position: [-16, -5], targets: [[-17, -5], [-15, -7], [-16, -1]] },
-    { name: "Maya · Cariste", position: [-11, -5], targets: [[-11, -5], [-9, -7], [-10, -1]] },
-    { name: "Idriss · Chef de ligne", position: [-3, -5], targets: [[-4, -7], [-1, -3], [2, -5]] },
-    { name: "Karim · Opérateur", position: [2, -4], targets: [[2, -7], [0, -2], [5, -5]] },
-    { name: "Léa · Contrôle qualité", position: [9, -5], targets: [[9, -7], [8, -2], [11, -5]] },
-    { name: "Zoé · Emballeuse", position: [16, -5], targets: [[15, -7], [17, -2], [15, -5]] },
-    { name: "Amadou · Magasinier PF", position: [23, -5], targets: [[22, -7], [24, -2], [22, -5]] },
-    { name: "Sam · Technicien", position: [-7, 6], targets: [[-8, 5], [-6, 8], [-7, 4]] },
-    { name: "Alice · Pilotage", position: [4, 6], targets: [[3, 5], [5, 8], [4, 4]] },
-  ];
-  const teamColors = [0x4f8c7c, 0x4b718a, 0x7d8153, 0x8c6855, 0x648f9d, 0xb27c54, 0x71875b, 0x8a7860, 0x799c88];
-  team.forEach((member, i) => {
-    const worker = makePerson(member.name, teamColors[i]);
-    worker.position.set(member.position[0], 0, member.position[1]);
-    worker.userData.targets = member.targets.map(([x, z]) => new THREE.Vector3(x, 0, z));
-    worker.userData.targetIndex = i % worker.userData.targets.length;
-    worker.userData.route = [];
+function makeAgents() {
+  for (const agent of state?.agents || []) {
+    if (agent.external) continue; // les chauffeurs externes arrivent avec leur camion
+    const zones = [...zoneOfBlock(agent.block_id), ...(agent.also_in || []).flatMap(zoneOfBlock)];
+    if (!zones.length) continue;
+    const targets = zones.flatMap(insidePoints).map(([x, z]) => new THREE.Vector3(Math.round(x), 0, Math.round(z)));
+    const outfit = ROLE_OUTFITS[agent.role] || { jacket: 0x4f8c7c, helmet: 0xe4bd54 };
+    const worker = makePerson(`${agent.name} · ${agent.role_label}`, outfit, {
+      type: "worker", agentId: agent.id, role: agent.role, title: agent.name, roleLabel: agent.role_label, zone: zones[0],
+      subtitle: `${agent.role_label} · ${blockName(agent.block_id)}`,
+    });
+    const start = targets[workers.length % targets.length];
+    worker.position.copy(start);
+    worker.userData.targets = targets;
+    worker.userData.targetIndex = workers.length;
+    worker.userData.agentId = agent.id;
     workers.push(worker);
     world.add(worker);
-  });
-  forklift.userData.route = [];
+  }
 }
 
-function keyFor(x, z) { return `${x},${z}`; }
-function cellFromKey(key) { return key.split(",").map(Number); }
+// ------------------------------------------------------------------- camions
+function makeExternalDriver(role, label) {
+  const outfit = ROLE_OUTFITS[role];
+  const driver = makePerson(label, outfit, { type: "worker", role, title: label.split(" · ")[0], roleLabel: label.split(" · ")[1] || label, subtitle: "Agent externe : arrive et repart avec son camion." });
+  driver.visible = false;
+  world.add(driver);
+  return driver;
+}
+const drivers = {
+  fournisseur: makeExternalDriver("chauffeur_fournisseur", "Chauffeur · fournisseur"),
+  client: makeExternalDriver("chauffeur_client", "Chauffeur · client"),
+};
 
-function walkable(x, z) {
-  if (x < -27 || x > 27 || z < -13 || z > 13) return false;
-  return !obstacles.some((item) => Math.abs(x - item.x) < item.width / 2 + 0.38 && Math.abs(z - item.z) < item.depth / 2 + 0.38);
+function spawnTruck(kind, label, cargo, mode) {
+  const dock = DOCKS[kind];
+  const assetId = kind === "fournisseur" ? "camion_fournisseur" : kind === "client" ? "camion_client" : "camion_livraison";
+  const truck = place(assetId, dock.x, dock.z, { label, cargo, rot: kind === "fournisseur" ? Math.PI : 0, info: { type: "truck", kind, title: label } });
+  truck.userData.actor = { kind, mode, phase: mode === "parked" ? "docked" : "arrive", t: 0 };
+  const start = mode === "depart" ? dock.x : (dock.from ?? dock.to);
+  if (mode !== "parked" && mode !== "depart") truck.position.x = start;
+  truck.visible = mode === "parked" || mode === "depart";
+  truckActors.push(truck);
+  return truck;
 }
 
-function nearestWalkable(x, z) {
-  const centerX = Math.round(x);
-  const centerZ = Math.round(z);
-  for (let radius = 0; radius <= 5; radius++) {
-    for (let dx = -radius; dx <= radius; dx++) {
-      for (let dz = -radius; dz <= radius; dz++) {
-        if (Math.abs(dx) !== radius && Math.abs(dz) !== radius) continue;
-        const cx = centerX + dx;
-        const cz = centerZ + dz;
-        if (walkable(cx, cz)) return [cx, cz];
-      }
+function queueTrucks(trucks) {
+  for (const truck of trucks || []) {
+    const sku = truck.sku ? stockBySku(truck.sku)?.name || truck.sku : "";
+    const label = truck.kind === "fournisseur" ? `${truck.label}` : truck.kind === "client" ? `${truck.label}` : "Livraison client";
+    dockQueues[truck.kind].push({ label, cargo: true, info: `${truck.quantity} · ${sku}`.trim() });
+  }
+}
+
+function updateTrucks(delta) {
+  for (const kind of ["fournisseur", "client", "livraison"]) {
+    const busy = truckActors.some((truck) => truck.userData.actor.kind === kind && truck.userData.actor.phase !== "docked-idle" && truck.userData.actor.mode !== "parked");
+    if (!busy && dockQueues[kind].length) {
+      const next = dockQueues[kind].shift();
+      if (kind === "livraison") {
+        const parked = truckActors.find((truck) => truck.userData.actor.kind === "livraison" && truck.userData.actor.mode === "parked");
+        if (parked) { parked.userData.actor.mode = "depart"; parked.userData.actor.phase = "leave"; parked.userData.actor.t = 0; }
+      } else spawnTruck(kind, next.label, next.cargo, "visit");
     }
   }
-  return [Math.max(-27, Math.min(27, centerX)), Math.max(-13, Math.min(13, centerZ))];
+  const door = (kind, open) => {
+    const mesh = visuals.dockDoors[kind === "livraison" ? "livraison" : kind];
+    if (mesh) mesh.position.y += ((open ? 2.85 : 2.3) - mesh.position.y) * Math.min(1, delta * 3);
+  };
+  for (const truck of [...truckActors]) {
+    const actor = truck.userData.actor;
+    const dock = DOCKS[actor.kind];
+    actor.t += delta;
+    const speed = 9;
+    if (actor.phase === "arrive") {
+      truck.visible = true;
+      const dir = Math.sign(dock.x - truck.position.x);
+      truck.position.x += dir * speed * delta;
+      if (Math.sign(dock.x - truck.position.x) !== dir) { truck.position.x = dock.x; actor.phase = "docked"; actor.t = 0; }
+    } else if (actor.phase === "docked") {
+      door(actor.kind, true);
+      if (actor.mode === "parked") continue;
+      const driver = drivers[actor.kind];
+      if (driver) { driver.visible = true; driver.position.set(dock.x + (actor.kind === "fournisseur" ? 0.3 : -0.3), 0, dock.z + 1.6); }
+      if (actor.t > 4) { actor.phase = "leave"; actor.t = 0; if (driver) driver.visible = false; }
+    } else if (actor.phase === "leave") {
+      door(actor.kind, false);
+      const away = actor.kind === "fournisseur" ? -60 : 60;
+      truck.position.x += Math.sign(away - truck.position.x) * speed * delta;
+      if (Math.abs(truck.position.x) > 58) {
+        if (actor.mode === "depart") { actor.mode = "return"; actor.phase = "arrive"; truck.position.x = 58; }
+        else { world.remove(truck); truckActors.splice(truckActors.indexOf(truck), 1); const i = interactables.indexOf(truck); if (i >= 0) interactables.splice(i, 1); }
+      }
+    }
+    if (actor.mode === "return" && actor.phase === "docked") actor.mode = "parked";
+  }
 }
 
+// ---------------------------------------------------------------- construction
+function buildWorld() {
+  makeGround();
+  Object.keys(ZONES).forEach(makeBlockShell);
+  makeDock("quai_dechargement", 0, "fournisseur");
+  makeDock("logistique_transport", ZONES.logistique_transport.dockBays[0], "livraison");
+  makeDock("logistique_transport", ZONES.logistique_transport.dockBays[1], "client");
+  furnishStock();
+  furnishQuai();
+  furnishReception();
+  furnishProduction();
+  furnishQuality();
+  furnishPackaging();
+  furnishLogistics();
+  furnishEngineering();
+  furnishMaintenance();
+  makeAgents();
+  spawnTruck("livraison", "G-MIX · LIVRAISON", true, "parked");
+  buildFlowBar();
+  refreshWorld();
+}
+
+// Le monde suit l'état : racks remplis selon le stock, voyants des machines, quarantaine…
+function refreshWorld() {
+  if (!state) return;
+  for (const rack of visuals.racks) {
+    const item = stockBySku(rack.sku);
+    if (!item) continue;
+    const slots = rack.group.userData.slots || [];
+    const filled = item.quantity <= 0 ? 0 : Math.max(1, Math.round((item.quantity / item.capacity_max) * slots.length));
+    slots.forEach((slot, index) => { slot.visible = index < filled; });
+    swapLabel(rack.label, `${item.sku} · ${fmt(item.quantity)}`, item.quantity <= item.reorder_point ? "#ffe2a8" : "#fff9dc", item.quantity < item.minimum ? "#7a3b26" : "#183a36");
+  }
+  for (const cart of visuals.sfCarts) {
+    const item = stockBySku(cart.sku);
+    if (!item) continue;
+    swapLabel(cart.label, `${item.sku} · ${fmt(item.quantity)}`, "#fff9dc", item.quantity < item.minimum ? "#7a3b26" : "#5f5530");
+  }
+  if (visuals.quarantine) visuals.quarantine.visible = (state.last_week?.quarantined || 0) > 0;
+  if (visuals.pdrLabel) swapLabel(visuals.pdrLabel, `PDR · ${spareCount()} pièce(s)`, "#fff9dc", spareCount() ? "#183a36" : "#7a3b26");
+  const produced = state.last_week?.produced || 0;
+  visuals.conformParts.forEach((part, index) => { part.visible = index < Math.ceil(Math.min(6, produced / 300)); });
+  visuals.reworkParts.forEach((part, index) => { part.visible = index < Math.min(3, Math.ceil((state.last_week?.reworked || 0) / 20)); });
+  const toShip = (state.customer_orders || []).filter((order) => order.status === "ouverte" || order.status === "en retard").length;
+  visuals.shipping.forEach((pallet, index) => { pallet.visible = index < Math.min(4, toShip); });
+  for (const line of state.production_lines || []) {
+    const machines = visuals.lines.get(line.id) || [];
+    const busy = (state.production_orders || []).some((order) => order.sku === line.product_sku);
+    line.machines.forEach((machine, index) => {
+      const lights = machines[index]?.userData.lights;
+      if (!lights) return;
+      const color = !line.operational ? (machine.state === "panne" ? "rouge" : "orange") : busy ? "vert" : "orange";
+      for (const [name, mesh] of Object.entries(lights)) mesh.material.emissiveIntensity = name === color ? 1.6 : 0.08;
+    });
+  }
+}
+
+function buildFlowBar() {
+  const nav = $("#factory-flow");
+  nav.innerHTML = [...FLOW.map((step) => ({ ...step, kind: "flow" })), ...SUPPORT.map((step) => ({ ...step, kind: "support" }))]
+    .map((step) => `<button type="button" data-zone="${step.zone}" class="flow-step ${step.kind === "support" ? "flow-support" : ""} ${step.zone.startsWith("stock_") ? "flow-stock" : ""}">${step.label}</button>`).join("");
+  nav.querySelectorAll(".flow-step").forEach((button) => button.addEventListener("click", () => {
+    nav.querySelectorAll(".flow-step").forEach((step) => step.classList.toggle("active", step === button));
+    const zone = ZONES[button.dataset.zone];
+    selectInteraction({ type: "block", zone: button.dataset.zone, title: zone.title || blockName(zone.block) });
+    // La barre du haut sert de raccourci : le joueur est placé devant l'entrée du bloc.
+    const [x, z] = nearestWalkable(...toWorld(zone, 0, zone.d / 2 + 1));
+    player.position.set(x, 0, z);
+    player.rotation.y = zone.door === 1 ? Math.PI : 0;
+    playerPath = [];
+    player.userData.route = playerPath;
+  }));
+}
+
+// ------------------------------------------------------------ déplacements
+function keyFor(x, z) { return `${x},${z}`; }
+function walkable(x, z) {
+  if (x < WALK_BOUNDS.x1 || x > WALK_BOUNDS.x2 || z < WALK_BOUNDS.z1 || z > WALK_BOUNDS.z2) return false;
+  return !obstacles.some((item) => Math.abs(x - item.x) < item.width / 2 + 0.38 && Math.abs(z - item.z) < item.depth / 2 + 0.38);
+}
+function nearestWalkable(x, z) {
+  const cx = Math.round(x), cz = Math.round(z);
+  for (let radius = 0; radius <= 5; radius++) {
+    for (let dx = -radius; dx <= radius; dx++) for (let dz = -radius; dz <= radius; dz++) {
+      if (Math.abs(dx) !== radius && Math.abs(dz) !== radius) continue;
+      if (walkable(cx + dx, cz + dz)) return [cx + dx, cz + dz];
+    }
+  }
+  return [cx, cz];
+}
 function findPath(start, end) {
   const [sx, sz] = nearestWalkable(start.x, start.z);
   const [ex, ez] = nearestWalkable(end.x, end.z);
-  const startKey = keyFor(sx, sz);
-  const endKey = keyFor(ex, ez);
+  const startKey = keyFor(sx, sz), endKey = keyFor(ex, ez);
   const queue = [startKey];
   const cameFrom = new Map([[startKey, ""]]);
-  for (let head = 0; head < queue.length; head++) {
+  for (let head = 0; head < queue.length && head < 6000; head++) {
     const current = queue[head];
     if (current === endKey) break;
-    const [cx, cz] = cellFromKey(current);
+    const [cx, cz] = current.split(",").map(Number);
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const nx = cx + dx;
-      const nz = cz + dz;
-      const nextKey = keyFor(nx, nz);
-      if (!walkable(nx, nz) || cameFrom.has(nextKey)) continue;
+      const nextKey = keyFor(cx + dx, cz + dz);
+      if (cameFrom.has(nextKey) || !walkable(cx + dx, cz + dz)) continue;
       cameFrom.set(nextKey, current);
       queue.push(nextKey);
     }
@@ -565,34 +677,29 @@ function findPath(start, end) {
   if (!cameFrom.has(endKey)) return [];
   const path = [];
   for (let key = endKey; key && key !== startKey; key = cameFrom.get(key)) {
-    const [x, z] = cellFromKey(key);
+    const [x, z] = key.split(",").map(Number);
     path.unshift(new THREE.Vector3(x, 0, z));
   }
-  if (path.length) path[path.length - 1].set(ex, 0, ez);
   return path;
 }
-
-function updateActor(actor, delta, speed, pathKey = "route") {
-  const route = actor.userData[pathKey] || [];
-  if (!route.length) return false;
-  const target = route[0];
-  const direction = target.clone().sub(actor.position);
-  direction.y = 0;
-  if (direction.length() < 0.14) {
-    route.shift();
-    if (!route.length) return false;
-  } else {
-    direction.normalize();
-    actor.position.addScaledVector(direction, speed * delta);
-    actor.rotation.y = Math.atan2(direction.x, direction.z);
-  }
+function animateLimbs(actor, delta, speed) {
   actor.userData.walkPhase = (actor.userData.walkPhase || 0) + delta * speed * 5.2;
   const swing = Math.sin(actor.userData.walkPhase) * 0.42;
-  for (const [index, leg] of (actor.userData.legs || []).entries()) leg.rotation.x = swing * (index === 0 ? 1 : -1);
-  for (const [index, arm] of (actor.userData.arms || []).entries()) arm.rotation.x = swing * (index === 0 ? -1 : 1);
+  actor.userData.legs?.forEach((leg, index) => { leg.rotation.x = swing * (index === 0 ? 1 : -1); });
+  actor.userData.arms?.forEach((arm, index) => { if (!(actor.userData.fixedArm && index === 1)) arm.rotation.x = swing * (index === 0 ? -1 : 1); });
+}
+function updateActor(actor, delta, speed) {
+  const route = actor.userData.route || [];
+  if (!route.length) return false;
+  const direction = route[0].clone().sub(actor.position);
+  direction.y = 0;
+  if (direction.length() < 0.14) { route.shift(); return route.length > 0; }
+  direction.normalize();
+  actor.position.addScaledVector(direction, speed * delta);
+  actor.rotation.y = Math.atan2(direction.x, direction.z);
+  animateLimbs(actor, delta, speed);
   return true;
 }
-
 function setDestination(point) {
   const destination = new THREE.Vector3(point.x, 0, point.z);
   playerPath = findPath(player.position, destination);
@@ -600,200 +707,166 @@ function setDestination(point) {
   marker.position.set(destination.x, 0.035, destination.z);
   marker.visible = true;
   advanceTutorial("move");
-  showToast("Déplacement en cours…");
+}
+function updateForklift(delta) {
+  if (!forklift) return;
+  const patrol = forklift.userData.patrol;
+  const zone = ZONES[patrol.zone];
+  const [tx, tz] = toWorld(zone, ...patrol.points[patrol.index]);
+  const target = new THREE.Vector3(tx, 0, tz);
+  const direction = target.sub(forklift.position).setY(0);
+  if (direction.length() < 0.1) { patrol.index = (patrol.index + 1) % patrol.points.length; return; }
+  direction.normalize();
+  forklift.position.addScaledVector(direction, 1.4 * delta);
+  forklift.rotation.y = Math.atan2(-direction.z, direction.x);
 }
 
-function renderTutorial() {
-  const step = tutorialSteps[tutorialIndex];
-  if (!step) { $("#tutorial").hidden = true; return; }
-  $("#tutorial-count").textContent = `ÉTAPE ${tutorialIndex + 1} / ${tutorialSteps.length}`;
-  $("#tutorial-title").textContent = step.title;
-  $("#tutorial-copy").textContent = step.copy;
-  $("#tutorial-next").textContent = tutorialIndex === tutorialSteps.length - 1 ? "Terminer" : "Compris →";
-}
-
-function beginTutorial() {
-  tutorialIndex = 0;
-  $("#tutorial").hidden = false;
-  renderTutorial();
-}
-
-function advanceTutorial(action, force = false) {
-  if ($("#tutorial").hidden) return;
-  if (!force && tutorialSteps[tutorialIndex]?.action !== action) return;
-  tutorialIndex++;
-  renderTutorial();
-}
-
-function addSupplierRow() {
-  const list = $("#custom-supplier-list");
-  if (list.children.length >= 20) return;
-  const row = document.createElement("div");
-  row.className = "supplier-entry";
-  row.innerHTML = '<input data-field="name" aria-label="Nom du fournisseur" placeholder="Nom" maxlength="40" required><input data-field="lead_time_weeks" aria-label="Délai en semaines" title="Délai en semaines" type="number" min="1" max="8" value="2" required><input data-field="reliability" aria-label="Fiabilité en pourcentage" title="Fiabilité en pourcentage" type="number" min="0" max="100" value="92" required><input data-field="unit_cost" aria-label="Coût unitaire en euros" title="Coût unitaire en euros" type="number" min="0" step="0.01" value="2" required><button class="remove-supplier" type="button" aria-label="Supprimer ce fournisseur">×</button>';
-  row.querySelector(".remove-supplier").addEventListener("click", () => row.remove());
-  list.append(row);
-}
-
+// ------------------------------------------------------------ interactions
 function cameraPosition() {
   const target = player.position.clone().add(new THREE.Vector3(0, 0.8, 0));
-  camera.position.set(
-    target.x + Math.sin(cameraYaw) * cameraDistance * 0.62,
-    target.y + cameraDistance * 0.8,
-    target.z + Math.cos(cameraYaw) * cameraDistance * 0.62,
-  );
+  camera.position.set(target.x + Math.sin(cameraYaw) * cameraDistance * 0.62, target.y + cameraDistance * 0.8, target.z + Math.cos(cameraYaw) * cameraDistance * 0.62);
   camera.lookAt(target);
 }
-
 function findInteraction(object) {
   let current = object;
   while (current && !current.userData.interaction) current = current.parent;
-  return current?.userData.interaction ? { group: current, info: current.userData.interaction } : null;
+  return current?.userData.interaction && current.userData.interaction.type !== "none" ? { group: current, info: current.userData.interaction } : null;
 }
+
+function blockDetails(zoneId) {
+  const zone = ZONES[zoneId];
+  const report = state?.last_week || {};
+  const lines = state?.production_lines || [];
+  switch (zoneId) {
+    case "quai_dechargement": {
+      const next = (state?.purchase_orders || []).filter((order) => order.arrival_week <= (state?.current_week || 0) + 1);
+      return `Cette semaine : ${report.received_orders || 0} camion(s) fournisseur déchargé(s). ${next.length ? `${next.length} livraison(s) attendue(s) la semaine prochaine.` : "Aucune livraison attendue la semaine prochaine."}`;
+    }
+    case "bureau_reception":
+      return `Réceptionné : ${fmt(report.received_units)} unité(s) · en quarantaine : ${fmt(report.quarantined)}.`;
+    case "stock_mp": case "stock_sf": case "stock_pf":
+      return stocksOf(zone.part, ...(zone.part === "MP" ? [] : [])).map((item) => `${item.name} ${fmt(item.quantity)} (pt cde ${fmt(item.reorder_point)}, cap. ${fmt(item.capacity_max)})`).join(" · ");
+    case "chaine_production":
+      return `${lines.map((line) => `${line.name} : ${line.operational ? `${fmt(line.efficiency)} %` : "EN PANNE"}`).join(" · ")}. OF en cours : ${(state?.production_orders || []).length}. Semi-finis faits : ${fmt(report.semi_finished)}.`;
+    case "controle_qualite":
+      return `Conformes : ${fmt(report.produced)} · retouchés : ${fmt(report.reworked)} · rebut : ${fmt(report.quality_losses)} · qualité ${fmt(state?.kpis?.quality_rate, 1)} %.`;
+    case "emballage":
+      return `Emballés : ${fmt(report.packed)} produit(s), ${fmt(report.pallets)} palette(s) filmée(s). En attente : ${fmt(Object.values(state?.packing_queue || {}).reduce((a, b) => a + b, 0))}.`;
+    case "logistique_transport": {
+      const open = (state?.customer_orders || []).filter((order) => order.status === "ouverte" || order.status === "en retard");
+      return `Expédiés : ${fmt(report.delivered)} · commandes à servir : ${open.length} (dont ${open.filter((order) => order.status === "en retard").length} en retard) · OTIF ${fmt(state?.kpis?.otif, 1)} %.`;
+    }
+    case "bureau_etude": {
+      const line = lines[0];
+      return line ? `Gamme : ${line.machines.map((machine) => `${machine.id.split("-")[1]} ${machine.operation} ${fmt(machine.cycle_minutes, 1)} min`).join(" → ")}. Passage au stock SF après M${line.semi_finished_after}. Nomenclature : 1 composant + 1 carton par colis.` : "";
+    }
+    case "maintenance_pdr":
+      return `Pièces de rechange : ${spareCount()}. Lignes en panne : ${lines.filter((line) => !line.operational).map((line) => line.name).join(", ") || "aucune"}. Interventions prévues : ${(state?.maintenance_queue || []).length}.`;
+    default:
+      return "";
+  }
+}
+
+const BLOCK_ACTIONS = {
+  quai_dechargement: ["Voir les achats en cours (tablette) →", "achats"],
+  bureau_reception: ["Voir les achats en cours (tablette) →", "achats"],
+  stock_mp: ["Acheter de la MP (tablette) →", "achats"],
+  stock_sf: ["Voir les stocks (tablette) →", "stocks"],
+  stock_pf: ["Lancer un OF (tablette) →", "of"],
+  chaine_production: ["Lancer un OF (tablette) →", "of"],
+  controle_qualite: ["Voir les OF (tablette) →", "of"],
+  emballage: ["Voir les stocks (tablette) →", "stocks"],
+  logistique_transport: ["Commandes clients (tablette) →", "clients"],
+  bureau_etude: ["Lancer un OF (tablette) →", "of"],
+  maintenance_pdr: ["Stocks et pannes (tablette) →", "stocks"],
+};
 
 function selectInteraction(info) {
   currentSelection = info;
+  $("#inspector-title").textContent = info.title || "Sélection";
+  $("#inspector-subtitle").textContent = { block: "Bloc", stock: "Référence du stock", line: "Ligne de production", worker: info.roleLabel || "Agent", player: "Joueur", truck: "Camion", asset: "Asset", forklift: "Engin" }[info.type] || "";
   $("#inspector").classList.remove("closed");
   const copy = $("#inspector-copy");
   const action = $("#inspector-action");
   action.hidden = true;
-  if (info.type === "stock") {
-    const stock = stockBySku(info.sku);
-    copy.textContent = `${info.title} · ${info.sku}. ${stock ? `${stock.quantity} unités disponibles · minimum ${stock.minimum} · point de commande ${stock.reorder_point} · capacité ${stock.capacity_max}.` : info.subtitle}`;
-    action.textContent = "Planifier une fabrication  →";
-    action.hidden = false;
-    action.onclick = () => { $("#product-sku").value = info.sku; openProduction(); };
-  } else if (info.type === "material") {
-    const stock = stockBySku(info.sku);
-    copy.textContent = `${info.title} · ${info.sku}. ${stock ? `${stock.quantity} unités disponibles · minimum ${stock.minimum} · point de commande ${stock.reorder_point} (commander ${stock.reorder_qty}) · capacité ${stock.capacity_max}.` : info.subtitle}`;
-    action.textContent = "Commander cette matière →";
-    action.hidden = false;
-    action.onclick = () => openOrder(info.sku);
+  if (info.type === "block") {
+    const zone = ZONES[info.zone];
+    const blockId = zone.block;
+    const people = agentsIn(blockId).map((agent) => `${agent.name === agent.role_label.split(" ")[0] ? "" : `${agent.name}, `}${agent.role_label.toLowerCase()}`).join(" ; ");
+    copy.textContent = `${info.title}. ${BLOCK_ROLES[blockId] || ""} Agents : ${people || "—"}. ${blockDetails(info.zone)}`;
+    const [label, tab] = BLOCK_ACTIONS[info.zone] || [];
+    if (label) { action.textContent = label; action.hidden = false; action.onclick = () => tablet.open(tab); }
+  } else if (info.type === "stock") {
+    const item = stockBySku(info.sku);
+    copy.textContent = item ? `${item.name} · ${item.sku}. ${fmt(item.quantity)} ${item.unit}(s) · stock initial ${fmt(item.initial)} · minimum ${fmt(item.minimum)} · point de commande ${fmt(item.reorder_point)} · quantité commandée ${fmt(item.reorder_qty)} · capacité ${fmt(item.capacity_max)}.` : info.title;
+    if (item?.category === "MP") { action.textContent = "Comparer les fournisseurs (tablette) →"; action.hidden = false; action.onclick = () => tablet.open("comparateur", { sku: item.sku, quantity: item.reorder_qty }); }
+    if (item?.category === "PF") { action.textContent = "Lancer un OF (tablette) →"; action.hidden = false; action.onclick = () => tablet.open("of", { product: item.sku }); }
   } else if (info.type === "line") {
     const line = state?.production_lines?.find((item) => item.id === info.lineId);
-    copy.textContent = line ? `${line.name} fabrique ${line.product_sku} · capacité ${line.weekly_capacity} unités par semaine · efficacité ${line.efficiency}%. ${line.machines?.map((machine) => `${machine.operation}: ${machine.cycle_minutes} min, ${machine.state}`).join(" · ") || "Les opérations de la ligne sont en série."}` : info.subtitle;
+    copy.textContent = line ? `${line.name} fabrique ${stockBySku(line.product_sku)?.name || line.product_sku} · ${line.operational ? `efficacité ${line.efficiency} %` : "en panne"}. ${line.machines.map((machine) => `${machine.id} ${machine.operation} ${machine.cycle_minutes} min (${machine.state})`).join(" → ")}. Voyant vert : en production · orange : à l’arrêt · rouge : panne.` : info.title;
     if (line && !line.operational) {
-      action.textContent = spareCount() > 0 ? "Réparer la ligne · 1 PDR →" : "Commander une pièce de rechange →";
+      action.textContent = spareCount() > 0 ? "Planifier l’intervention (tablette) →" : "Commander une pièce de rechange →";
       action.hidden = false;
-      action.onclick = () => spareCount() > 0 ? requestMaintenance(line.id) : openOrder("MAT-PDR");
+      action.onclick = () => spareCount() > 0 ? tablet.open("stocks") : tablet.open("achats", { sku: "MAT-PDR" });
     }
   } else if (info.type === "worker") {
-    copy.textContent = `${info.title} · ${info.subtitle}. Cliquez sur « Parler » ou approchez-vous et appuyez sur E.`;
-    action.textContent = `Parler avec ${info.title.split(" · ")[0]} →`;
+    copy.textContent = `${info.title} · ${info.subtitle}. Approchez-vous et appuyez sur E pour lui parler.`;
+    action.textContent = `Parler avec ${info.title} →`;
     action.hidden = false;
     action.onclick = () => openNpcDialog(info);
-  } else if (info.type === "department") {
-    const liveInfo = info.title === "Stock MP"
-      ? ` Matières disponibles : ${stocksOf("MP").map((item) => `${item.name} ${item.quantity}/${item.reorder_point} pt cde`).join(" · ")}.`
-      : info.title === "Entrepôt PF"
-        ? ` Stocks PF : ${stocksOf("PF").map((item) => `${item.name} ${item.quantity} u.`).join(" · ")}.`
-        : info.title === "Maintenance et PDR"
-          ? ` ${spareCount()} pièce(s) de rechange disponible(s).`
-          : info.title === "Pilotage"
-            ? ` OTIF ${Number(state?.kpis?.otif || 0).toFixed(1)}% · TRS ${Number(state?.kpis?.trs || 0).toFixed(1)}% · qualité ${Number(state?.kpis?.quality_rate || 0).toFixed(1)}%.`
-            : "";
-    copy.textContent = `${info.subtitle}${liveInfo}`;
+  } else if (info.type === "player") {
+    copy.textContent = `${info.subtitle} Commandes clients, achats de MP et lancement des OF.`;
+    action.textContent = "Ouvrir la tablette →";
+    action.hidden = false;
+    action.onclick = () => tablet.open();
+  } else if (info.type === "truck") {
+    copy.textContent = info.kind === "fournisseur" ? `Camion fournisseur · ${info.title}. Il décharge au quai de déchargement puis repart.` : info.kind === "client" ? `Camion du client ${info.title}, venu charger au quai d’expédition.` : "Notre camion de livraison : il part livrer les clients depuis le quai d’expédition.";
+  } else if (info.type === "forklift") {
+    copy.textContent = "Chariot élévateur du magasinier-cariste : il range les palettes et sort la matière dans l’ordre d’arrivée.";
   } else {
-    copy.textContent = `${info.title}. ${info.subtitle}. Cliquez sur un autre élément pour l’inspecter.`;
+    copy.textContent = `${info.title}${info.subtitle ? ` · ${info.subtitle}` : ""}.`;
   }
   advanceTutorial("inspect");
 }
 
-function refreshSupplierOptions() {
-  const sku = $("#sku").value;
-  const sellers = (state?.suppliers || []).filter((supplier) => supplier.active && supplier.prices?.[sku] !== undefined)
-    .sort((a, b) => a.prices[sku] - b.prices[sku]);
-  $("#supplier").innerHTML = sellers.length
-    ? sellers.map((supplier) => `<option value="${escapeHTML(supplier.id)}">${escapeHTML(supplier.name)} · ${supplier.prices[sku].toFixed(2).replace(".", ",")} €/u · ${supplier.lead_time_weeks} sem. · fiabilité ${supplier.reliability}%</option>`).join("")
-    : '<option value="">Aucun fournisseur pour cette matière</option>';
-}
-
-function openOrder(sku = "") {
-  if (sku) $("#sku").value = sku.replace("SKU-", "MAT-");
-  refreshSupplierOptions();
-  $("#order-modal").hidden = false;
-  $("#order-feedback").textContent = "";
-}
-
-function openProduction() {
-  $("#production-modal").hidden = false;
-  $("#production-feedback").textContent = "";
-}
-
-async function requestMaintenance(lineId) {
-  try {
-    const response = await fetch("/api/decisions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ maintenance_line_ids: [lineId] }),
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.detail || `HTTP ${response.status}`);
-    state = await (await fetch("/api/state")).json();
-    updateHUD(state);
-    showToast("Intervention planifiée pour la prochaine semaine.");
-  } catch (error) {
-    showToast(`Maintenance impossible : ${error.message}`, true);
-  }
-}
-
 function openNpcDialog(info) {
-  const role = info.role || "Réception";
-  const stock = [...stocksOf("PF")].sort((a, b) => a.quantity - b.quantity)[0];
-  const line = [...(state?.production_lines || [])].sort((a, b) => a.efficiency - b.efficiency)[0];
-  const conversations = {
-    "Stock MP": [
-      ["As-tu repéré un stock bas ?", stock ? `${stock.name} est à ${stock.quantity} ${stock.unit || "unités"}, pour un stock minimum de ${stock.minimum}. On devrait surveiller cette référence.` : "Les rayonnages sont en cours d’inventaire."],
-      ["Comment circule le chariot ?", "Les allées sont dégagées. Approche-toi des rayonnages pour vérifier les références et les quantités."],
-    ],
-    Production: [
-      ["Quelle ligne a besoin d’aide ?", line ? `${line.name} tourne à ${line.efficiency}% avec une capacité de ${line.weekly_capacity} pièces par semaine.` : "Les lignes tournent normalement cette semaine."],
-      ["Que faut-il produire ?", stock ? `Nous fabriquons ${stock.name}. Le stock actuel est de ${stock.quantity} unités.` : "Consulte le tableau de bord pour voir les priorités."],
-    ],
-    Qualité: [
-      ["Comment va le service client ?", `L’OTIF est à ${Number(state?.kpis?.otif || 0).toFixed(1)}%. ${state?.kpis?.stockouts ? "Des ruptures pénalisent les livraisons." : "Pas de rupture signalée actuellement."}`],
-      ["Quel indicateur surveiller ?", `Le TRS de l’usine est à ${Number(state?.kpis?.trs || 0).toFixed(1)}%. Maintenons les lignes et le contrôle qualité.`],
-    ],
-    Réception: [
-      ["Y a-t-il des livraisons à surveiller ?", state?.events?.length ? `Cette semaine, le marché signale : ${state.events.join(" · ")}` : "Aucun aléa signalé cette semaine. Les délais fournisseurs restent à surveiller."],
-      ["Où vérifier les réceptions ?", "Le quai est à l’entrée de l’entrepôt. Consulte les délais de chaque fournisseur avant de lancer une commande."],
-    ],
-    Emballage: [
-      ["Comment préparer une palette ?", "Mets les produits en carton, contrôle l’étiquette et le poids, puis filme une palette de six colis."],
-      ["Que se passe-t-il après le contrôle ?", "Les produits conformes arrivent ici. Les pièces à retoucher repartent en production."],
-    ],
-    "Entrepôt PF": [
-      ["Quel stock est le plus bas ?", stock ? `${stock.name} : ${stock.quantity} unités en stock PF, stock minimum ${stock.minimum}.` : "Les emplacements PF sont en cours d’inventaire."],
-      ["Quand charger le client ?", "Le client est servi à chaque semaine simulée. L’OTIF indique les quantités livrées complètes et à temps."],
-    ],
-    Maintenance: [
-      ["Y a-t-il une ligne en panne ?", state?.production_lines?.some((item) => !item.operational) ? `${state.production_lines.filter((item) => !item.operational).map((item) => item.name).join(", ")} attend une intervention.` : "Toutes les lignes sont opérationnelles."],
-      ["Combien de pièces de rechange reste-t-il ?", `${spareCount()} pièce(s) disponible(s). Une réparation consomme une pièce.`],
-    ],
-    Pilotage: [
-      ["Quelle décision prendre ?", state?.kpis?.stockouts ? `${state.kpis.stockouts} référence(s) manquent. Planifie un OF et surveille la matière.` : "Vérifie les matières, passe les OF nécessaires, puis lance la semaine."],
-      ["Quels indicateurs suivre ?", `OTIF ${Number(state?.kpis?.otif || 0).toFixed(1)}% · TRS ${Number(state?.kpis?.trs || 0).toFixed(1)}% · qualité ${Number(state?.kpis?.quality_rate || 0).toFixed(1)}%.`],
-    ],
+  const report = state?.last_week || {};
+  const lowMp = stocksOf("MP").filter((item) => item.quantity <= item.reorder_point);
+  const lowPf = stocksOf("PF").filter((item) => item.quantity < item.minimum);
+  const down = (state?.production_lines || []).filter((line) => !line.operational);
+  const openOrders = (state?.customer_orders || []).filter((order) => order.status === "ouverte" || order.status === "en retard");
+  const talk = {
+    chauffeur_fournisseur: [["Qu’apportes-tu ?", "Les palettes de MP commandées, avec le bon de livraison. Je repars dès que le camion est vide."], ["Et si le quai est occupé ?", "J’attends mon tour : il n’y a qu’un quai de déchargement."]],
+    receptionnaire: [["Comment s’est passée la réception ?", `${fmt(report.received_units)} unité(s) entrées en stock, ${fmt(report.quarantined)} mise(s) en quarantaine.`], ["Que fais-tu d’une palette ?", "Je compare au bon de livraison, je l’enregistre et je l’étiquette. Si elle n’est pas conforme, elle part en quarantaine."]],
+    magasinier_cariste: [["Un stock est-il bas ?", lowMp.length ? `${lowMp.map((item) => `${item.name} (${fmt(item.quantity)})`).join(", ")} sous le point de commande. Passe par ta tablette pour commander.` : "Toutes les MP sont au-dessus du point de commande."], ["Comment sors-tu la matière ?", "Dans l’ordre d’arrivée. Je prépare un kit par OF et je suis les trois stocks : MP, semi-finis et PF."]],
+    chef_de_ligne: [["Où en est la production ?", `${(state?.production_orders || []).length} OF en cours. ${down.length ? `${down.map((line) => line.name).join(", ")} en panne.` : "Les quatre lignes tournent."}`], ["Qui fixe la cadence ?", "La machine la plus lente de la ligne : M3, la finition. Les autres l’attendent."]],
+    operateur_machine: [["Que fais-tu ?", "Je charge la matière, je fais tourner ma machine et je signale les pannes au chef de ligne."], ["Et après M2 ?", "Les pièces passent par le stock de semi-finis avant la finition."]],
+    controleur_qualite: [["Combien de pièces conformes ?", `${fmt(report.produced)} conformes, ${fmt(report.reworked)} à retoucher, ${fmt(report.quality_losses)} au rebut.`], ["Comment tries-tu ?", "Zone verte : conforme. Zone orange : à retoucher. Bac rouge : rebut."]],
+    emballeur: [["Combien de palettes ?", `${fmt(report.pallets)} palette(s) filmée(s) cette semaine, soit ${fmt(report.packed)} produits.`], ["Ton travail ?", "Mettre en carton, étiqueter et peser, monter et filmer la palette, puis l’envoyer au stock PF."]],
+    responsable_production: [["Que définis-tu ici ?", "Les gammes, les nomenclatures et les temps : M1 2 min, M2 1,5 min, M3 3 min, M4 1 min."], ["Qui lance les OF ?", "Toi, depuis ta tablette. Moi, je fournis les méthodes au chef de ligne."]],
+    technicien_maintenance: [["Une ligne est en panne ?", down.length ? `${down.map((line) => line.name).join(", ")} attend une intervention. Planifie-la depuis la tablette.` : "Toutes les lignes tournent."], ["Combien de pièces de rechange ?", `${spareCount()} en stock PDR. Une réparation en consomme une.`]],
+    magasinier_logistique: [["Que reste-t-il à expédier ?", `${openOrders.length} commande(s) client à servir. ${lowPf.length ? `Stock PF bas : ${lowPf.map((item) => item.name).join(", ")}.` : ""}`], ["Comment partent les produits ?", "Soit avec nos camions de livraison, soit le client vient charger au quai d’expédition."]],
+    chauffeur_livreur: [["Tu livres combien ?", `${fmt(report.delivered)} produits expédiés cette semaine.`], ["Combien de camions ?", "Trois camions de 600 produits chacun."]],
+    chauffeur_client: [["Tu viens chercher quoi ?", "Ma commande, préparée par la logistique. Je charge au quai d’expédition et je repars."], ["Et si elle n’est pas prête ?", "Je repars sans, et la commande passe en retard."]],
   };
-  const topics = conversations[role] || conversations.Réception;
-  const name = info.title.split(" · ")[0];
-  $("#npc-name").textContent = name;
-  $("#npc-role").textContent = role;
-  $("#npc-dialogue").textContent = `${name} : Bonjour ! Que veux-tu savoir ?`;
+  const topics = talk[info.role] || talk.receptionnaire;
+  $("#npc-name").textContent = info.title;
+  $("#npc-role").textContent = info.roleLabel || info.subtitle || "";
+  $("#npc-dialogue").textContent = `${info.title} : Bonjour ! Que veux-tu savoir ?`;
   ["#npc-question-one", "#npc-question-two"].forEach((selector, index) => {
     const button = $(selector);
     button.textContent = topics[index][0];
-    button.onclick = () => { $("#npc-dialogue").textContent = `${name} : ${topics[index][1]}`; };
+    button.onclick = () => { $("#npc-dialogue").textContent = `${info.title} : ${topics[index][1]}`; };
   });
   $("#npc-modal").hidden = false;
 }
 
 function showToast(message, isError = false) {
-  const box = $("#toast");
-  box.textContent = message;
-  box.className = `visible${isError ? " error" : ""}`;
+  const el = $("#toast");
+  el.textContent = message;
+  el.className = `visible${isError ? " error" : ""}`;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { box.className = ""; }, 2800);
+  toastTimer = setTimeout(() => { el.className = ""; }, 3200);
 }
 
 function updateHUD(newState) {
@@ -802,42 +875,28 @@ function updateHUD(newState) {
   $("#week").textContent = `SEMAINE ${String(state.current_week).padStart(2, "0")}`;
   $("#otif").textContent = Number(state.kpis.otif).toFixed(1).replace(".", ",");
   $("#trs").textContent = Number(state.kpis.trs).toFixed(1).replace(".", ",");
-  $("#stock-value").textContent = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(state.kpis.stock_value);
+  $("#stock-value").textContent = fmt(state.kpis.stock_value);
   $("#quality").textContent = Number(state.kpis.quality_rate ?? 100).toFixed(1).replace(".", ",");
-  $("#delivered").textContent = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(state.kpis.delivered || 0);
-  const lowMaterial = stocksOf("MP", "PDR").find((material) => material.quantity <= material.reorder_point);
-  const lowFinished = stocksOf("PF").find((stock) => stock.quantity < stock.minimum);
-  const pendingProduction = (state.production_orders || []).length;
-  $("#objective").textContent = Number(state.kpis.stockouts) > 0
-    ? `${state.kpis.stockouts} référence(s) en rupture. Planifiez un OF et surveillez la matière première.`
-    : lowMaterial ? `${lowMaterial.name} est sous son point de commande. Passez une commande fournisseur.`
-      : lowFinished ? `${lowFinished.name} passe sous son stock minimum PF. Planifiez un OF et vérifiez la matière disponible.`
-        : pendingProduction ? `${pendingProduction} OF en attente. Lancez la semaine pour produire.`
-          : "Planifiez vos OF, surveillez les matières et livrez le client à temps.";
-  $("#objective-status").textContent = state.alerts?.length ? `Alerte stock : ${state.alerts[0]}` : pendingProduction ? `${pendingProduction} ordre(s) de fabrication en attente` : lowMaterial ? "Action requise : réapprovisionnement MP" : lowFinished ? "Action requise : OF produit fini" : "Décidez les quantités à produire cette semaine.";
+  $("#delivered").textContent = fmt(state.kpis.delivered || 0);
+  const lowMaterial = stocksOf("MP", "PDR").find((item) => item.quantity <= item.reorder_point);
+  const lowFinished = stocksOf("PF").find((item) => item.quantity < item.minimum);
+  const late = (state.customer_orders || []).filter((order) => order.status === "en retard").length;
+  $("#objective").textContent = late ? `${late} commande(s) client en retard. Lancez des OF et servez la logistique.`
+    : lowFinished ? `${lowFinished.name} passe sous son stock minimum PF. Lancez un OF depuis la tablette.`
+      : lowMaterial ? `${lowMaterial.name} est sous son point de commande. Commandez depuis la tablette.`
+        : "Pilotez l’usine depuis votre tablette : achats de MP, OF et commandes clients.";
+  $("#objective-status").textContent = state.alerts?.length ? `${state.alerts.length} alerte(s) stock · ${state.alerts[0]}` : "Aucune alerte de stock.";
   $("#event-summary").textContent = state.events?.length ? state.events.join(" · ") : "Marché stable cette semaine.";
-  $("#people-label").textContent = `${workers.length} ouvriers actifs · ${state.kpis.stockouts ? "priorité stocks" : "activité normale"}`;
-  const selectedSku = $("#sku").value;
-  $("#sku").innerHTML = stocksOf("MP", "PDR").map((stock) => `<option value="${escapeHTML(stock.sku)}">${escapeHTML(stock.name)} · ${stock.quantity} en stock</option>`).join("");
-  if (selectedSku && stockBySku(selectedSku)) $("#sku").value = selectedSku;
-  $("#product-sku").innerHTML = stocksOf("PF").map((stock) => `<option value="${escapeHTML(stock.sku)}">${escapeHTML(stock.name)} · ${stock.quantity} en stock PF</option>`).join("");
-  refreshSupplierOptions();
-  const selectedProductSku = currentSelection?.type === "stock" ? currentSelection.sku : "";
-  if (selectedProductSku) $("#product-sku").value = selectedProductSku;
-  const selectedMaterialSku = currentSelection?.type === "material" ? currentSelection.sku : "";
-  if (selectedMaterialSku) $("#sku").value = selectedMaterialSku;
-  workers.forEach((worker, index) => {
-    let color = 0x4f8c7c;
-    if (state.kpis.otif < 75 || state.kpis.stockouts > 0) color = 0xb56d54;
-    else if (state.kpis.trs < 65) color = 0xc09a47;
-    else color = [0x4f8c7c, 0x4b718a, 0x7d8153, 0x8c6855][index % 4];
-    worker.userData.jacket.color.setHex(color);
-  });
-  if (["stock", "material", "line"].includes(currentSelection?.type)) selectInteraction(currentSelection);
+  const busy = (state.agents || []).filter((agent) => agent.state === "occupé").length;
+  $("#people-label").textContent = `${(state.agents || []).length} agents · ${busy} occupé(s)`;
+  refreshWorld();
+  tablet?.render();
+  if (["stock", "line", "block"].includes(currentSelection?.type)) selectInteraction(currentSelection);
 }
 
-function escapeHTML(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+async function refreshState() {
+  const response = await fetch("/api/state");
+  updateHUD(await response.json());
 }
 
 function raycastFromPointer(event) {
@@ -846,97 +905,67 @@ function raycastFromPointer(event) {
   pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
 }
-
+function isShown(object) {
+  for (let current = object; current; current = current.parent) if (!current.visible) return false;
+  return true;
+}
+function swapLabel(sprite, text, color, bg) {
+  sprite.material.map?.dispose();
+  sprite.material.dispose();
+  sprite.material = labelSprite(text, color, bg).material;
+}
 function onCanvasClick(event) {
   if (dragging || event.button !== 0) return;
   raycastFromPointer(event);
-  const rect = canvas.getBoundingClientRect();
-  let nearestWorker = null;
-  let nearestWorkerPixels = 44;
-  for (const worker of workers) {
-    const projected = worker.position.clone().add(new THREE.Vector3(0, 1.05, 0)).project(camera);
-    const px = (projected.x * 0.5 + 0.5) * rect.width + rect.left;
-    const py = (-projected.y * 0.5 + 0.5) * rect.height + rect.top;
-    const distance = Math.hypot(event.clientX - px, event.clientY - py);
-    if (distance < nearestWorkerPixels) { nearestWorker = worker; nearestWorkerPixels = distance; }
-  }
-  if (nearestWorker) {
-    const info = nearestWorker.userData.interaction;
-    selectInteraction(info);
-    openNpcDialog(info);
-    const closePoint = nearestWorker.getWorldPosition(new THREE.Vector3());
-    const approach = closePoint.add(player.position.clone().sub(closePoint).setY(0).normalize().multiplyScalar(2.1));
-    if (walkable(Math.round(approach.x), Math.round(approach.z))) setDestination(approach);
-    return;
-  }
   const hits = raycaster.intersectObjects(interactables, true);
-  if (hits.length) {
-    const target = findInteraction(hits[0].object);
-    if (target) {
-      selectInteraction(target.info);
-      if (target.info.type === "worker") openNpcDialog(target.info);
-      const closePoint = target.group.getWorldPosition(new THREE.Vector3());
-      const direction = player.position.clone().sub(closePoint).setY(0).normalize();
-      const approach = closePoint.add(direction.multiplyScalar(2.4));
-      if (walkable(Math.round(approach.x), Math.round(approach.z))) setDestination(approach);
-      return;
-    }
+  for (const hit of hits) {
+    if (!isShown(hit.object)) continue;
+    const target = findInteraction(hit.object);
+    if (!target) continue;
+    selectInteraction(target.info);
+    if (target.info.type === "worker") openNpcDialog(target.info);
+    if (target.info.type === "block") { setDestination(hit.point); return; }
+    const closePoint = target.group.getWorldPosition(new THREE.Vector3());
+    const approach = closePoint.add(player.position.clone().sub(closePoint).setY(0).normalize().multiplyScalar(1.8));
+    setDestination(approach);
+    return;
   }
   const point = new THREE.Vector3();
   if (raycaster.ray.intersectPlane(groundPlane, point)) setDestination(point);
 }
-
 function setupControls() {
   canvas.addEventListener("pointerdown", (event) => {
-    if (event.button === 2 || event.button === 1) {
-      dragging = true;
-      lastPointer = { x: event.clientX, y: event.clientY };
-      canvas.setPointerCapture(event.pointerId);
-    }
+    if (event.button === 2 || event.button === 1) { dragging = true; lastPointer = { x: event.clientX, y: event.clientY }; canvas.setPointerCapture(event.pointerId); }
   });
   canvas.addEventListener("pointermove", (event) => {
     if (!dragging) {
       raycastFromPointer(event);
-      const hit = raycaster.intersectObjects(interactables, true).find((item) => findInteraction(item.object));
+      const hit = raycaster.intersectObjects(interactables, true).find((item) => isShown(item.object) && findInteraction(item.object));
       const target = hit ? findInteraction(hit.object) : null;
-      if (target) {
+      if (target && target.info.type !== "block") {
         const point = target.group.getWorldPosition(new THREE.Vector3());
         hoverRing.position.set(point.x, 0.04, point.z);
         hoverRing.visible = true;
-        canvas.style.cursor = "pointer";
-      } else {
-        hoverRing.visible = false;
-        canvas.style.cursor = "default";
-      }
+      } else hoverRing.visible = false;
+      canvas.style.cursor = target ? "pointer" : "default";
       return;
     }
     cameraYaw -= (event.clientX - lastPointer.x) * 0.008;
     lastPointer = { x: event.clientX, y: event.clientY };
   });
-  canvas.addEventListener("pointerup", (event) => {
-    if (dragging) {
-      dragging = false;
-      return;
-    }
-    onCanvasClick(event);
-  });
+  canvas.addEventListener("pointerup", (event) => { if (dragging) { dragging = false; return; } onCanvasClick(event); });
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
-  canvas.addEventListener("wheel", (event) => {
-    cameraDistance = Math.max(15, Math.min(34, cameraDistance + Math.sign(event.deltaY) * 1.5));
-  }, { passive: true });
+  canvas.addEventListener("wheel", (event) => { cameraDistance = Math.max(12, Math.min(44, cameraDistance + Math.sign(event.deltaY) * 1.5)); }, { passive: true });
   window.addEventListener("keydown", (event) => {
+    if (event.target.closest?.("input, select, textarea")) return;
     const key = event.key.toLowerCase();
-    if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) {
-      keys.add(key);
-      playerPath.length = 0;
-    }
-    if (key === "1") openOrder();
+    if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", "shift"].includes(key)) { keys.add(key); playerPath.length = 0; }
+    if (key === "1" || key === "t") tablet.isOpen() ? tablet.close() : tablet.open();
     if (key === "2") $("#inspector").classList.remove("closed");
-    if (key === "3") cameraDistance = 23;
-    if (key === "escape") $("#order-modal").hidden = true;
-    if (key === "escape") $("#npc-modal").hidden = true;
-    if (key === "escape") $("#production-modal").hidden = true;
+    if (key === "3") { cameraDistance = CAMERA_HOME.distance; cameraYaw = CAMERA_HOME.yaw; }
+    if (key === "escape") { tablet.close(); $("#npc-modal").hidden = true; }
     if (key === "e") interactNearest();
+    if (key === "r" && roof) { roof.visible = !roof.visible; showToast(roof.visible ? "Toit affiché (R pour le masquer)." : "Toit masqué."); }
   });
   window.addEventListener("keyup", (event) => keys.delete(event.key.toLowerCase()));
   window.addEventListener("blur", () => keys.clear());
@@ -944,11 +973,10 @@ function setupControls() {
     camera.aspect = innerWidth / innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(innerWidth, innerHeight);
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.7));
   });
 }
-
 function moveByKeyboard(delta) {
+  if (tablet?.isOpen()) return false;
   const forward = new THREE.Vector3();
   camera.getWorldDirection(forward);
   forward.y = 0;
@@ -964,41 +992,59 @@ function moveByKeyboard(delta) {
   direction.normalize();
   const speed = keys.has("shift") ? 6.2 : 4.1;
   const step = direction.multiplyScalar(speed * delta);
-  const nextX = player.position.x + step.x;
-  const nextZ = player.position.z + step.z;
+  const nextX = player.position.x + step.x, nextZ = player.position.z + step.z;
   if (walkable(Math.round(nextX), Math.round(player.position.z))) player.position.x = nextX;
   if (walkable(Math.round(player.position.x), Math.round(nextZ))) player.position.z = nextZ;
   player.rotation.y = Math.atan2(step.x, step.z);
-  player.userData.walkPhase = (player.userData.walkPhase || 0) + delta * speed * 5;
-  const swing = Math.sin(player.userData.walkPhase) * 0.5;
-  player.userData.legs.forEach((leg, index) => { leg.rotation.x = swing * (index ? -1 : 1); });
-  player.userData.arms.forEach((arm, index) => { arm.rotation.x = swing * (index ? 1 : -1); });
+  animateLimbs(player, delta, speed);
   return true;
 }
-
 function interactNearest() {
   let closest = null;
   let closestDistance = 3.2;
   for (const group of interactables) {
     const info = group.userData.interaction;
-    if (["worker", "line", "stock", "office", "dock", "forklift"].includes(info.type)) {
-      const distance = player.position.distanceTo(group.getWorldPosition(new THREE.Vector3()));
-      if (distance < closestDistance) { closest = info; closestDistance = distance; }
-    }
+    if (!info || ["none", "block", "player"].includes(info.type)) continue;
+    const distance = player.position.distanceTo(group.getWorldPosition(new THREE.Vector3()));
+    if (distance < closestDistance) { closest = info; closestDistance = distance; }
   }
-  if (closest) {
-    selectInteraction(closest);
-    if (closest.type === "worker") openNpcDialog(closest);
-  }
-  else showToast("Approchez-vous d’une machine ou d’un membre de l’équipe.");
+  if (closest) { selectInteraction(closest); if (closest.type === "worker") openNpcDialog(closest); }
+  else showToast("Approchez-vous d’un agent, d’une machine ou d’un équipement.");
 }
 
+// ------------------------------------------------------------------ tutoriel
+function renderTutorial() {
+  const step = tutorialSteps[tutorialIndex];
+  if (!step) { $("#tutorial").hidden = true; return; }
+  $("#tutorial-count").textContent = `ÉTAPE ${tutorialIndex + 1} / ${tutorialSteps.length}`;
+  $("#tutorial-title").textContent = step.title;
+  $("#tutorial-copy").textContent = step.copy;
+  $("#tutorial-next").textContent = tutorialIndex === tutorialSteps.length - 1 ? "Terminer" : "Compris →";
+}
+function beginTutorial() { tutorialIndex = 0; $("#tutorial").hidden = false; renderTutorial(); }
+function advanceTutorial(action, force = false) {
+  if ($("#tutorial").hidden) return;
+  if (!force && tutorialSteps[tutorialIndex]?.action !== action) return;
+  tutorialIndex++;
+  renderTutorial();
+}
+
+// ------------------------------------------------------------------- partie
+function addSupplierRow() {
+  const list = $("#custom-supplier-list");
+  if (list.children.length >= 20) return;
+  const row = document.createElement("div");
+  row.className = "supplier-entry";
+  row.innerHTML = '<input data-field="name" aria-label="Nom du fournisseur" placeholder="Nom" maxlength="40" required><input data-field="lead_time_weeks" aria-label="Délai en semaines" title="Délai en semaines" type="number" min="1" max="8" value="2" required><input data-field="reliability" aria-label="Fiabilité en pourcentage" title="Fiabilité en pourcentage" type="number" min="0" max="100" value="92" required><input data-field="unit_cost" aria-label="Prix unitaire en euros pour toutes les MP" title="Prix unitaire (€) pour toutes les MP" type="number" min="0" step="0.01" value="3" required><button class="remove-supplier" type="button" aria-label="Supprimer ce fournisseur">×</button>';
+  row.querySelector(".remove-supplier").addEventListener("click", () => row.remove());
+  list.append(row);
+}
 async function loadState() {
   try {
     const response = await fetch("/api/state");
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     savedState = await response.json();
-    updateHUD(savedState);
+    state = savedState;
     if (savedState.started) {
       $("#company-input").value = savedState.company_name || "G-mix";
       $("#resume-game").hidden = false;
@@ -1008,7 +1054,6 @@ async function loadState() {
     showToast(`API indisponible : ${error.message}`, true);
   }
 }
-
 async function createNewGame(event) {
   event.preventDefault();
   if (savedState?.started && !window.confirm("Créer une nouvelle partie remplacera la sauvegarde actuelle. Continuer ?")) return;
@@ -1040,14 +1085,12 @@ async function createNewGame(event) {
     button.disabled = false;
   }
 }
-
 function resumeGame() {
   if (!savedState?.started) return;
   updateHUD(savedState);
   $("#setup-screen").hidden = true;
   if ($("#tutorial-enabled").checked) beginTutorial();
 }
-
 async function nextWeek() {
   const button = $("#next-turn");
   button.disabled = true;
@@ -1056,8 +1099,9 @@ async function nextWeek() {
     const nextState = await response.json();
     if (!response.ok) throw new Error(nextState.detail || `HTTP ${response.status}`);
     updateHUD(nextState);
-    const report = nextState.last_week || {};
-    showToast(`Semaine ${nextState.current_week} · ${report.produced || 0} fabriqués · ${report.reworked || 0} retouchés · ${report.quality_losses || 0} rebutés · ${report.delivered || 0} livrés.`);
+    queueTrucks(nextState.trucks);
+    const r = nextState.last_week || {};
+    showToast(`Semaine ${nextState.current_week} · reçu ${fmt(r.received_units)} · fabriqué ${fmt(r.produced)} · emballé ${fmt(r.packed)} · expédié ${fmt(r.delivered)} · ${fmt(r.customer_orders_late)} commande(s) en retard.`);
     advanceTutorial("week");
   } catch (error) {
     showToast(`Impossible de simuler la semaine : ${error.message}`, true);
@@ -1066,129 +1110,55 @@ async function nextWeek() {
   }
 }
 
-async function placeOrder(event) {
-  event.preventDefault();
-  const supplierId = $("#supplier").value;
-  const sku = $("#sku").value;
-  const quantity = Number($("#quantity").value);
-  if (!supplierId || !sku || !Number.isInteger(quantity) || quantity < 1) return;
-  try {
-    const response = await fetch("/api/decisions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orders: [{ supplier_id: supplierId, sku, quantity }] }),
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.detail || `HTTP ${response.status}`);
-    const supplier = state.suppliers.find((item) => item.id === supplierId);
-    const arrival = state.current_week + Number(supplier?.lead_time_weeks || 0);
-    $("#order-feedback").textContent = `Commande confirmée · arrivée estimée semaine ${arrival}.`;
-    showToast("Commande passée. Le fournisseur la prépare.");
-    state = await (await fetch("/api/state")).json();
-    updateHUD(state);
-    advanceTutorial("order");
-    setTimeout(() => { $("#order-modal").hidden = true; }, 900);
-  } catch (error) {
-    $("#order-feedback").textContent = `Commande refusée : ${error.message}`;
-  }
-}
-
-async function placeProductionOrder(event) {
-  event.preventDefault();
-  const order = {
-    sku: $("#product-sku").value,
-    quantity: Number($("#production-quantity").value),
-  };
-  try {
-    const response = await fetch("/api/decisions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ production_orders: [order] }),
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.detail || `HTTP ${response.status}`);
-    const stock = stockBySku(order.sku);
-    $("#production-feedback").textContent = `OF pour ${stock?.name || order.sku} enregistré. Lancez la semaine pour produire.`;
-    showToast("Ordre de fabrication transmis à la production.");
-    advanceTutorial("production");
-    state = await (await fetch("/api/state")).json();
-    updateHUD(state);
-    setTimeout(() => { $("#production-modal").hidden = true; }, 1100);
-  } catch (error) {
-    $("#production-feedback").textContent = `OF refusé : ${error.message}`;
-  }
-}
+let tablet = null;
+// Pour le débogage depuis la console du navigateur.
+window.gmixDebug = {
+  trucks: () => truckActors.map((truck) => ({ kind: truck.userData.actor.kind, phase: truck.userData.actor.phase, mode: truck.userData.actor.mode, x: Math.round(truck.position.x * 10) / 10 })),
+  queues: () => Object.fromEntries(Object.entries(dockQueues).map(([kind, queue]) => [kind, queue.length])),
+};
 
 function animate() {
   requestAnimationFrame(animate);
   const delta = Math.min(clock.getDelta(), 0.04);
   const keyboardMoving = moveByKeyboard(delta);
-  if (!keyboardMoving && playerPath.length) updateActor(player, delta, 3.7, "route");
+  if (!keyboardMoving && playerPath.length) updateActor(player, delta, 3.7);
   if (!keyboardMoving && !playerPath.length) {
-    for (const limb of [...player.userData.legs, ...player.userData.arms]) limb.rotation.x *= 0.82;
+    player.userData.legs.forEach((limb) => { limb.rotation.x *= 0.82; });
+    player.userData.arms[0].rotation.x *= 0.82;
+    marker.visible = false;
   }
-  if (!playerPath.length && !keyboardMoving) marker.visible = false;
   for (const worker of workers) {
     if (!worker.userData.route.length) {
       const points = worker.userData.targets;
-      const target = points[worker.userData.targetIndex % points.length];
-      worker.userData.route = findPath(worker.position, target);
+      worker.userData.route = findPath(worker.position, points[worker.userData.targetIndex % points.length]);
       worker.userData.targetIndex++;
     }
-    if (!updateActor(worker, delta, 1.1, "route")) worker.rotation.y += delta * 0.4;
+    if (!updateActor(worker, delta, 1.1)) worker.rotation.y += delta * 0.4;
   }
+  updateForklift(delta);
+  updateTrucks(delta);
   cameraPosition();
   renderer.render(scene, camera);
 }
 
 async function startGame() {
   await loadState();
+  tablet = createTablet({ getState: () => state, refreshState, toast: showToast, onAction: advanceTutorial });
   buildWorld();
   setupControls();
   $("#next-turn").addEventListener("click", nextWeek);
-  $("#order-open").addEventListener("click", () => openOrder());
-  $("#production-open").addEventListener("click", openProduction);
+  $("#tablet-open").addEventListener("click", () => tablet.open());
   $("#inspect-open").addEventListener("click", () => $("#inspector").classList.toggle("closed"));
-  $("#home-camera").addEventListener("click", () => { cameraDistance = 23; cameraYaw = 0.48; player.position.set(0, 0, 1.5); playerPath = []; });
+  $("#home-camera").addEventListener("click", () => { cameraDistance = CAMERA_HOME.distance; cameraYaw = CAMERA_HOME.yaw; player.position.set(-2, 0, 5); playerPath = []; });
   $("#close-inspector").addEventListener("click", () => $("#inspector").classList.add("closed"));
-  $("#order-close").addEventListener("click", () => { $("#order-modal").hidden = true; });
-  $("#production-close").addEventListener("click", () => { $("#production-modal").hidden = true; });
   $("#npc-close").addEventListener("click", () => { $("#npc-modal").hidden = true; });
   $("#npc-modal").addEventListener("pointerdown", (event) => { if (event.target.id === "npc-modal") event.currentTarget.hidden = true; });
-  $("#order-modal").addEventListener("pointerdown", (event) => { if (event.target.id === "order-modal") event.currentTarget.hidden = true; });
-  $("#production-modal").addEventListener("pointerdown", (event) => { if (event.target.id === "production-modal") event.currentTarget.hidden = true; });
-  $("#order-form").addEventListener("submit", placeOrder);
-  $("#sku").addEventListener("change", refreshSupplierOptions);
-  $("#production-form").addEventListener("submit", placeProductionOrder);
   $("#setup-form").addEventListener("submit", createNewGame);
   $("#resume-game").addEventListener("click", resumeGame);
   $("#add-supplier").addEventListener("click", addSupplierRow);
-  const departmentDetails = {
-    "Fournisseur": "Acteur externe. Prépare les palettes après réception d’une commande MP, puis livre selon le délai et la fiabilité indiqués.",
-    "Réception": "Le réceptionnaire décharge le camion, contrôle les palettes et place les non-conformes en quarantaine avant d’alerter le pilotage.",
-    "Stock MP": "Le magasinier range les matières, suit le stock de sécurité et prépare un kit pour chaque ordre de fabrication.",
-    "Production": "Le chef de ligne lance les OF. Les machines travaillent en série : la plus lente fixe la cadence. Les lignes en parallèle additionnent leurs débits.",
-    "Contrôle qualité": "Chaque lot est contrôlé. Les pièces conformes passent à l’emballage, les pièces à retoucher retournent en production et les rebuts sont écartés.",
-    "Emballage": "Les produits conformes sont mis en colis, étiquetés puis regroupés par six sur une palette avant rangement en stock PF.",
-    "Entrepôt PF": "Le magasinier PF range les palettes, prépare les commandes client et signale les niveaux sous le stock minimum.",
-    "Client": "Le client commande et reçoit les produits finis. L’OTIF mesure les livraisons complètes et à l’heure.",
-    "Pilotage": "Le responsable transmet les commandes MP et les OF, suit OTIF, TRS, qualité et stocks, puis traite les alertes des départements.",
-    "Maintenance et PDR": `Le technicien traite une panne à la fois. ${spareCount()} pièce(s) de rechange disponible(s). L’entretien préventif limite les arrêts non planifiés.`,
-  };
-  document.querySelectorAll(".flow-step").forEach((button) => button.addEventListener("click", () => {
-    document.querySelectorAll(".flow-step").forEach((step) => step.classList.toggle("active", step === button));
-    selectInteraction({ type: "department", title: button.dataset.department, subtitle: departmentDetails[button.dataset.department] });
-    const x = Number(button.dataset.x), z = Number(button.dataset.z);
-    if (Number.isFinite(x) && Number.isFinite(z)) setDestination({ x, z });
-  }));
   $("#tutorial-next").addEventListener("click", () => advanceTutorial("", true));
   $("#tutorial-skip").addEventListener("click", () => { $("#tutorial").hidden = true; });
-  window.addEventListener("keydown", (event) => {
-    if (event.key === "1") openOrder();
-    if (event.key === "2") $("#inspector").classList.remove("closed");
-    if (event.key === "3") { cameraDistance = 23; cameraYaw = 0.48; }
-    if (event.key === "4") openProduction();
-  });
+  if (state) updateHUD(state);
   cameraPosition();
   animate();
   setTimeout(() => loading.classList.add("hidden"), 700);
@@ -1196,6 +1166,5 @@ async function startGame() {
 
 startGame().catch((error) => {
   console.error(error);
-  loading.innerHTML = `<div class="loading-mark">!</div><b>Le monde 3D n’a pas pu démarrer.</b><span>${escapeHTML(error.message)}</span>`;
-  showToast(error.message, true);
+  loading.innerHTML = `<div class="loading-mark">!</div><b>Le monde 3D n’a pas pu démarrer.</b><span>${String(error.message).replace(/[<>&]/g, "")}</span>`;
 });

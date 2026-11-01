@@ -1,40 +1,65 @@
-# G-mix — objectif et guide de jeu
+# G-mix — objectif et guide de jeu (monde v3)
 
 ## Le but
 
-Vous dirigez une entreprise qui fabrique et livre des produits aux magasins. Votre objectif est de garder les produits disponibles, de faire tourner les lignes de production et de livrer les commandes à temps. La partie avance semaine par semaine. Suivez surtout l’OTIF (livraisons à l’heure et complètes), le TRS (efficacité de l’usine) et la valeur du stock.
+Vous pilotez une usine qui fabrique et livre des produits. Gardez les produits disponibles, faites tourner les lignes et livrez les commandes clients complètes et à l’heure. La partie avance semaine par semaine. Suivez surtout l’OTIF (commandes livrées complètes et à l’heure), le TRS (efficacité de l’usine), la qualité et la valeur du stock.
 
-## Avant de commencer
+## Le monde
 
-Dans l’écran de préparation, choisissez le nom de l’entreprise et la difficulté. Vous pouvez aussi ajouter des fournisseurs en indiquant leur nom, délai, fiabilité et coût. Les fournisseurs ajoutés seront disponibles dans le formulaire de commande. Le niveau « Découverte » donne de meilleures conditions de départ ; « Expert » rend les approvisionnements et la production plus difficiles.
+Le monde reprend le croquis du document « Mon monde v3 – blocs, agents et assets ».
+
+- **En haut, le STOCK**, en trois parties avec les mêmes paramètres (stock initial, minimum, point de commande, quantité commandée, capacité max) : stock de MP, stock de semi-finis, stock de produits finis. Agent : le magasinier-cariste.
+- **En dessous, l’USINE** (cadre en pointillés) :
+  - Quai de déchargement : chauffeur fournisseur, réceptionnaire.
+  - Bureau de réception : réceptionnaire.
+  - Chaîne de production : chef de ligne, opérateurs de machine.
+  - Emballage : emballeur.
+  - Logistique & Transport : magasinier, chauffeur livreur, chauffeur client.
+  - Contrôle qualité : contrôleur qualité.
+  - Bureau d’étude des méthodes de production : responsable de production.
+  - Maintenance et stock PDR : technicien de maintenance.
+- **Vous, le joueur**, n’avez pas de bureau : vous pilotez l’usine à distance avec votre tablette.
+- **Fournisseurs et clients** sont des variables du scénario : dans le monde, on ne voit que leurs camions. Les camions fournisseurs arrivent au quai de déchargement. Nos camions de livraison partent du quai d’expédition, où certains clients viennent aussi charger avec leur propre camion.
+
+La matière suit ce chemin, repris par la barre du haut : quai → bureau de réception → stock MP → chaîne de production (passage par le stock de semi-finis après M2) → contrôle qualité → emballage → stock PF → logistique & transport.
 
 ## Commandes
 
-- **W, A, S, D** : déplacer votre personnage.
-- **Clic sur le sol** : envoyer le personnage à cet endroit.
-- **Clic sur un élément** : l’inspecter et, pour un PNJ, l’approcher.
-- **E près d’un PNJ ou d’un équipement** : interagir.
-- **Clic droit maintenu puis glissé** : faire pivoter la caméra.
-- **Molette** : zoomer ou dézoomer.
-- **1** : ouvrir le formulaire de commande.
-- **4** : planifier un ordre de fabrication (OF).
-- **2** : afficher ou masquer l’inspecteur.
-- **3** : recentrer la caméra.
+- **W, A, S, D** : déplacer votre personnage. **Maj** : courir.
+- **Clic sur le sol** : aller à cet endroit.
+- **Clic sur un bloc, un agent, une machine ou un équipement** : afficher sa fiche.
+- **Barre du haut** : aller directement à l’entrée d’un bloc.
+- **E** près d’un agent ou d’un équipement : interagir.
+- **1** ou **T** : ouvrir la tablette.
+- **2** : afficher l’inspecteur. **3** : recentrer la caméra.
+- **R** : afficher ou masquer le toit.
+- **Clic droit maintenu puis glissé** : tourner la caméra. **Molette** : zoomer.
+
+## La tablette
+
+- **Fournisseurs** : tous les fournisseurs du monde, avec leur prix par matière, leur délai, leur fiabilité et leur taux de non-conformité.
+- **Comparateur** : coût total, arrivée prévue et quantité conforme attendue pour chaque fournisseur ; cochez deux fournisseurs pour comparer X et Y.
+- **Achats MP** : passer une commande de matière ou de pièces de rechange, et suivre les commandes en cours.
+- **Commandes clients** : ce qu’il faut servir, l’échéance, le mode (livraison par nos camions ou enlèvement par le client) et le statut.
+- **Ordres de fabrication** : lancer un OF et suivre son avancement (semi-finis, puis produits terminés).
+- **Stocks & alertes** : les 3 parties du stock et le stock PDR, les alertes au point de commande, et les lignes en panne à réparer.
 
 ## Une semaine de jeu
 
-1. Parcourez l’entrepôt et consultez les stocks, les lignes et les membres de l’équipe.
-2. Surveillez les stocks de matières premières et commandez auprès d’un fournisseur. Le délai détermine la semaine de réception.
-3. Depuis **Ordre fab.** (ou la touche **4**), choisissez un produit, une quantité et le nombre de lignes en parallèle. La matière disponible et la capacité de la ligne limitent la fabrication.
-4. Cliquez sur **Lancer la semaine** pour recevoir les commandes arrivées, produire les OF, appliquer les défauts qualité et servir la demande client.
-5. Relisez l’OTIF, le TRS, la qualité, les volumes livrés et les alertes, puis ajustez vos décisions pour la semaine suivante.
+1. Consultez les alertes de la tablette : les références sous leur point de commande sont signalées, mais rien n’est commandé tout seul.
+2. Comparez les fournisseurs et achetez la matière. Le délai du fournisseur fixe la semaine d’arrivée du camion.
+3. Lancez les OF. La matière disponible, la capacité de la ligne et la place dans le stock de semi-finis limitent la production.
+4. Cliquez sur **Lancer la semaine** : réception des camions, production, contrôle qualité, emballage, puis expéditions.
+5. Relisez l’OTIF, le TRS, la qualité et les alertes, puis ajustez vos décisions.
 
-Le parcours en haut de l’écran présente les acteurs externes et les départements : fournisseur, réception, stock MP, production, contrôle qualité, emballage, entrepôt PF et client. **Pilotage** transmet les commandes MP et les OF. Les machines d’une ligne sont en série, donc l’opération la plus lente fixe la cadence ; les lignes en parallèle augmentent la capacité.
+Si une machine tombe en panne, sa ligne s’arrête : son voyant passe au rouge. Planifiez l’intervention depuis l’onglet **Stocks & alertes** ; le technicien répare une ligne par semaine et consomme une pièce de rechange. Un client annule sa commande après deux semaines de retard.
 
-Si une panne bloque une ligne, sélectionnez-la et planifiez l’intervention. Le technicien répare une ligne par semaine et consomme une pièce de rechange. Si le stock PDR est vide, commandez-en au fournisseur depuis **Commande MP**.
+## Scénarios
 
-Les commandes et la partie sont conservées dans `backend/data/gmix.db`. Le bouton **Reprendre la sauvegarde** permet de continuer après fermeture du jeu. Créer une nouvelle partie remplace cette sauvegarde après confirmation.
+Toutes les valeurs du monde (fournisseurs, produits, stocks, gamme, demande, transport, blocs et agents) sont dans `backend/app/scenarios/default.json`. Un nouveau scénario est un nouveau fichier dans ce dossier.
 
-## Didacticiel
+La partie est sauvegardée dans `backend/data/gmix.db`. **Reprendre la sauvegarde** permet de continuer après fermeture du jeu.
 
-Le didacticiel optionnel se lance après la création ou la reprise d’une partie. Il guide les déplacements, l’inspection, les commandes et le passage d’une semaine. Vous pouvez le passer à tout moment.
+## Assets 3D
+
+Chaque asset de la checklist v3 a une entrée dans `backend/app/static/assets.js` (modèle procédural). Pour le remplacer par un vrai modèle 3D (.glb), il suffit de changer la fonction `build` de cette entrée.

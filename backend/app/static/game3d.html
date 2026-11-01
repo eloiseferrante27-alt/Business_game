@@ -44,18 +44,7 @@
       <button id="next-turn" class="week-button"><span>▶</span> Lancer la semaine</button>
     </header>
 
-    <nav class="factory-flow glass" aria-label="Parcours de l’usine">
-      <button type="button" data-department="Fournisseur" data-x="-21.5" data-z="1.5" class="flow-step active">Fournisseur</button>
-      <button type="button" data-department="Réception" data-x="-16.4" data-z="1.5" class="flow-step">Réception</button>
-      <button type="button" data-department="Stock MP" data-x="-10.65" data-z="1.5" class="flow-step">Stock MP</button>
-      <button type="button" data-department="Production" data-x="-0.3" data-z="1.5" class="flow-step">Production</button>
-      <button type="button" data-department="Contrôle qualité" data-x="9.7" data-z="1.5" class="flow-step">Qualité</button>
-      <button type="button" data-department="Emballage" data-x="16" data-z="1.5" class="flow-step">Emballage</button>
-      <button type="button" data-department="Entrepôt PF" data-x="23" data-z="1.5" class="flow-step">Entrepôt PF</button>
-      <button type="button" data-department="Client" data-x="20" data-z="10.5" class="flow-step">Client</button>
-      <button type="button" data-department="Pilotage" data-x="4" data-z="10.5" class="flow-step flow-support">Pilotage</button>
-      <button type="button" data-department="Maintenance et PDR" data-x="-7" data-z="10.5" class="flow-step flow-support">Maintenance et PDR</button>
-    </nav>
+    <nav id="factory-flow" class="factory-flow glass" aria-label="Chemin de la matière"></nav>
 
     <section class="left-hud glass">
       <div class="hud-heading"><div><small>VOTRE ENTREPRISE</small><h1 id="company-name">L’atelier</h1></div><span class="season">● EN LIGNE</span></div>
@@ -72,48 +61,29 @@
 
     <section id="inspector" class="inspector glass">
       <button id="close-inspector" class="close-button" aria-label="Fermer">×</button>
-      <div class="mini-title">VOTRE ASSISTANT</div>
-      <div class="assistant-line"><span class="assistant-avatar">A</span><div><b>Alex</b><small>Responsable des opérations</small></div><i class="online-dot"></i></div>
-      <p id="inspector-copy">Cliquez sur une machine, une étagère ou un membre de l’équipe pour voir ce qui se passe.</p>
+      <div class="mini-title">INSPECTEUR</div>
+      <div class="assistant-line"><span class="assistant-avatar">i</span><div><b id="inspector-title">Sélection</b><small id="inspector-subtitle">Bloc, agent ou équipement</small></div><i class="online-dot"></i></div>
+      <p id="inspector-copy">Cliquez sur un bloc, un agent, une machine ou un équipement pour voir sa fiche.</p>
       <button id="inspector-action" class="action-button" hidden></button>
       <div class="event-box"><span class="event-spark">✦</span><div><small>VEILLE MARCHÉ</small><p id="event-summary">Marché stable cette semaine.</p></div></div>
     </section>
 
     <div id="toast" role="status"></div>
     <div class="bottom-hud">
-      <div class="movement-hint glass"><span class="key">W</span><span class="key-cluster"><i>A</i><i>S</i><i>D</i></span><span>Se déplacer</span><b class="hint-divider"></b><span class="key">CLIC</span><span>Aller / interagir</span><span class="key">E</span><span>Parler</span></div>
+      <div class="movement-hint glass"><span class="key">W</span><span class="key-cluster"><i>A</i><i>S</i><i>D</i></span><span>Se déplacer</span><b class="hint-divider"></b><span class="key">CLIC</span><span>Aller / interagir</span><span class="key">E</span><span>Parler</span><b class="hint-divider"></b><span class="key">R</span><span>Toit</span></div>
       <div class="action-bar glass">
-        <button id="order-open" class="action-slot" title="Commander"><span class="slot-icon">＋</span><small>COMMANDE</small><kbd>1</kbd></button>
-        <button id="production-open" class="action-slot" title="Lancer un ordre de fabrication"><span class="slot-icon">⚙</span><small>ORDRE FAB.</small><kbd>4</kbd></button>
+        <button id="tablet-open" class="action-slot" title="Ouvrir la tablette"><span class="slot-icon">▭</span><small>TABLETTE</small><kbd>1</kbd></button>
         <button id="inspect-open" class="action-slot active" title="Inspecter"><span class="slot-icon">⌕</span><small>INSPECTER</small><kbd>2</kbd></button>
         <button id="home-camera" class="action-slot" title="Recentrer la caméra"><span class="slot-icon">◎</span><small>CAMÉRA</small><kbd>3</kbd></button>
       </div>
       <div class="people-count glass"><span class="people-icons">● ● ●</span><span><b>ÉQUIPE</b><small id="people-label">4 ouvriers actifs</small></span></div>
     </div>
     <div class="zoom-hint">MOLETTE · ZOOM <span>DRAG · ORBITER</span></div>
-    <div id="order-modal" class="modal-backdrop" hidden>
-      <form id="order-form" class="order-modal glass">
-        <button type="button" id="order-close" class="close-button">×</button>
-        <div class="mini-title">APPROVISIONNEMENT</div><h2>Passer une commande</h2>
-        <p>Choisissez le fournisseur et la matière première à commander. Les pièces de rechange sont dans la liste.</p>
-        <label for="supplier">Fournisseur</label><select id="supplier" required></select>
-        <label for="sku">Matière première</label><select id="sku" required></select>
-        <label for="quantity">Quantité à commander</label><input id="quantity" type="number" min="1" value="250" required>
-        <button class="action-button" type="submit">Confirmer la commande <span>→</span></button>
-        <div id="order-feedback"></div>
-      </form>
-    </div>
-    <div id="production-modal" class="modal-backdrop" hidden>
-      <form id="production-form" class="order-modal glass">
-        <button type="button" id="production-close" class="close-button" aria-label="Fermer">×</button>
-        <div class="mini-title">PILOTAGE · ORDRE DE FABRICATION</div><h2>Planifier la production</h2>
-        <p>La matière disponible limite la quantité fabriquée. La ligne avance au rythme de son opération la plus lente.</p>
-        <label for="product-sku">Produit fini</label><select id="product-sku" required></select>
-        <label for="production-quantity">Quantité prévue</label><input id="production-quantity" type="number" min="1" max="10000" value="300" required>
-        
-        <button class="action-button" type="submit">Envoyer l’OF à la production <span>→</span></button>
-        <div id="production-feedback"></div>
-      </form>
+    <div id="tablet-modal" class="modal-backdrop" hidden>
+      <section class="tablet" role="dialog" aria-modal="true" aria-label="Tablette du joueur">
+        <header class="tablet-head"><div><small>TABLETTE · PILOTAGE À DISTANCE</small><b class="tablet-week">Semaine 1</b></div><nav class="tablet-tabs"></nav><button type="button" class="tablet-close close-button" aria-label="Fermer">×</button></header>
+        <div class="tablet-body"></div>
+      </section>
     </div>
     <div id="npc-modal" class="modal-backdrop" hidden>
       <section class="order-modal glass npc-modal" role="dialog" aria-modal="true" aria-labelledby="npc-name">
