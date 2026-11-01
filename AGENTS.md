@@ -103,6 +103,7 @@ Status: `todo` · `in progress` · `blocked` · `review` · `done`. Owner is a s
 | ID | Task | Depends on | Suggested owner | Status |
 |---|---|---|---|---|
 | GAME-01 | User-requested playable game integration: live tablet API, real decisions, server refusals, event history, legacy compatibility and 3D tablet navigation | T06 | Codex | in progress |
+| UI-01 | User-requested playable tablet: game interface, ten department pages, actual engine data/actions, responsive tools and 3D navigation | T06 | Kimi | done |
 | T00 | Human decisions: time unit/period, spreadsheet lib, map lib (§25) | — | Amine | todo |
 | T01 | **Gap report** (Livrable 1): inventory current code vs spec, list present / to complete / missing, map AL-03…AL-13 → `docs/rapport-ecart.md` | — | Codex | in progress |
 | T02 | `config/world.yaml` from Annexe A + `engine/config.py` loader & §4 validations (MTTR<MTBF, reorder point, ≥2 offers per article, capacities) | T01 | Codex | todo |
@@ -128,5 +129,6 @@ Status: `todo` · `in progress` · `blocked` · `review` · `done`. Owner is a s
 
 Newest first. Format: `YYYY-MM-DD · agent · task · what changed · what's left · questions`.
 
+- 2026-11-01 · Kimi · UI-01 · Replaced the production mock shell with the live `/api/v2/tablet` client: playable ten-page tablet, eight-block factory plan plus partners, real purchase/production/maintenance forms, engine supplier comparison, filtered server tables, explicit confirmed new game, period simulation, accessible modal, 4 s refusal feedback and 3D navigation. Added five non-mutating tools, safe local spreadsheet persistence/CSV export and `tablet_live_api.test.js`. Verified 14 Node tests, 12 pytest tests, JS syntax and headless Chrome flows at 1024/768 px. · Codex must expose the agreed v2 snapshot/new-game/next-turn/actions/configuration endpoints; unsupported actions stay disabled. Charts require numeric `history`; Pareto aggregation and geographic routes remain server-data gaps. `mock-api.js` is retained only for legacy tests and is not loaded by production; existing `test_tablet_shell.py` tests still pass and need no change yet. · No new questions.
 - 2026-11-01 · Kimi · T06 · Added `/tablet` with the home dashboard, 10 department shells and three tabs, startup rules/rights screen, five tool entry points, clock controls, and exact 4 s red refusal pop-up. Added an isolated mock API plus Python/JS tests; existing game endpoints remain available. Verified with 12 pytest tests, 5 Node tests, and headless Chrome flows at 1440/1024/768 px. · T05 must replace `backend/app/static/tablet/mock-api.js` with `/api/v2`; T07 implements the tool workspaces; T04/T05 own real server-side rights and journaling. · No new questions.
 - 2026-11-01 · Claude · setup · Wrote this AGENTS.md from the v3 doc, the cahier des charges and a read of the current backend. No code changed yet. · Next: T00 (Amine) and T01 (gap report). · Questions: see §7 "Pending".
