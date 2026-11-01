@@ -31,6 +31,15 @@ def initialize_database() -> None:
             "archived_at TEXT DEFAULT CURRENT_TIMESTAMP, state_json TEXT NOT NULL, "
             "pending_orders_json TEXT NOT NULL)"
         )
+        connection.execute(
+            "CREATE TABLE IF NOT EXISTS game_runtime (id INTEGER PRIMARY KEY CHECK (id=1), "
+            "generation INTEGER NOT NULL, rng_state_json TEXT NOT NULL)"
+        )
+        connection.execute(
+            "CREATE TABLE IF NOT EXISTS game_journal (id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "generation INTEGER NOT NULL, sequence INTEGER NOT NULL, event_json TEXT NOT NULL, "
+            "UNIQUE(generation, sequence))"
+        )
 
 
 def load_snapshot(expected_version: int) -> dict[str, Any] | None:
@@ -55,7 +64,17 @@ def load_snapshot(expected_version: int) -> dict[str, Any] | None:
     return state
 
 
-def save_snapshot(state: dict[str, Any]) -> None:
+def load_runtime() -> dict[str, Any] | None:
+    initialize_database()
+    with _connect() as connection:
+        row = connection.execute("SELECT generation, rng_state_json FROM game_runtime WHERE id=1").fetchone()
+        if row is None:
+            return None
+        events = connection.execute("SELECT event_json FROM game_journal WHERE generation=? ORDER BY sequence", (row[0],)).fetchall()
+    return {"generation": row[0], "rng_state": json.loads(row[1]), "events": [json.loads(event[0]) for event in events]}
+
+
+def save_snapshot(state: dict[str, Any], *, events=None, generation=0, rng_state=None) -> None:
     initialize_database()
     with _connect() as connection:
         connection.execute(
@@ -63,3 +82,10 @@ def save_snapshot(state: dict[str, Any]) -> None:
             "ON CONFLICT(id) DO UPDATE SET state_json=excluded.state_json",
             (json.dumps(state, ensure_ascii=False),),
         )
+        if events:
+            connection.executemany("INSERT INTO game_journal (generation, sequence, event_json) VALUES (?, ?, ?)",
+                                   [(generation, event["sequence"], json.dumps(event, ensure_ascii=False)) for event in events])
+        if rng_state is not None:
+            connection.execute("INSERT INTO game_runtime (id, generation, rng_state_json) VALUES (1, ?, ?) "
+                               "ON CONFLICT(id) DO UPDATE SET generation=excluded.generation, rng_state_json=excluded.rng_state_json",
+                               (generation, json.dumps(rng_state)))

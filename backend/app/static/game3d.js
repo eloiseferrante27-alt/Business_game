@@ -5,17 +5,34 @@ import * as THREE from "./three.module.js";
 import { createKit } from "./kit.js";
 import { createAssets } from "./assets.js";
 import { ZONES, FACTORY_FRAME, WALK_BOUNDS, DOCKS, FLOW, SUPPORT, BLOCK_ROLES, ROLE_OUTFITS } from "./layout.js";
-import { createTablet } from "./tablet.js";
+import { createTablet, DEPARTMENT_BY_ZONE } from "./tablet-bridge.js";
 
 const $ = (selector) => document.querySelector(selector);
 const canvas = $("#world");
 const loading = $("#loading");
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xcbd9d1);
-scene.fog = new THREE.Fog(0xcbd9d1, 40, 95);
+// Ciel en dégradé (plus « jeu ») et brume assortie à l'horizon.
+{
+  const ciel = document.createElement("canvas");
+  ciel.width = 4; ciel.height = 256;
+  const c = ciel.getContext("2d");
+  const g = c.createLinearGradient(0, 0, 0, 256);
+  g.addColorStop(0, "#6aaeea"); g.addColorStop(0.55, "#bfe0f6"); g.addColorStop(1, "#f4efe1");
+  c.fillStyle = g; c.fillRect(0, 0, 4, 256);
+  const texture = new THREE.CanvasTexture(ciel);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  scene.background = texture;
+}
+scene.fog = new THREE.Fog(0xdde9ef, 70, 175);
 
-const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 160);
-const CAMERA_HOME = { yaw: 0.35, distance: 25 };
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 240);
+const CAMERA_HOME = { yaw: 0.35, distance: 30 };
+// Deux vues : 3e personne (par défaut, la caméra suit le joueur) ou vue d'ensemble (touche 3).
+let vueHaute = false;
+let distance3p = 11;
+let orbite = 0; // décalage de la souris autour du joueur, revient derrière lui quand il marche
+const camPos = new THREE.Vector3();
+const camCible = new THREE.Vector3();
 let cameraYaw = CAMERA_HOME.yaw;
 let cameraDistance = CAMERA_HOME.distance;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
@@ -25,14 +42,14 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.1;
 
-scene.add(new THREE.HemisphereLight(0xe5f3ef, 0x52635b, 1.25));
-const sun = new THREE.DirectionalLight(0xffedcf, 2.5);
-sun.position.set(-16, 30, 14);
+scene.add(new THREE.HemisphereLight(0xdcefff, 0x7d9b6a, 1.35));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.9);
+sun.position.set(-20, 34, 16);
 sun.castShadow = true;
 sun.shadow.mapSize.set(4096, 4096);
-Object.assign(sun.shadow.camera, { left: -36, right: 36, top: 30, bottom: -30 });
+Object.assign(sun.shadow.camera, { left: -44, right: 44, top: 34, bottom: -34 });
 sun.shadow.bias = -0.00015;
 sun.shadow.normalBias = 0.025;
 scene.add(sun);
@@ -58,9 +75,18 @@ const truckActors = [];
 const dockQueues = { fournisseur: [], livraison: [], client: [] };
 let forklift = null;
 let roof = null;
+// Aménagement choisi sur la tablette (onglet Configuration) : forme du stock et tampons.
+let amenagement = { stock: { forme: "I" }, production: { tampons: {} } };
+const stockRacks = [];      // { group, zone, obstacle }
+const stockProps = {};      // petits objets du stock déplacés selon la forme
+const buffers = new Map();  // ligne -> [{ table, pieces, belt }]
+let stockHeader = null;
+let focusApresTablette = null;
 
 let state = null;
 let savedState = null;
+let tabletSnapshot = null;
+let lastTruckPeriod = null;
 let playerPath = [];
 let dragging = false;
 let lastPointer = { x: 0, y: 0 };
@@ -68,7 +94,7 @@ let currentSelection = null;
 let toastTimer = 0;
 let tutorialIndex = 0;
 const tutorialSteps = [
-  { action: "move", title: "Déplace-toi dans l’usine", copy: "W, A, S, D ou un clic sur le sol. Le stock est en haut, l’usine en dessous, dans le cadre en pointillés." },
+  { action: "move", title: "Déplace-toi dans l’usine", copy: "Z et S pour avancer ou reculer, Q et D pour tourner (ou les flèches), ou un clic sur le sol. Touche 3 : vue d’ensemble. Le stock est en haut, l’usine en dessous, dans le cadre en pointillés." },
   { action: "inspect", title: "Inspecte un bloc", copy: "Clique sur un bloc, un rack, une machine ou un agent. La barre du haut suit le chemin de la matière." },
   { action: "order", title: "Achète de la matière avec ta tablette", copy: "Tu n’as pas de bureau : ouvre la tablette (touche 1 ou T), compare les fournisseurs puis passe une commande dans Achats MP." },
   { action: "production", title: "Lance un ordre de fabrication", copy: "Toujours depuis la tablette, onglet Ordres de fabrication : choisis le produit et la quantité." },
@@ -79,7 +105,8 @@ const stocksOf = (...categories) => (state?.stocks || []).filter((item) => categ
 const stockBySku = (sku) => (state?.stocks || []).find((item) => item.sku === sku);
 const spareCount = () => stockBySku("MAT-PDR")?.quantity || 0;
 const blockName = (id) => state?.blocks?.find((block) => block.id === id)?.name || id;
-const agentsIn = (blockId) => (state?.agents || []).filter((agent) => agent.block_id === blockId || agent.also_in?.includes(blockId));
+const canonicalBlock = (blockId) => blockId === "bureau_etude" ? "chaine_production" : blockId;
+const agentsIn = (blockId) => (state?.agents || []).filter((agent) => canonicalBlock(agent.block_id) === canonicalBlock(blockId) || agent.also_in?.includes(blockId));
 const fmt = (value, digits = 0) => new Intl.NumberFormat("fr-FR", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value ?? 0);
 
 function addObstacle(x, z, width, depth) { obstacles.push({ x, z, width, depth }); }
@@ -132,30 +159,30 @@ function wallWithOpenings(fixed, from, to, openings, axis, height, color) {
 }
 
 function makeGround() {
-  const grass = new THREE.Mesh(new THREE.PlaneGeometry(140, 90), kit.material(0x9bad8e));
+  const grass = new THREE.Mesh(new THREE.PlaneGeometry(320, 240), kit.material(0x9cc97a));
   grass.rotation.x = -Math.PI / 2;
   grass.position.y = -0.2;
   grass.receiveShadow = true;
   world.add(grass);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(56, 28), kit.material(0xffffff, 0.93, 0, "concrete"));
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(68, 34), kit.material(0xffffff, 0.93, 0, "concrete"));
   floor.rotation.x = -Math.PI / 2;
-  floor.position.set(0, 0, -0.3);
+  floor.position.set(0, 0, -0.5);
   floor.receiveShadow = true;
   world.add(floor);
   // Cours camions : à gauche les fournisseurs, à droite les expéditions.
   for (const side of [-1, 1]) {
     const yard = new THREE.Mesh(new THREE.PlaneGeometry(30, 12), kit.material(0x6f7873, 0.95));
     yard.rotation.x = -Math.PI / 2;
-    yard.position.set(side * 42, -0.03, -0.5);
+    yard.position.set(side * 48, -0.03, -0.5);
     yard.receiveShadow = true;
     world.add(yard);
-    for (let x = 29; x < 56; x += 3) box(world, 1.4, 0.02, 0.12, 0xf2df9e, side * x, 0, -0.5, { castShadow: false });
+    for (let x = 35; x < 62; x += 3) box(world, 1.4, 0.02, 0.12, 0xf2df9e, side * x, 0, -0.5, { castShadow: false });
   }
   // Marquage des allées : voie engins (jaune) et passage piétons (vert).
-  for (const z of [-6, 5]) {
-    box(world, 52, 0.02, 0.08, 0xe8c54a, 0, 0.01, z - 0.55, { castShadow: false });
-    box(world, 52, 0.02, 0.08, 0xe8c54a, 0, 0.01, z + 0.55, { castShadow: false });
-    for (let x = -25; x <= 25; x += 2.4) box(world, 1.1, 0.022, 0.5, 0x7fb08f, x, 0.011, z, { castShadow: false });
+  for (const z of [-7, 5.5]) {
+    box(world, 62, 0.02, 0.08, 0xe8c54a, 0, 0.01, z - 0.55, { castShadow: false });
+    box(world, 62, 0.02, 0.08, 0xe8c54a, 0, 0.01, z + 0.55, { castShadow: false });
+    for (let x = -30; x <= 30; x += 2.4) box(world, 1.1, 0.022, 0.5, 0x7fb08f, x, 0.011, z, { castShadow: false });
   }
   // Cadre en pointillés de l'USINE (comme sur le croquis).
   const { x1, x2, z1, z2 } = FACTORY_FRAME;
@@ -167,20 +194,14 @@ function makeGround() {
   world.add(usine);
   // Toit : masqué par défaut pour voir l'intérieur ; la touche R l'affiche.
   roof = new THREE.Group();
-  for (const x of [-27.2, -13.5, 0, 13.5, 27.2]) for (const z of [-13.8, 13.2]) cylinder(roof, 0.16, 0.16, 6.2, 0x55615c, x, 3.1, z, 8, { metalness: 0.4 });
-  for (const x of [-27.2, -13.5, 0, 13.5, 27.2]) box(roof, 0.3, 0.4, 27.2, 0x55615c, x, 6.2, -0.3, { metalness: 0.4 });
-  for (const [z, tilt] of [[-7, 0.08], [6.4, -0.08]]) {
-    const panel = box(roof, 55, 0.12, 13.8, 0x8f9c96, 0, 6.9, z, { texture: "ribbed", metalness: 0.3 });
+  for (const x of [-33, -16.5, 0, 16.5, 33]) for (const z of [-16.8, 15.8]) cylinder(roof, 0.16, 0.16, 6.2, 0x55615c, x, 3.1, z, 8, { metalness: 0.4 });
+  for (const x of [-33, -16.5, 0, 16.5, 33]) box(roof, 0.3, 0.4, 32.6, 0x55615c, x, 6.2, -0.5, { metalness: 0.4 });
+  for (const [z, tilt] of [[-8.6, 0.08], [7.6, -0.08]]) {
+    const panel = box(roof, 67, 0.12, 16.6, 0x8f9c96, 0, 6.9, z, { texture: "ribbed", metalness: 0.3 });
     panel.rotation.x = tilt;
   }
   roof.visible = false;
   world.add(roof);
-  // Murs extérieurs dans les allées, avec la porte d'accès piétons.
-  wall(-27.1, -7.3, -27.1, -4.7, 3.2, 0xc8ccc2);
-  wallWithOpenings(-27.1, 3.9, 6.3, [[5, 1.4]], "z", 3.2, 0xc8ccc2);
-  wall(27.1, -7.3, 27.1, -4.7, 3.2, 0xc8ccc2);
-  wall(27.1, 3.9, 27.1, 6.3, 3.2, 0xc8ccc2);
-  place("porte_pietons", -27.1, 5, { rot: Math.PI / 2 });
 }
 
 function makeBlockShell(zoneId) {
@@ -190,23 +211,18 @@ function makeBlockShell(zoneId) {
   const hBack = wallHeightAt(back, z, "x"), hFront = wallHeightAt(front, z, "x"), hSide = wallHeightAt(0, 0, "z");
   const floorPlate = box(world, w - 0.2, 0.02, d - 0.2, 0xe5e6dc, x, 0.012, z, { castShadow: false, texture: "concrete" });
   floorPlate.material = kit.material(0xffffff, 0.9, 0, "concrete", { unique: true });
-  floorPlate.material.color.setHex(0xf1f1ea).lerp(new THREE.Color(zone.accent), 0.12);
-  // Arrière (fenêtres), côtés, façade avec entrée.
-  wall(x - w / 2, back, x + w / 2, back, hBack);
-  for (let i = 1; hBack > 2 && i < Math.floor(w / 2.4); i++) {
-    box(world, 1.1, 0.7, 0.06, 0x9bc8c2, x - w / 2 + i * (w / Math.floor(w / 2.4)), 2.35, back + s * 0.12, { opacity: 0.85, roughness: 0.2, castShadow: false });
+  floorPlate.material.color.setHex(0xf1f1ea).lerp(new THREE.Color(zone.accent), 0.24);
+  // Pas de murs : une clôture virtuelle basse et translucide, à la couleur du bloc, qu'on traverse librement.
+  const accent = new THREE.Color(zone.accent);
+  const trait = accent.clone().multiplyScalar(0.78).getHex();
+  const cotes = [[x, back, w, true], [x, front, w, true], [x - w / 2, z, d, false], [x + w / 2, z, d, false]];
+  for (const [cx, cz, longueur, horizontal] of cotes) {
+    const [lx, lz] = horizontal ? [longueur, 0.05] : [0.05, longueur];
+    box(world, horizontal ? longueur : 0.14, 0.03, horizontal ? 0.14 : longueur, trait, cx, 0.02, cz, { castShadow: false });
+    const voile = box(world, lx, 0.9, lz, zone.accent, cx, 0.47, cz, { opacity: 0.16, roughness: 0.3, castShadow: false });
+    voile.material.depthWrite = false;
+    box(world, horizontal ? longueur : 0.06, 0.05, horizontal ? 0.06 : longueur, trait, cx, 0.94, cz, { castShadow: false });
   }
-  for (const side of [-1, 1]) {
-    const sx = x + side * w / 2;
-    if (zone.dockSide === side) {
-      const lo = Math.min(front, back), hi = Math.max(front, back);
-      wallWithOpenings(sx, lo, hi, zone.dockBays.map((offset) => [z + offset, 2.9]), "z", 3.2);
-    } else wall(sx, back, sx, front, hSide);
-  }
-  wallWithOpenings(front, x - w / 2, x + w / 2, [[x, 2.6]], "x", hFront);
-  // Liseré de couleur du bloc.
-  box(world, w, 0.12, 0.24, zone.accent, x, hBack + 0.06, back, { castShadow: false });
-  box(world, w, 0.12, 0.24, zone.accent, x, hFront + 0.06, front, { castShadow: false });
   // Panneau de signalisation du bloc, avec ses agents.
   const blockId = zone.block;
   const title = zone.title || blockName(blockId);
@@ -247,12 +263,13 @@ function furnishStock() {
   [-6.1, -3.05, 0, 3.05, 6.1].forEach((lx, index) => {
     const item = mp[index];
     if (!item) return;
-    const rack = placeIn("stock_mp", "rack_palettes", lx, -1.85, { bays: 2, color: [0xb88a55, 0xc79c63, 0xa98450, 0x9c7b52, 0xc9a874][index], solid: [2.9, 1.2], info: { type: "stock", sku: item.sku, title: item.name } });
+    const rack = placeIn("stock_mp", "rack_palettes", lx, -1.85, { bays: 2, color: [0xb88a55, 0xc79c63, 0xa98450, 0x9c7b52, 0xc9a874][index], info: { type: "stock", sku: item.sku, title: item.name } });
     visuals.racks.push({ group: rack, sku: item.sku, label: rackLabel(rack, item.sku) });
+    stockRacks.push({ group: rack, zone: "stock_mp", obstacle: rackObstacle(rack) });
   });
-  placeIn("stock_mp", "etagere_bacs", -7.2, 0.6, { turn: Math.PI / 2, solid: [1.9, 0.6] });
-  placeIn("stock_mp", "palette_mp", -6, 2.2, { solid: [1.2, 1.1], info: { subtitle: "Stock de MP (réutilisée du quai)" } });
-  placeIn("stock_mp", "borne_recharge", 6.6, 1.6, { solid: [0.6, 0.4] });
+  stockProps.etagere = placeIn("stock_mp", "etagere_bacs", -7.2, 0.6, { turn: Math.PI / 2 });
+  stockProps.paletteMp = placeIn("stock_mp", "palette_mp", -6, 2.2, { info: { subtitle: "Stock de MP (réutilisée du quai)" } });
+  stockProps.borne = placeIn("stock_mp", "borne_recharge", 6.6, 1.6, {});
   placeIn("stock_mp", "panneau_zone", 0, 0.6, { lines: ["MP", "Matières premières"], bg: "#5e7a4f", click: false });
   forklift = placeIn("stock_mp", "chariot_elevateur", 2, 0.9, { info: { type: "forklift", title: "Chariot élévateur", subtitle: "Magasinier-cariste · Stock" } });
   forklift.userData.patrol = { zone: "stock_mp", points: [[-4, 0.9], [4.8, 0.9], [5.4, 1.4], [-4, 0.9]], index: 0 };
@@ -273,16 +290,18 @@ function furnishStock() {
   [-5.7, -1.9, 1.9, 5.7].forEach((lx, index) => {
     const item = pf[index];
     if (!item) return;
-    const rack = placeIn("stock_pf", "rack_palettes", lx, -1.85, { bays: 2, color: 0xa9a37c, wrapped: true, solid: [2.9, 1.2], info: { type: "stock", sku: item.sku, title: item.name } });
+    const rack = placeIn("stock_pf", "rack_palettes", lx, -1.85, { bays: 2, color: 0xa9a37c, wrapped: true, info: { type: "stock", sku: item.sku, title: item.name } });
     visuals.racks.push({ group: rack, sku: item.sku, label: rackLabel(rack, item.sku) });
+    stockRacks.push({ group: rack, zone: "stock_pf", obstacle: rackObstacle(rack) });
   });
   placeIn("stock_pf", "palette_pf_filmee", 4.2, 1.9, { solid: [1.2, 1.1] });
   placeIn("stock_pf", "panneau_zone", 0, 0.6, { lines: ["PF", "Produits finis"], bg: "#3f6577", click: false });
 
-  const header = labelSprite("STOCK · magasinier-cariste · mêmes paramètres pour les 3 parties", "#fff9dc", "#2f5d50");
-  header.scale.set(9, 0.62, 1);
-  header.position.set(0, 5.2, -13.3);
+  const header = labelSprite("STOCK · rangement en ligne (I)", "#fff9dc", "#2f5d50");
+  header.scale.set(7, 0.62, 1);
+  header.position.set(0, 5.2, -15.3);
   world.add(header);
+  stockHeader = header;
 }
 
 function furnishQuai() {
@@ -317,8 +336,14 @@ function furnishProduction() {
       const machine = line.machines[index];
       machines.push(placeIn("chaine_production", "machine", lx, lz, { rank: index + 1, accent: accents[row], tag: machine?.id || `M${index + 1}`, info }));
       if (index < 3) {
-        placeIn("chaine_production", "table_attente", lx + 1.45, lz, { click: false });
-        placeIn("chaine_production", "piece_en_cours", lx + 1.45, lz, { y: 0.78, click: false });
+        // Entre deux machines : un convoyeur court, ou une table tampon (1 à 3 pièces) si le joueur en a ajouté une.
+        const belt = placeIn("chaine_production", "convoyeur", lx + 1.45, lz, { length: 1.0, click: false });
+        const table = placeIn("chaine_production", "table_attente", lx + 1.45, lz, { click: false });
+        const mark = floorMark(world, 1.25, 1.05, 0xd8f18a, ...toWorld(ZONES.chaine_production, lx + 1.45, lz));
+        if (mark) { mark.material = mark.material.clone(); mark.material.transparent = true; mark.material.opacity = 0.55; table.userData.mark = mark; }
+        const pieces = [0, 1, 2].map((k) => placeIn("chaine_production", "piece_en_cours", lx + 1.45 - 0.25 + k * 0.25, lz, { y: 0.78, click: false }));
+        if (!buffers.has(line.id)) buffers.set(line.id, []);
+        buffers.get(line.id).push({ table, pieces, belt });
       }
     });
     placeIn("chaine_production", "convoyeur", 4.3, lz, { length: 1.6, click: false });
@@ -366,11 +391,11 @@ function furnishLogistics() {
 }
 
 function furnishEngineering() {
-  placeIn("bureau_etude", "bureau_chaise", -3, -2.3, { solid: [1.7, 0.9] });
-  placeIn("bureau_etude", "ordinateur", -3.3, -2.3, {});
-  placeIn("bureau_etude", "tableau_planning", 2.4, -2.95, { solid: [2.2, 0.3] });
-  placeIn("bureau_etude", "armoire_dossiers", 5.8, -2.85, { solid: [0.9, 0.5] });
-  placeIn("bureau_etude", "armoire_dossiers", 6.8, -2.85, { solid: [0.9, 0.5] });
+  // v3 folds methods into production. Keep the legacy ID as a navigation alias.
+  placeIn("chaine_production", "bureau_chaise", 6.8, 3.1, { solid: [1.7, 0.9] });
+  placeIn("chaine_production", "ordinateur", 6.5, 3.1, {});
+  placeIn("chaine_production", "tableau_planning", 4.3, 3.8, { solid: [2.2, 0.3] });
+  placeIn("chaine_production", "armoire_dossiers", 8.5, 3.6, { solid: [0.9, 0.5] });
 }
 
 function furnishMaintenance() {
@@ -460,7 +485,7 @@ hoverRing.visible = false;
 world.add(hoverRing);
 
 function zoneOfBlock(blockId) {
-  return Object.keys(ZONES).filter((id) => ZONES[id].block === blockId);
+  return Object.keys(ZONES).filter((id) => id !== "bureau_etude" && ZONES[id].block === canonicalBlock(blockId));
 }
 function insidePoints(zoneId) {
   const zone = ZONES[zoneId];
@@ -478,7 +503,7 @@ function makeAgents() {
     const outfit = ROLE_OUTFITS[agent.role] || { jacket: 0x4f8c7c, helmet: 0xe4bd54 };
     const worker = makePerson(`${agent.name} · ${agent.role_label}`, outfit, {
       type: "worker", agentId: agent.id, role: agent.role, title: agent.name, roleLabel: agent.role_label, zone: zones[0],
-      subtitle: `${agent.role_label} · ${blockName(agent.block_id)}`,
+      subtitle: `${agent.role_label} · ${blockName(canonicalBlock(agent.block_id))}`,
     });
     const start = targets[workers.length % targets.length];
     worker.position.copy(start);
@@ -568,9 +593,144 @@ function updateTrucks(delta) {
 }
 
 // ---------------------------------------------------------------- construction
+// ------------------------------------------------------- aménagement (tablette)
+function rackObstacle(rack) {
+  const o = { x: rack.position.x, z: rack.position.z, width: 2.9, depth: 1.2 };
+  obstacles.push(o);
+  return o;
+}
+// Positions locales des racks d'une partie du stock selon la forme choisie (I, L, U, V).
+function positionsRacks(forme, n) {
+  const ligne = (count, from, to, lz = -1.85) => Array.from({ length: count }, (_, i) => ({ lx: count === 1 ? (from + to) / 2 : from + (i * (to - from)) / (count - 1), lz, turn: 0 }));
+  const cote = (side) => ({ lx: side * 6.65, lz: 0.45, turn: Math.PI / 2 });
+  if (forme === "L") return [cote(-1), ...ligne(n - 1, -3.6, 6.2)];
+  if (forme === "U") return [cote(-1), ...ligne(Math.max(1, n - 2), -3.4, 3.4), cote(1)].slice(0, n);
+  if (forme === "V") {
+    const pas = Math.min(3, 12 / Math.max(1, n - 1));
+    return Array.from({ length: n }, (_, i) => {
+      const lx = (i - (n - 1) / 2) * pas;
+      const angle = Math.abs(lx) < 0.1 ? 0 : (lx < 0 ? -0.6 : 0.6);
+      return { lx, lz: -1.3, turn: angle };
+    });
+  }
+  const pas = Math.min(3.05, 12.2 / Math.max(1, n - 1));
+  return ligne(n, -((n - 1) * pas) / 2, ((n - 1) * pas) / 2);
+}
+function appliquerAmenagement(nouveau, { anime = true } = {}) {
+  if (nouveau) amenagement = { stock: { ...amenagement.stock, ...(nouveau.stock || {}) }, production: { tampons: { ...(nouveau.production?.tampons || {}) } } };
+  const forme = amenagement.stock.forme || "I";
+  for (const zoneId of ["stock_mp", "stock_pf"]) {
+    const racks = stockRacks.filter((r) => r.zone === zoneId);
+    const places = positionsRacks(forme, racks.length);
+    const zone = ZONES[zoneId];
+    racks.forEach((r, i) => {
+      const p = places[i];
+      const [x, z] = toWorld(zone, p.lx, p.lz);
+      const rot = facing(zone) + p.turn;
+      r.group.userData.cible = { x, z, rot };
+      if (!anime) { r.group.position.set(x, 0, z); r.group.rotation.y = rot; }
+      const c = Math.abs(Math.cos(p.turn)), sn = Math.abs(Math.sin(p.turn));
+      Object.assign(r.obstacle, { x, z, width: c * 2.9 + sn * 1.2, depth: sn * 2.9 + c * 1.2 });
+    });
+  }
+  const deplacer = (objet, zoneId, lx, lz) => { if (!objet) return; const [x, z] = toWorld(ZONES[zoneId], lx, lz); objet.userData.cible = { x, z, rot: objet.rotation.y }; if (!anime) objet.position.set(x, objet.position.y, z); };
+  if (stockProps.etagere) stockProps.etagere.visible = forme === "I";
+  deplacer(stockProps.paletteMp, "stock_mp", forme === "L" || forme === "U" ? -4.3 : -6, forme === "L" || forme === "U" ? 2.35 : 2.2);
+  deplacer(stockProps.borne, "stock_mp", forme === "U" ? 4.6 : 6.6, forme === "U" ? 2.4 : 1.6);
+  const noms = { I: "en ligne (I)", L: "en L", U: "en U", V: "en V (épi)" };
+  if (stockHeader) swapLabel(stockHeader, `STOCK · rangement ${noms[forme] || forme}`, "#fff9dc", "#2f5d50");
+  for (const [ligne, slots] of buffers) {
+    const valeurs = amenagement.production.tampons[ligne] || [];
+    slots.forEach((slot, i) => {
+      const n = Math.max(0, Math.min(3, Number(valeurs[i]) || 0));
+      const avant = slot.table.visible;
+      slot.table.visible = n > 0;
+      if (slot.table.userData.mark) slot.table.userData.mark.visible = n > 0;
+      slot.belt.visible = n === 0;
+      slot.pieces.forEach((piece, k) => { piece.visible = k < n; });
+      if (anime && n > 0 && !avant) { slot.table.scale.setScalar(0.01); slot.table.userData.pop = 0; }
+    });
+  }
+}
+function animerAmenagement(delta) {
+  const k = Math.min(1, delta * 4);
+  for (const r of stockRacks) {
+    const c = r.group.userData.cible;
+    if (!c) continue;
+    r.group.position.x += (c.x - r.group.position.x) * k;
+    r.group.position.z += (c.z - r.group.position.z) * k;
+    r.group.rotation.y += (c.rot - r.group.rotation.y) * k;
+  }
+  for (const objet of Object.values(stockProps)) {
+    const c = objet?.userData.cible;
+    if (!c) continue;
+    objet.position.x += (c.x - objet.position.x) * k;
+    objet.position.z += (c.z - objet.position.z) * k;
+  }
+  for (const slots of buffers.values()) for (const slot of slots) {
+    if (slot.table.userData.pop === undefined) continue;
+    slot.table.userData.pop = Math.min(1, slot.table.userData.pop + delta * 2.5);
+    const t = slot.table.userData.pop;
+    slot.table.scale.setScalar(t < 1 ? Math.max(0.01, 1 + 1.7 * (t - 1) ** 3 + 0.7 * (t - 1) ** 2) : 1);
+    if (t >= 1) delete slot.table.userData.pop;
+  }
+}
+async function chargerAmenagement() {
+  try {
+    const r = await fetch("/api/v2/tablet/layout");
+    if (r.ok) return await r.json();
+  } catch { /* aménagement par défaut */ }
+  return null;
+}
+
+// Décor autour de l'usine, façon city-builder : route périphérique, arbres, maisons.
+// Purement visuel : rien ici n'est lu par le moteur.
+function makeScenery() {
+  const asphalte = 0x5f666b;
+  const route = (w, d, x, z) => { box(world, w, 0.04, d, asphalte, x, -0.12, z, { castShadow: false }); };
+  route(140, 4, 0, -23); route(140, 4, 0, 22); route(4, 49, -68, -0.5); route(4, 49, 68, -0.5);
+  route(3.2, 4, -64.5, -0.5); route(3.2, 4, 64.5, -0.5);
+  for (let x = -64; x <= 64; x += 4) { box(world, 1.6, 0.05, 0.14, 0xf4f1e6, x, -0.1, -23, { castShadow: false }); box(world, 1.6, 0.05, 0.14, 0xf4f1e6, x, -0.1, 22, { castShadow: false }); }
+  // Hachage déterministe : le décor est le même à chaque chargement.
+  const h = (i, k) => { const v = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return v - Math.floor(v); };
+  const places = [];
+  for (let i = 0; places.length < 240 && i < 3000; i++) {
+    const x = (h(i, 1) - 0.5) * 230, z = (h(i, 2) - 0.5) * 170;
+    if (Math.abs(x) < 72 && Math.abs(z) < 27) continue;
+    places.push([x, z, 0.7 + h(i, 3) * 0.8, h(i, 4)]);
+  }
+  const tronc = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.14, 0.2, 1.2, 6), kit.material(0x8a6a4a), places.length);
+  const feuilles = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1.1, 0), new THREE.MeshStandardMaterial({ roughness: 0.9, flatShading: true }), places.length);
+  const verts = [0x6fae5c, 0x5d9e57, 0x82bd66, 0x4f8f52].map((c) => new THREE.Color(c));
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+  places.forEach(([x, z, taille, t], i) => {
+    m.compose(new THREE.Vector3(x, 0.4 * taille, z), q, new THREE.Vector3(taille, taille, taille));
+    tronc.setMatrixAt(i, m);
+    q.setFromEuler(e.set(0, t * 6, 0));
+    m.compose(new THREE.Vector3(x, 1.75 * taille, z), q, new THREE.Vector3(taille, taille * 1.25, taille));
+    feuilles.setMatrixAt(i, m);
+    feuilles.setColorAt(i, verts[Math.floor(t * verts.length)]);
+    q.identity();
+  });
+  for (const mesh of [tronc, feuilles]) { mesh.castShadow = true; mesh.receiveShadow = true; world.add(mesh); }
+  // Quelques maisons au loin, pour l'échelle.
+  const murs = [0xf2e6d0, 0xe9d8c4, 0xdfe7ea, 0xf4ddd0], toits = [0xc8644a, 0x8a5a44, 0x5f7380];
+  for (let i = 0; i < 16; i++) {
+    const cote = i % 2 ? 1 : -1, x = -70 + (i >> 1) * 20 + h(i, 5) * 6, z = cote * (38 + h(i, 6) * 18);
+    const maison = new THREE.Group();
+    box(maison, 6, 3, 5, murs[i % murs.length], 0, 1.5, 0);
+    const toit = new THREE.Mesh(new THREE.ConeGeometry(4.6, 2.2, 4), new THREE.MeshStandardMaterial({ color: toits[i % toits.length], roughness: 0.85, flatShading: true }));
+    toit.position.y = 4.1; toit.rotation.y = Math.PI / 4; toit.scale.set(1, 1, 0.8); toit.castShadow = true;
+    maison.add(toit);
+    maison.position.set(x, 0, z); maison.rotation.y = h(i, 7) * 0.6 - 0.3;
+    world.add(maison);
+  }
+}
+
 function buildWorld() {
   makeGround();
-  Object.keys(ZONES).forEach(makeBlockShell);
+  makeScenery();
+  Object.keys(ZONES).filter((id) => id !== "bureau_etude").forEach(makeBlockShell);
   makeDock("quai_dechargement", 0, "fournisseur");
   makeDock("logistique_transport", ZONES.logistique_transport.dockBays[0], "livraison");
   makeDock("logistique_transport", ZONES.logistique_transport.dockBays[1], "client");
@@ -586,6 +746,7 @@ function buildWorld() {
   makeAgents();
   spawnTruck("livraison", "G-MIX · LIVRAISON", true, "parked");
   buildFlowBar();
+  appliquerAmenagement(null, { anime: false });
   refreshWorld();
 }
 
@@ -626,18 +787,13 @@ function refreshWorld() {
 
 function buildFlowBar() {
   const nav = $("#factory-flow");
-  nav.innerHTML = [...FLOW.map((step) => ({ ...step, kind: "flow" })), ...SUPPORT.map((step) => ({ ...step, kind: "support" }))]
+  nav.innerHTML = [...FLOW.map((step) => ({ ...step, kind: "flow" })), ...SUPPORT.filter((step) => step.zone !== "bureau_etude").map((step) => ({ ...step, kind: "support" }))]
     .map((step) => `<button type="button" data-zone="${step.zone}" class="flow-step ${step.kind === "support" ? "flow-support" : ""} ${step.zone.startsWith("stock_") ? "flow-stock" : ""}">${step.label}</button>`).join("");
   nav.querySelectorAll(".flow-step").forEach((button) => button.addEventListener("click", () => {
     nav.querySelectorAll(".flow-step").forEach((step) => step.classList.toggle("active", step === button));
     const zone = ZONES[button.dataset.zone];
     selectInteraction({ type: "block", zone: button.dataset.zone, title: zone.title || blockName(zone.block) });
-    // La barre du haut sert de raccourci : le joueur est placé devant l'entrée du bloc.
-    const [x, z] = nearestWalkable(...toWorld(zone, 0, zone.d / 2 + 1));
-    player.position.set(x, 0, z);
-    player.rotation.y = zone.door === 1 ? Math.PI : 0;
-    playerPath = [];
-    player.userData.route = playerPath;
+    tablet?.open(button.dataset.zone, { department: DEPARTMENT_BY_ZONE[button.dataset.zone] });
   }));
 }
 
@@ -722,10 +878,42 @@ function updateForklift(delta) {
 }
 
 // ------------------------------------------------------------ interactions
-function cameraPosition() {
-  const target = player.position.clone().add(new THREE.Vector3(0, 0.8, 0));
-  camera.position.set(target.x + Math.sin(cameraYaw) * cameraDistance * 0.62, target.y + cameraDistance * 0.8, target.z + Math.cos(cameraYaw) * cameraDistance * 0.62);
-  camera.lookAt(target);
+function cameraPosition(delta = 1) {
+  const target = player.position.clone().add(new THREE.Vector3(0, vueHaute ? 0.8 : 1.5, 0));
+  const voulue = new THREE.Vector3();
+  if (vueHaute) voulue.set(target.x + Math.sin(cameraYaw) * cameraDistance * 0.62, target.y + cameraDistance * 0.8, target.z + Math.cos(cameraYaw) * cameraDistance * 0.62);
+  else {
+    const cap = player.rotation.y, yaw = cap + Math.PI + orbite;
+    voulue.set(target.x + Math.sin(yaw) * distance3p * 0.86, target.y + distance3p * 0.48, target.z + Math.cos(yaw) * distance3p * 0.86);
+    target.x += Math.sin(cap) * 2; target.z += Math.cos(cap) * 2; // on regarde un peu devant le joueur
+  }
+  const k = 1 - Math.exp(-delta * 6);
+  camPos.lerp(voulue, k);
+  camCible.lerp(target, k);
+  camera.position.copy(camPos);
+  camera.lookAt(camCible);
+}
+function basculerVue(haute = !vueHaute) {
+  vueHaute = haute;
+  cameraDistance = CAMERA_HOME.distance; cameraYaw = CAMERA_HOME.yaw; orbite = 0;
+  showToast(vueHaute ? "Vue d’ensemble (touche 3 pour revenir derrière le joueur)." : "Vue joueur : Z/S pour avancer, Q/D pour tourner.");
+}
+// Les étiquettes n'apparaissent que près du joueur : l'usine reste lisible.
+let etiquettes = [], prochainTriEtiquettes = 0;
+function majEtiquettes(delta) {
+  prochainTriEtiquettes -= delta;
+  if (prochainTriEtiquettes <= 0) {
+    etiquettes = [];
+    world.traverse((o) => { if (o.isSprite) etiquettes.push(o); });
+    prochainTriEtiquettes = 1;
+  }
+  const p = player.position, w = new THREE.Vector3(), dJoueur = camera.position.distanceTo(p);
+  for (const s of etiquettes) {
+    s.getWorldPosition(w);
+    // Vue joueur : étiquettes proches seulement, et jamais entre la caméra et le joueur.
+    const proche = vueHaute || (s.parent !== player && w.distanceTo(p) < 10 && w.distanceTo(camera.position) > dJoueur + 1);
+    s.material.opacity += ((proche ? 1 : 0) - s.material.opacity) * Math.min(1, delta * 8);
+  }
 }
 function findInteraction(object) {
   let current = object;
@@ -807,7 +995,7 @@ function selectInteraction(info) {
     if (line && !line.operational) {
       action.textContent = spareCount() > 0 ? "Planifier l’intervention (tablette) →" : "Commander une pièce de rechange →";
       action.hidden = false;
-      action.onclick = () => spareCount() > 0 ? tablet.open("stocks") : tablet.open("achats", { sku: "MAT-PDR" });
+      action.onclick = () => spareCount() > 0 ? tablet.open("maintenance_pdr") : tablet.open("achats", { sku: "MAT-PDR" });
     }
   } else if (info.type === "worker") {
     copy.textContent = `${info.title} · ${info.subtitle}. Approchez-vous et appuyez sur E pour lui parler.`;
@@ -873,7 +1061,8 @@ function updateHUD(newState) {
   state = newState;
   $("#company-name").textContent = state.company_name || "L’atelier";
   $("#week").textContent = `SEMAINE ${String(state.current_week).padStart(2, "0")}`;
-  $("#otif").textContent = Number(state.kpis.otif).toFixed(1).replace(".", ",");
+  const service = tabletSnapshot?.globalKpis?.find((metric) => metric.id === "otif");
+  $("#otif").textContent = service ? (service.value == null ? "—" : Number(service.value).toFixed(1).replace(".", ",")) : "—";
   $("#trs").textContent = Number(state.kpis.trs).toFixed(1).replace(".", ",");
   $("#stock-value").textContent = fmt(state.kpis.stock_value);
   $("#quality").textContent = Number(state.kpis.quality_rate ?? 100).toFixed(1).replace(".", ",");
@@ -895,8 +1084,30 @@ function updateHUD(newState) {
 }
 
 async function refreshState() {
-  const response = await fetch("/api/state");
-  updateHUD(await response.json());
+  const response = await fetch("/api/v2/tablet");
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  tabletSnapshot = await response.json();
+  savedState = tabletSnapshot.raw;
+  updateHUD(tabletSnapshot.raw);
+  syncPeriodTrucks();
+  const nouveau = await chargerAmenagement();
+  if (nouveau) appliquerAmenagement(nouveau);
+  if (focusApresTablette && !tablet?.isOpen?.()) {
+    const zone = ZONES[focusApresTablette];
+    player.position.set(zone.x, 0, zone.z + zone.door * (zone.d / 2 + 1.6));
+    playerPath = [];
+    cameraDistance = Math.min(cameraDistance, 21);
+    showToast(focusApresTablette === "chaine_production" ? "Les tampons sont en place dans l’atelier." : "Le stock a été réaménagé.");
+    focusApresTablette = null;
+  }
+}
+
+function syncPeriodTrucks() {
+  const period = `${tabletSnapshot.gameId}:${tabletSnapshot.clock.period}`;
+  if (lastTruckPeriod !== null && period !== lastTruckPeriod) {
+    queueTrucks(tabletSnapshot.raw.trucks);
+  }
+  lastTruckPeriod = period;
 }
 
 function raycastFromPointer(event) {
@@ -924,7 +1135,7 @@ function onCanvasClick(event) {
     if (!target) continue;
     selectInteraction(target.info);
     if (target.info.type === "worker") openNpcDialog(target.info);
-    if (target.info.type === "block") { setDestination(hit.point); return; }
+    if (target.info.type === "block") { tablet?.open(target.info.zone, { department: DEPARTMENT_BY_ZONE[target.info.zone] }); return; }
     const closePoint = target.group.getWorldPosition(new THREE.Vector3());
     const approach = closePoint.add(player.position.clone().sub(closePoint).setY(0).normalize().multiplyScalar(1.8));
     setDestination(approach);
@@ -950,24 +1161,29 @@ function setupControls() {
       canvas.style.cursor = target ? "pointer" : "default";
       return;
     }
-    cameraYaw -= (event.clientX - lastPointer.x) * 0.008;
+    if (vueHaute) cameraYaw -= (event.clientX - lastPointer.x) * 0.008;
+    else orbite -= (event.clientX - lastPointer.x) * 0.008;
     lastPointer = { x: event.clientX, y: event.clientY };
   });
   canvas.addEventListener("pointerup", (event) => { if (dragging) { dragging = false; return; } onCanvasClick(event); });
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
-  canvas.addEventListener("wheel", (event) => { cameraDistance = Math.max(12, Math.min(44, cameraDistance + Math.sign(event.deltaY) * 1.5)); }, { passive: true });
+  canvas.addEventListener("wheel", (event) => {
+    if (vueHaute) cameraDistance = Math.max(10, Math.min(62, cameraDistance + Math.sign(event.deltaY) * 2));
+    else distance3p = Math.max(5, Math.min(24, distance3p + Math.sign(event.deltaY)));
+  }, { passive: true });
   window.addEventListener("keydown", (event) => {
     if (event.target.closest?.("input, select, textarea")) return;
     const key = event.key.toLowerCase();
-    if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", "shift"].includes(key)) { keys.add(key); playerPath.length = 0; }
+    const move = TOUCHES_MOUVEMENT[event.code];
+    if (move) { keys.add(move); if (move !== "shift") playerPath.length = 0; if (event.code.startsWith("Arrow")) event.preventDefault(); }
     if (key === "1" || key === "t") tablet.isOpen() ? tablet.close() : tablet.open();
     if (key === "2") $("#inspector").classList.remove("closed");
-    if (key === "3") { cameraDistance = CAMERA_HOME.distance; cameraYaw = CAMERA_HOME.yaw; }
+    if (key === "3") basculerVue();
     if (key === "escape") { tablet.close(); $("#npc-modal").hidden = true; }
     if (key === "e") interactNearest();
     if (key === "r" && roof) { roof.visible = !roof.visible; showToast(roof.visible ? "Toit affiché (R pour le masquer)." : "Toit masqué."); }
   });
-  window.addEventListener("keyup", (event) => keys.delete(event.key.toLowerCase()));
+  window.addEventListener("keyup", (event) => { if (TOUCHES_MOUVEMENT[event.code]) keys.delete(TOUCHES_MOUVEMENT[event.code]); });
   window.addEventListener("blur", () => keys.clear());
   window.addEventListener("resize", () => {
     camera.aspect = innerWidth / innerHeight;
@@ -975,8 +1191,26 @@ function setupControls() {
     renderer.setSize(innerWidth, innerHeight);
   });
 }
+// Touches physiques : ZQSD sur clavier AZERTY, WASD sur QWERTY, et les flèches.
+const TOUCHES_MOUVEMENT = { KeyW: "w", KeyA: "a", KeyS: "s", KeyD: "d", ArrowUp: "arrowup", ArrowDown: "arrowdown", ArrowLeft: "arrowleft", ArrowRight: "arrowright", ShiftLeft: "shift", ShiftRight: "shift" };
 function moveByKeyboard(delta) {
   if (tablet?.isOpen()) return false;
+  if (!vueHaute) {
+    // Vue joueur : avancer/reculer dans l'axe du regard, tourner à gauche/droite.
+    const avance = (keys.has("w") || keys.has("arrowup") ? 1 : 0) - (keys.has("s") || keys.has("arrowdown") ? 1 : 0);
+    const tourne = (keys.has("a") || keys.has("arrowleft") ? 1 : 0) - (keys.has("d") || keys.has("arrowright") ? 1 : 0);
+    if (!avance && !tourne) return false;
+    advanceTutorial("move");
+    player.rotation.y += tourne * 2.4 * delta;
+    orbite *= Math.exp(-delta * 3);
+    const speed = (keys.has("shift") ? 6.2 : 4.1) * (avance < 0 ? 0.55 : 1);
+    const nextX = player.position.x + Math.sin(player.rotation.y) * avance * speed * delta;
+    const nextZ = player.position.z + Math.cos(player.rotation.y) * avance * speed * delta;
+    if (walkable(Math.round(nextX), Math.round(player.position.z))) player.position.x = nextX;
+    if (walkable(Math.round(player.position.x), Math.round(nextZ))) player.position.z = nextZ;
+    animateLimbs(player, delta, avance ? speed : 2);
+    return true;
+  }
   const forward = new THREE.Vector3();
   camera.getWorldDirection(forward);
   forward.y = 0;
@@ -1041,9 +1275,11 @@ function addSupplierRow() {
 }
 async function loadState() {
   try {
-    const response = await fetch("/api/state");
+    const response = await fetch("/api/v2/tablet");
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    savedState = await response.json();
+    tabletSnapshot = await response.json();
+    savedState = tabletSnapshot.raw;
+    lastTruckPeriod = `${tabletSnapshot.gameId}:${tabletSnapshot.clock.period}`;
     state = savedState;
     if (savedState.started) {
       $("#company-input").value = savedState.company_name || "G-mix";
@@ -1060,12 +1296,13 @@ async function createNewGame(event) {
   const button = $("#start-new-game");
   button.disabled = true;
   try {
-    const response = await fetch("/api/new-game", {
+    const response = await fetch("/api/v2/tablet/new-game", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         company_name: $("#company-input").value.trim(),
         difficulty: $("#difficulty-input").value,
+        rules_confirmed: $("#rules-confirmed").checked,
         additional_suppliers: [...$("#custom-supplier-list").querySelectorAll(".supplier-entry")].map((row) => ({
           name: row.querySelector('[data-field="name"]').value.trim(),
           lead_time_weeks: Number(row.querySelector('[data-field="lead_time_weeks"]').value),
@@ -1076,9 +1313,13 @@ async function createNewGame(event) {
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.detail?.[0]?.msg || result.detail || `HTTP ${response.status}`);
-    updateHUD(result);
+    tabletSnapshot = result;
+    lastTruckPeriod = `${result.gameId}:${result.clock.period}`;
+    savedState = result.raw;
+    updateHUD(result.raw);
     $("#setup-screen").hidden = true;
     if ($("#tutorial-enabled").checked) beginTutorial();
+    tablet?.open();
   } catch (error) {
     $("#setup-note").textContent = `Impossible de créer la partie : ${error.message}`;
   } finally {
@@ -1095,11 +1336,13 @@ async function nextWeek() {
   const button = $("#next-turn");
   button.disabled = true;
   try {
-    const response = await fetch("/api/next-turn", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-    const nextState = await response.json();
-    if (!response.ok) throw new Error(nextState.detail || `HTTP ${response.status}`);
+    const response = await fetch("/api/v2/tablet/next-turn", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.detail || `HTTP ${response.status}`);
+    tabletSnapshot = result;
+    const nextState = result.raw;
     updateHUD(nextState);
-    queueTrucks(nextState.trucks);
+    syncPeriodTrucks();
     const r = nextState.last_week || {};
     showToast(`Semaine ${nextState.current_week} · reçu ${fmt(r.received_units)} · fabriqué ${fmt(r.produced)} · emballé ${fmt(r.packed)} · expédié ${fmt(r.delivered)} · ${fmt(r.customer_orders_late)} commande(s) en retard.`);
     advanceTutorial("week");
@@ -1113,6 +1356,7 @@ async function nextWeek() {
 let tablet = null;
 // Pour le débogage depuis la console du navigateur.
 window.gmixDebug = {
+  voir: (zoneId, distance = 22, yaw = 0.35) => { const z = ZONES[zoneId]; player.position.set(z.x, 0, z.z + z.door * 1.5); playerPath = []; vueHaute = true; cameraDistance = distance; cameraYaw = yaw; },
   trucks: () => truckActors.map((truck) => ({ kind: truck.userData.actor.kind, phase: truck.userData.actor.phase, mode: truck.userData.actor.mode, x: Math.round(truck.position.x * 10) / 10 })),
   queues: () => Object.fromEntries(Object.entries(dockQueues).map(([kind, queue]) => [kind, queue.length])),
 };
@@ -1137,19 +1381,28 @@ function animate() {
   }
   updateForklift(delta);
   updateTrucks(delta);
-  cameraPosition();
+  animerAmenagement(delta);
+  majEtiquettes(delta);
+  cameraPosition(delta);
   renderer.render(scene, camera);
 }
 
 async function startGame() {
   await loadState();
+  amenagement = (await chargerAmenagement()) || amenagement;
+  window.addEventListener("message", (event) => {
+    if (event.origin !== window.location.origin || event.data?.type !== "GMIX_LAYOUT_CHANGED") return;
+    const avant = JSON.stringify(amenagement.stock);
+    appliquerAmenagement(event.data.layout);
+    focusApresTablette = JSON.stringify(amenagement.stock) !== avant ? "stock_mp" : "chaine_production";
+  });
   tablet = createTablet({ getState: () => state, refreshState, toast: showToast, onAction: advanceTutorial });
   buildWorld();
   setupControls();
   $("#next-turn").addEventListener("click", nextWeek);
   $("#tablet-open").addEventListener("click", () => tablet.open());
   $("#inspect-open").addEventListener("click", () => $("#inspector").classList.toggle("closed"));
-  $("#home-camera").addEventListener("click", () => { cameraDistance = CAMERA_HOME.distance; cameraYaw = CAMERA_HOME.yaw; player.position.set(-2, 0, 5); playerPath = []; });
+  $("#home-camera").addEventListener("click", () => basculerVue());
   $("#close-inspector").addEventListener("click", () => $("#inspector").classList.add("closed"));
   $("#npc-close").addEventListener("click", () => { $("#npc-modal").hidden = true; });
   $("#npc-modal").addEventListener("pointerdown", (event) => { if (event.target.id === "npc-modal") event.currentTarget.hidden = true; });

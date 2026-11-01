@@ -24,3 +24,7 @@ godot/export_presets.cfg
 .idea/
 Thumbs.db
 Desktop.ini
+
+# macOS et état local du jeu
+.DS_Store
+backend/data/layout.json

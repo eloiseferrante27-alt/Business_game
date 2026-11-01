@@ -4,30 +4,30 @@
 
 // x, z = centre ; w, d = largeur, profondeur ; door = côté de l'entrée (+1 vers le bas de l'écran, -1 vers le haut).
 export const ZONES = {
-  stock_mp: { block: "stock", part: "MP", title: "Stock de MP", x: -16, z: -10, w: 16, d: 6, door: 1, accent: 0x9cad8d },
-  stock_sf: { block: "stock", part: "SF", title: "Stock de semi-finis", x: 0, z: -10, w: 15, d: 6, door: 1, accent: 0xb3a36f },
-  stock_pf: { block: "stock", part: "PF", title: "Stock de produits finis", x: 16, z: -10, w: 16, d: 6, door: 1, accent: 0x8eaab8 },
+  stock_mp: { block: "stock", part: "MP", title: "Stock de MP", x: -19.5, z: -12, w: 16, d: 6, door: 1, accent: 0x9cad8d },
+  stock_sf: { block: "stock", part: "SF", title: "Stock de semi-finis", x: 0, z: -12, w: 15, d: 6, door: 1, accent: 0xb3a36f },
+  stock_pf: { block: "stock", part: "PF", title: "Stock de produits finis", x: 19.5, z: -12, w: 16, d: 6, door: 1, accent: 0x8eaab8 },
 
-  quai_dechargement: { block: "quai_dechargement", x: -22, z: -0.75, w: 7, d: 8.5, door: 1, accent: 0x8eb7a5, dockSide: -1, dockBays: [0] },
-  bureau_reception: { block: "bureau_reception", x: -14.75, z: -0.75, w: 6.5, d: 8.5, door: 1, accent: 0x8eb7a5 },
-  chaine_production: { block: "chaine_production", x: -1.5, z: -0.75, w: 19, d: 8.5, door: 1, accent: 0x70c1bb },
-  emballage: { block: "emballage", x: 12, z: -0.75, w: 7, d: 8.5, door: 1, accent: 0xd4a45c },
-  logistique_transport: { block: "logistique_transport", x: 20.5, z: -0.75, w: 9, d: 8.5, door: 1, accent: 0x9cad8d, dockSide: 1, dockBays: [-1.85, 2.35] },
+  quai_dechargement: { block: "quai_dechargement", x: -26.75, z: -0.75, w: 7, d: 8.5, door: 1, accent: 0x8eb7a5, dockSide: -1, dockBays: [0] },
+  bureau_reception: { block: "bureau_reception", x: -17, z: -0.75, w: 6.5, d: 8.5, door: 1, accent: 0x8eb7a5 },
+  chaine_production: { block: "chaine_production", x: -1.25, z: -0.75, w: 19, d: 8.5, door: 1, accent: 0x70c1bb },
+  emballage: { block: "emballage", x: 14.75, z: -0.75, w: 7, d: 8.5, door: 1, accent: 0xd4a45c },
+  logistique_transport: { block: "logistique_transport", x: 25.75, z: -0.75, w: 9, d: 8.5, door: 1, accent: 0x9cad8d, dockSide: 1, dockBays: [-1.85, 2.35] },
 
-  controle_qualite: { block: "controle_qualite", x: -16.5, z: 9.25, w: 15, d: 6.5, door: -1, accent: 0x70c1bb },
-  bureau_etude: { block: "bureau_etude", x: 0, z: 9.25, w: 15, d: 6.5, door: -1, accent: 0x53766a },
-  maintenance_pdr: { block: "maintenance_pdr", x: 16.5, z: 9.25, w: 15, d: 6.5, door: -1, accent: 0x80958d },
+  controle_qualite: { block: "controle_qualite", x: -19, z: 10.75, w: 15, d: 6.5, door: -1, accent: 0x70c1bb },
+  bureau_etude: { block: "bureau_etude", x: 0, z: 10.75, w: 15, d: 6.5, door: -1, accent: 0x53766a },
+  maintenance_pdr: { block: "maintenance_pdr", x: 19, z: 10.75, w: 15, d: 6.5, door: -1, accent: 0x80958d },
 };
 
 // Cadre en pointillés de l'usine et limites de déplacement.
-export const FACTORY_FRAME = { x1: -26.2, x2: 26.2, z1: -5.5, z2: 12.9 };
-export const WALK_BOUNDS = { x1: -27, x2: 27, z1: -13.4, z2: 12.8 };
+export const FACTORY_FRAME = { x1: -31.6, x2: 31.6, z1: -6.2, z2: 15.2 };
+export const WALK_BOUNDS = { x1: -33, x2: 33, z1: -16.5, z2: 15.8 };
 
 // Quais vus depuis l'extérieur : où se garent les camions.
 export const DOCKS = {
-  fournisseur: { x: -29.4, z: -0.75, from: -52, heading: 1 },
-  livraison: { x: 28.4, z: -2.6, to: 52, heading: -1 },
-  client: { x: 28.4, z: 1.6, from: 52, heading: -1 },
+  fournisseur: { x: -34.15, z: -0.75, from: -60, heading: 1 },
+  livraison: { x: 33.65, z: -2.6, to: 60, heading: -1 },
+  client: { x: 33.65, z: 1.6, from: 60, heading: -1 },
 };
 
 // Le chemin de la matière, tel qu'il est écrit dans la v3 (barre de navigation du haut).

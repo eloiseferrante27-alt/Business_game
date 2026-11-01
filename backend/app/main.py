@@ -7,8 +7,10 @@ from fastapi.staticfiles import StaticFiles
 from .models import CustomerOrder, DecisionsRequest, GameState, NewGameRequest, Supplier, SupplierQuote
 from .scenario import list_scenarios
 from .simulation import simulation
+from .api_tablet import router as tablet_router
 
 app = FastAPI(title="G-mix API", version="0.3.0")
+app.include_router(tablet_router)
 STATIC_DIR = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
@@ -36,7 +38,8 @@ def get_scenarios() -> list[dict[str, str]]:
 
 @app.get("/api/state", response_model=GameState)
 def get_state() -> GameState:
-    return simulation.state
+    with simulation.lock:
+        return simulation.state.model_copy(deep=True)
 
 
 @app.post("/api/new-game", response_model=GameState)

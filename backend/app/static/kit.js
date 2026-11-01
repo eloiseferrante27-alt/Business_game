@@ -93,20 +93,29 @@ export function createKit(renderer) {
     return group;
   }
 
-  function labelSprite(text, color = "#fff9dc", bg = "#183a36") {
+  // Étiquette sobre : pastille blanche, texte foncé ; la couleur d'origine devient un point d'accent.
+  function labelSprite(text, color = "#1d1d1f", bg = "#5f7380") {
     const canvas = document.createElement("canvas");
     canvas.width = 512;
     canvas.height = 128;
     const context = canvas.getContext("2d");
+    context.shadowColor = "rgba(0,0,0,0.18)";
+    context.shadowBlur = 10;
+    context.shadowOffsetY = 3;
+    context.fillStyle = "rgba(255,255,255,0.95)";
+    context.beginPath();
+    context.roundRect(10, 14, 492, 98, 49);
+    context.fill();
+    context.shadowColor = "transparent";
     context.fillStyle = bg;
     context.beginPath();
-    context.roundRect(8, 10, 496, 108, 24);
+    context.arc(58, 63, 13, 0, Math.PI * 2);
     context.fill();
-    context.fillStyle = color;
-    context.font = "600 42px Arial";
-    context.textAlign = "center";
+    context.fillStyle = "#1d1d1f";
+    context.font = "600 40px -apple-system, 'Helvetica Neue', Arial, sans-serif";
+    context.textAlign = "left";
     context.textBaseline = "middle";
-    context.fillText(text, 256, 64, 460);
+    context.fillText(text, 86, 64, 396);
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }));

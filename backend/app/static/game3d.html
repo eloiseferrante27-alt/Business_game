@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#182c31">
+  <meta name="theme-color" content="#f5f5f7">
   <title>G-mix — Atelier vivant</title>
   <link rel="stylesheet" href="/static/game3d.css">
   <script type="module" src="/static/game3d.js"></script>
@@ -17,7 +17,7 @@
         <div class="setup-brand"><span>G</span><small>G-MIX · SIMULATION INDUSTRIELLE</small></div>
         <p class="mini-title">AVANT D’ENTRER DANS L’ATELIER</p>
         <h1 id="setup-title">Préparez votre entreprise</h1>
-        <p class="setup-intro">Choisissez votre identité et le niveau de défi de votre première semaine.</p>
+        <p class="setup-intro">Votre équipe est prête. Approvisionnez l’usine, lancez la production et livrez vos clients depuis la tablette.</p>
         <label for="company-input">Nom de l’entreprise</label>
         <input id="company-input" name="company_name" value="G-mix" minlength="2" maxlength="32" required>
         <label for="difficulty-input">Difficulté</label>
@@ -30,6 +30,8 @@
         <p class="supplier-setup-help">Nom · délai en semaines · fiabilité en % · coût unitaire en €</p>
         <div id="custom-supplier-list" class="custom-supplier-list"></div>
         <label class="tutorial-choice"><input id="tutorial-enabled" type="checkbox" checked> Lancer le didacticiel après le démarrage</label>
+        <details class="setup-rules"><summary>Règles de cette partie</summary><p>La simulation avance par semaine. Comparez les fournisseurs, commandez la matière, lancez vos ordres de fabrication et planifiez les réparations. Le moteur exécute vos décisions au passage de la période. Les réglages du scénario sont en lecture seule ; vos décisions restent disponibles sur la tablette.</p></details>
+        <label class="tutorial-choice"><input id="rules-confirmed" type="checkbox" required> J’ai consulté les règles de la partie et je confirme le démarrage.</label>
         <button id="start-new-game" class="setup-primary" type="submit">Créer une nouvelle partie <span>→</span></button>
         <button id="resume-game" class="setup-secondary" type="button" hidden>Reprendre la sauvegarde</button>
         <p id="setup-note" class="setup-note">Une nouvelle partie remplace la sauvegarde actuelle.</p>
@@ -49,17 +51,17 @@
     <section class="left-hud glass">
       <div class="hud-heading"><div><small>VOTRE ENTREPRISE</small><h1 id="company-name">L’atelier</h1></div><span class="season">● EN LIGNE</span></div>
       <div class="kpi-row"><span><i class="kpi-dot otif"></i>OTIF clients</span><b><span id="otif">—</span>%</b></div>
-      <div class="kpi-row"><span><i class="kpi-dot trs"></i>TRS usine</span><b><span id="trs">—</span>%</b></div>
+      <div class="kpi-row"><span><i class="kpi-dot trs"></i>Rendement des lignes</span><b><span id="trs">—</span>%</b></div>
       <div class="kpi-row"><span><i class="kpi-dot inventory"></i>Valeur du stock</span><b><span id="stock-value">—</span> €</b></div>
       <div class="kpi-row"><span><i class="kpi-dot quality"></i>Qualité · livré</span><b><span id="quality">—</span>% · <span id="delivered">—</span></b></div>
       <div class="hud-divider"></div>
-      <div class="mini-title">OBJECTIF DE LA SEMAINE</div>
+      <div class="mini-title">VOTRE PROCHAINE DÉCISION</div>
       <p id="objective">Explorez l’entrepôt et maintenez un bon niveau de service.</p>
-      <div class="objective-progress"><i></i></div>
+      <div class="objective-progress" hidden><i></i></div>
       <div id="objective-status">Votre équipe attend vos décisions.</div>
     </section>
 
-    <section id="inspector" class="inspector glass">
+    <section id="inspector" class="inspector glass closed">
       <button id="close-inspector" class="close-button" aria-label="Fermer">×</button>
       <div class="mini-title">INSPECTEUR</div>
       <div class="assistant-line"><span class="assistant-avatar">i</span><div><b id="inspector-title">Sélection</b><small id="inspector-subtitle">Bloc, agent ou équipement</small></div><i class="online-dot"></i></div>
@@ -70,15 +72,15 @@
 
     <div id="toast" role="status"></div>
     <div class="bottom-hud">
-      <div class="movement-hint glass"><span class="key">W</span><span class="key-cluster"><i>A</i><i>S</i><i>D</i></span><span>Se déplacer</span><b class="hint-divider"></b><span class="key">CLIC</span><span>Aller / interagir</span><span class="key">E</span><span>Parler</span><b class="hint-divider"></b><span class="key">R</span><span>Toit</span></div>
+      <div class="movement-hint glass"><span class="key">Z</span><span class="key-cluster"><i>Q</i><i>S</i><i>D</i></span><span>Marcher · tourner</span><b class="hint-divider"></b><span class="key">CLIC</span><span>Aller / interagir</span><span class="key">E</span><span>Parler</span><b class="hint-divider"></b><span class="key">R</span><span>Toit</span></div>
       <div class="action-bar glass">
         <button id="tablet-open" class="action-slot" title="Ouvrir la tablette"><span class="slot-icon">▭</span><small>TABLETTE</small><kbd>1</kbd></button>
         <button id="inspect-open" class="action-slot active" title="Inspecter"><span class="slot-icon">⌕</span><small>INSPECTER</small><kbd>2</kbd></button>
-        <button id="home-camera" class="action-slot" title="Recentrer la caméra"><span class="slot-icon">◎</span><small>CAMÉRA</small><kbd>3</kbd></button>
+        <button id="home-camera" class="action-slot" title="Recentrer la caméra"><span class="slot-icon">◎</span><small>VUE</small><kbd>3</kbd></button>
       </div>
       <div class="people-count glass"><span class="people-icons">● ● ●</span><span><b>ÉQUIPE</b><small id="people-label">4 ouvriers actifs</small></span></div>
     </div>
-    <div class="zoom-hint">MOLETTE · ZOOM <span>DRAG · ORBITER</span></div>
+    <div class="zoom-hint">MOLETTE · ZOOM <span>CLIC DROIT · REGARDER AUTOUR</span></div>
     <div id="tablet-modal" class="modal-backdrop" hidden>
       <section class="tablet" role="dialog" aria-modal="true" aria-label="Tablette du joueur">
         <header class="tablet-head"><div><small>TABLETTE · PILOTAGE À DISTANCE</small><b class="tablet-week">Semaine 1</b></div><nav class="tablet-tabs"></nav><button type="button" class="tablet-close close-button" aria-label="Fermer">×</button></header>
