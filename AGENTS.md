@@ -103,7 +103,7 @@ Status: `todo` · `in progress` · `blocked` · `review` · `done`. Owner is a s
 | ID | Task | Depends on | Suggested owner | Status |
 |---|---|---|---|---|
 | T00 | Human decisions: time unit/period, spreadsheet lib, map lib (§25) | — | Amine | todo |
-| T01 | **Gap report** (Livrable 1): inventory current code vs spec, list present / to complete / missing, map AL-03…AL-13 → `docs/rapport-ecart.md` | — | Codex | in progress |
+| T01 | **Gap report** (Livrable 1): inventory current code vs spec, list present / to complete / missing, map AL-03…AL-13 → `docs/rapport-ecart.md` | — | Codex | done |
 | T02 | `config/world.yaml` from Annexe A + `engine/config.py` loader & §4 validations (MTTR<MTBF, reorder point, ≥2 offers per article, capacities) | T01 | Codex | todo |
 | T03 | `engine/journal.py` + `engine/clock.py` (8 h day, ×1–×60, pause, time-jump, seed) | T00 | Codex | todo |
 | T04 | `engine/rights.py` + server checks + refusal logging; `engine/alerts.py` | T02, T03 | Codex | todo |
@@ -126,5 +126,7 @@ Status: `todo` · `in progress` · `blocked` · `review` · `done`. Owner is a s
 ## 9. Handoff log
 
 Newest first. Format: `YYYY-MM-DD · agent · task · what changed · what's left · questions`.
+
+- 2026-11-01 · Codex · T01 · Added `docs/rapport-ecart.md`, copied the supplied v3 reference and specification PDF into `docs/`, and extracted all 42 PDF pages to the expected Markdown path. Audited backend, tablet/2D/3D, Godot and tests; corrected stale inventory assumptions in the report; mapped all AL IDs with explicit missing-source reservations. No runtime code changed. Claimed in commit `c0b25b2`; completion isolated in `/tmp/gmix-t01-gap-report` on `codex/T01-gap-report` after concurrent Kimi T06 switched the shared checkout. · Validation: 9 pytest tests pass; existing API smoke checks return 200 on isolated SQLite; save/resume RNG divergence reproduced. Next: T02 diagnostics/configuration; T03 waits for T00. Human review/merge into `contribution_amine`. · Questions: report Q01–Q11; need the supplier/transport module and original AL-03…AL-13 catalogue, T00 time/period and library decisions, missing values/formulas and legacy compatibility choices. No undocumented hazard or parameter invented.
 
 - 2026-11-01 · Claude · setup · Wrote this AGENTS.md from the v3 doc, the cahier des charges and a read of the current backend. No code changed yet. · Next: T00 (Amine) and T01 (gap report). · Questions: see §7 "Pending".
