@@ -1,0 +1,132 @@
+# AGENTS.md — G-MIX Business Game
+
+Shared instructions for every AI coding agent working on this repo (Codex, Kimi, Claude).
+**Read this whole file before touching any code. Update the "Task board" and "Handoff log" sections before you finish.**
+
+---
+
+## 1. What G-MIX is
+
+G-MIX is a pedagogical business game: a trainer configures a world, a player runs a factory remotely from a **tablet**, and the engine simulates the consequences of the player's decisions.
+
+- The **3D world is only the stage**. The game is played in the **tablet interfaces**: one page per department, each with three tabs: **KPIs**, **Outils** (tools), **Configurations**.
+- The player has no office and no "Pilotage" department. They act only from the tablet.
+- Suppliers and clients are **scenario variables**; in 3D you only see their trucks.
+- The world must stay **modular**: changing the configuration file changes the world without touching code.
+
+## 2. Reference documents (source of truth)
+
+Put these in `docs/` (ask the human if they are missing — do not guess their content):
+
+| File | Role |
+|---|---|
+| `docs/Mon monde v3 - blocs, agents et assets.md` | **Single reference** for the world: 8 blocks, agents, assets, parameters. v1 and v2 are dropped — ignore them. |
+| `docs/Cahier des charges - configurations et interface.md` | **The spec you are implementing.** Engine + tablet interface for every department, rights system, tools, hazards (aléas), config file (Annexe A), deliverables (§24). |
+
+If code and these docs disagree, **the docs win**. If the docs are silent or contradictory, do not invent: write the question in the Handoff log and in the gap report.
+
+## 3. Current code (as of 2026-11-01)
+
+```
+backend/app/main.py        FastAPI: /, /health, /api/state, /api/new-game, /api/decisions, /api/next-turn
+backend/app/simulation.py  SimulationEngine — advances WEEK by week; catalogs are HARD-CODED (SUPPLIER_CATALOG, PRODUCT_CATALOG, LINE_NAMES)
+backend/app/models.py      Pydantic: KPIs, Supplier, Stock (PF), MaterialStock (MP), Machine, ProductionLine, GameState, requests
+backend/app/agents.py      SupplierAgent, MarketAgent (2 random events), GMSClientAgent (client demand, OTIF)
+backend/app/database.py    SQLite snapshot save/load → backend/data/gmix.db
+backend/app/static/        game3d.html / game3d.js (three.js 3D world), index.html / game.js (2D), CSS
+godot/                     Godot scenes/scripts (NPCs) — do not modify unless a task says so
+COMMENT_JOUER.md           How the current version is played
+```
+
+Known gaps vs. the spec (to confirm in the gap report):
+- Time unit is **weeks**; the spec wants an 8 h simulated day with ×1–×60 speed (open point §25 — see Decisions below).
+- 4 lines × 4 different products; v3 says N identical lines making one product. Structure must accept both (`lignes_identiques` in config).
+- No config file, no event journal, no rights (Verrouillé / Initial / Libre), no tablet pages, KPIs computed ad hoc instead of from a journal.
+- Only 2 random events; the spec has a catalogue AL-01…AL-34 with 4 trigger modes.
+
+## 4. Non-negotiable rules (from the spec, §1–§2)
+
+1. **The engine computes.** KPIs, costs, lead times, throughput, routes: engine only. Never in the UI, never by an AI.
+2. **Nothing hard-coded.** Values, rights, suppliers, clients, prices, delays come from the config file (Annexe A) or the engine.
+3. **Additive only.** Never delete or rename an existing identifier, field, endpoint or parameter. Extend. Keep IDs `LINE-NN`, `Ln-Mk`, `SKU-NN`, `MAT-NN`, `SUP-NN`; new IDs follow `ZONE-TYPE-NN` (`EXT-FOUR-NN`, `EXT-OFFRE-NN`, `EXT-CLI-NN`, `REC-QUAI-01`…).
+4. **Never invent** a parameter, state or value missing from the docs — flag it.
+5. **Reproducible.** Every random draw uses the scenario seed (`random.Random(seed)`), never the global `random`.
+6. **Everything goes through the journal.** Every state change = one journal entry (time, element, old state, new state, cause: `decision | regle | alea`). KPIs are computed from the journal.
+7. **Rights are enforced on the server**, not only in the UI. Forbidden requests are rejected and logged.
+8. **Engine before interface** for each department.
+9. The current game must keep running after your change (`/api/state`, `/api/next-turn` still work).
+
+## 5. Target structure (create additively)
+
+```
+config/world.yaml                 The Annexe A config file (one file = one world)
+backend/app/engine/
+    __init__.py
+    config.py        load + validate world.yaml (§4 checks), states fixe / a_generer / desactive
+    clock.py         simulated clock, pause, speed, time-jump (same seed ⇒ same journal)
+    journal.py       append-only event journal + query helpers
+    rights.py        verrouille / initial / libre, change limits, refusal messages (§5)
+    alerts.py        open/close alerts, severity grave/mineure, status colour per block
+    kpis.py          KPI functions reading ONLY the journal
+    hazards.py       AL-xx catalogue, 4 trigger modes (manual, fixed time, condition, random)
+    departments/
+        suppliers.py  unloading_dock.py  reception.py  stock.py  production.py
+        quality.py    packing.py  maintenance.py  logistics.py  clients.py
+backend/app/api_tablet.py         new FastAPI router: /api/v2/... (keep old endpoints)
+backend/app/static/tablet/        tablet UI: home, rules screen, 10 department pages, 5 tools
+tests/                            pytest — every engine module gets tests
+```
+
+One department = one engine file + one UI page. **Only edit the files of the task you claimed**, plus shared files listed in the task.
+
+## 6. Workflow between agents
+
+- **Branches:** start from `contribution_amine`. One branch per task: `codex/T03-journal`, `kimi/T12-stock-ui`, `claude/...`. Open a PR into `contribution_amine`. Never push to `main`.
+- **Claim before working:** set yourself as owner and status `in progress` in the Task board, commit that first.
+- **Small PRs:** one task per PR, with tests. Run `pytest` before pushing.
+- **Shared core files** (`engine/journal.py`, `engine/config.py`, `engine/rights.py`, `models.py`): change only within the task that owns them, or note the change clearly in the Handoff log so others can rebase.
+- **When done:** set status `done`, write a Handoff log entry (what you did, what's left, open questions).
+- **Stuck on a decision only the human can make:** status `blocked`, explain in the Handoff log, move to another task.
+- Review: Amine (human) merges. Claude may be asked to review PRs against the spec.
+
+## 7. Decisions already made
+
+- v3 is the single reference; v1/v2 dropped.
+- The cahier des charges replaces the older "module chaîne de production" and "interfaces de la tablette" docs.
+- The tablet is the only player interface; touching a block in 3D opens its page.
+- **Pending (human must decide — see T00):** time unit (proposed default: 8 h simulated day, period = 1 day), spreadsheet library vs home-made, map library (Leaflet suggested).
+
+## 8. Task board
+
+Status: `todo` · `in progress` · `blocked` · `review` · `done`. Owner is a suggestion — change it when you claim a task.
+
+| ID | Task | Depends on | Suggested owner | Status |
+|---|---|---|---|---|
+| T00 | Human decisions: time unit/period, spreadsheet lib, map lib (§25) | — | Amine | todo |
+| T01 | **Gap report** (Livrable 1): inventory current code vs spec, list present / to complete / missing, map AL-03…AL-13 → `docs/rapport-ecart.md` | — | Codex | done |
+| T02 | `config/world.yaml` from Annexe A + `engine/config.py` loader & §4 validations (MTTR<MTBF, reorder point, ≥2 offers per article, capacities) | T01 | Codex | todo |
+| T03 | `engine/journal.py` + `engine/clock.py` (8 h day, ×1–×60, pause, time-jump, seed) | T00 | Codex | todo |
+| T04 | `engine/rights.py` + server checks + refusal logging; `engine/alerts.py` | T02, T03 | Codex | todo |
+| T05 | `engine/kpis.py` skeleton + `/api/v2` router (state, page data, set config, actions) | T03 | Codex | todo |
+| T06 | Tablet shell: home page (§8), common page layout with 3 tabs (§6), red pop-up (4 s), "Règles de la partie" screen (§5) | T05 (can mock API first) | Kimi | todo |
+| T07 | Tools: spreadsheet, world map, charts (curve + Pareto), planning, journal viewer (§7) | T06 | Kimi | todo |
+| T10 | Engine: Suppliers (§10) | T02–T05 | Codex | todo |
+| T11 | Engine: Unloading dock (§11) + Reception (§12) | T10 | Codex | todo |
+| T12 | Engine: Stock MP/semi/PF + kits + reorder (§13) | T03–T05 | Codex | todo |
+| T13 | Engine: Production chain — machines, OF, bottleneck, buffers, breakdowns (§14) | T12 | Codex | todo |
+| T14 | Engine: Quality (§15) + Packing (§16) | T13 | Codex | todo |
+| T15 | Engine: Maintenance & PDR (§17) | T13 | Codex | todo |
+| T16 | Engine: Logistics (§18) + Clients (§19) | T12 | Codex | todo |
+| T20–T29 | UI page for each department (KPIs / Outils / Configurations / actions / alerts), one task per department, after its engine task | matching T1x + T06 | Kimi | todo |
+| T30 | Hazards catalogue AL-01…AL-34 + 4 trigger modes (§21) | T10–T16 | Codex | todo |
+| T31 | Interactions & chain effects (§20) end-to-end test | T10–T16 | Codex | todo |
+| T32 | 3 demo scenarios (§24 Livrable 5) + success criteria display (§22) | T30, T31 | Codex + Kimi | todo |
+| T33 | Hook 3D world: click on a block opens its tablet page; trucks for suppliers/clients | T06 | Kimi | todo |
+
+## 9. Handoff log
+
+Newest first. Format: `YYYY-MM-DD · agent · task · what changed · what's left · questions`.
+
+- 2026-11-01 · Codex · T01 · Added `docs/rapport-ecart.md`, copied the supplied v3 reference and specification PDF into `docs/`, and extracted all 42 PDF pages to the expected Markdown path. Audited backend, tablet/2D/3D, Godot and tests; corrected stale inventory assumptions in the report; mapped all AL IDs with explicit missing-source reservations. No runtime code changed. Claimed in commit `c0b25b2`; completion isolated in `/tmp/gmix-t01-gap-report` on `codex/T01-gap-report` after concurrent Kimi T06 switched the shared checkout. · Validation: 9 pytest tests pass; existing API smoke checks return 200 on isolated SQLite; save/resume RNG divergence reproduced. Next: T02 diagnostics/configuration; T03 waits for T00. Human review/merge into `contribution_amine`. · Questions: report Q01–Q11; need the supplier/transport module and original AL-03…AL-13 catalogue, T00 time/period and library decisions, missing values/formulas and legacy compatibility choices. No undocumented hazard or parameter invented.
+
+- 2026-11-01 · Claude · setup · Wrote this AGENTS.md from the v3 doc, the cahier des charges and a read of the current backend. No code changed yet. · Next: T00 (Amine) and T01 (gap report). · Questions: see §7 "Pending".
