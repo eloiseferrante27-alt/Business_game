@@ -10,7 +10,7 @@
   const networkStatus = document.getElementById("network-status");
   const rightLabels = { verrouille: "Verrouillé", initial: "Initial seulement", libre: "Libre" };
   const statusLabels = { vert: "Aucune alerte", orange: "Alerte mineure", rouge: "Alerte grave" };
-  const supportedActions = new Set(["purchase", "production", "maintenance"]);
+  const supportedActions = new Set(["purchase", "production", "maintenance", "compare"]);
   let state;
   let toastTimer;
   let modalTrigger;
@@ -124,7 +124,7 @@
 
   function renderClock() {
     const clock = state.clock;
-    return `<section class="period-bar" aria-label="Période de simulation"><div class="period-main">${icon("clock")}<div><small>PÉRIODE DU MOTEUR</small><strong>${escapeHtml(clock.label)}</strong></div></div><span class="period-mode">${clock.supportsRealtime ? "Temps simulé" : "Simulation par période"}</span><button class="next-period" type="button" data-action="next-turn" ${clock.canAdvance ? "" : "disabled"}>${icon("next")}<span>Simuler la période suivante</span></button></section>`;
+    return `<section class="period-bar" aria-label="Période de simulation"><div class="period-main">${icon("clock")}<div><small>PÉRIODE EN COURS</small><strong>${escapeHtml(clock.label)}</strong></div></div><span class="period-mode">${clock.supportsRealtime ? "Temps simulé" : "Simulation par période"}</span><button class="next-period" type="button" data-action="next-turn" ${clock.canAdvance ? "" : "disabled"}>${icon("next")}<span>Simuler la période suivante</span></button></section>`;
   }
 
   function metricValue(item) {
@@ -154,7 +154,7 @@
   }
 
   function renderObjectives() {
-    if (!state.objectives.length) return `<div class="empty-state compact">${icon("quality")}<strong>Aucun objectif transmis</strong><span>Le scénario ne fournit pas encore de critères de réussite.</span></div>`;
+    if (!state.objectives.length) return `<div class="empty-state compact">${icon("quality")}<strong>Objectifs de la partie</strong><span>Aucun objectif chiffré n’est défini pour ce scénario.</span></div>`;
     return `<div class="objective-list">${state.objectives.map((objective) => {
       const progress = Number(objective.progress);
       const hasProgress = Number.isFinite(progress);
@@ -166,10 +166,10 @@
   function renderHome() {
     const mission = state.objectives[0];
     return `${renderTopbar("Vue d’ensemble")}<div class="page-heading home-heading"><div><p class="eyebrow">POSTE DE PILOTAGE</p><h1>Bonjour, <span>${escapeHtml(state.companyName)}</span></h1><p>Votre usine vous attend. Observez, décidez, puis lancez la simulation.</p></div><a class="secondary-button" href="#regles">${icon("rules")} Règles & droits</a></div>
-      ${state.started ? "" : `<section class="resume-banner">${icon("alert")}<div><strong>Une sauvegarde est disponible</strong><span>Reprenez son état actuel ou créez explicitement une nouvelle partie.</span></div><a href="#nouvelle-partie">Nouvelle partie</a></section>`}
+      ${state.started ? "" : `<section class="resume-banner">${icon("alert")}<div><strong>Votre première partie vous attend</strong><span>Nommez votre entreprise, consultez les règles et prenez les commandes de l’usine.</span></div><a href="#nouvelle-partie">Nouvelle partie</a></section>`}
       ${renderClock()}
-      <section class="turn-mission"><div><p class="eyebrow">OBJECTIF OPÉRATIONNEL · ${escapeHtml(state.clock.label)}</p><h2>${escapeHtml(mission ? display(mission.label) : "Pilotez votre prochaine décision")}</h2><p>${escapeHtml(mission ? display(mission.current) : "Les objectifs chiffrés apparaîtront ici dès que le scénario les transmettra.")}</p></div><a href="#departement/production" class="mission-action">Aller aux décisions ${icon("arrow")}</a></section>
-      <section class="home-section"><div class="section-heading"><div><p class="eyebrow">LE POULS DE L’USINE</p><h2>Indicateurs globaux</h2></div><span>Valeurs calculées par le moteur</span></div>${state.globalKpis.length ? `<div class="global-kpis">${state.globalKpis.map((kpi) => `<a class="global-kpi" href="#departement/${escapeHtml(kpi.departmentId)}"><span>${escapeHtml(kpi.label)}</span><strong>${metricValue(kpi)}</strong><span class="kpi-link">Comprendre ${icon("arrow")}</span></a>`).join("")}</div>` : `<div class="empty-state panel">${icon("graphiques")}<strong>Aucun indicateur global transmis</strong></div>`}</section>
+      <section class="turn-mission"><div><p class="eyebrow">OBJECTIF OPÉRATIONNEL · ${escapeHtml(state.clock.label)}</p><h2>${escapeHtml(mission ? display(mission.label) : "Pilotez votre prochaine décision")}</h2><p>${escapeHtml(mission ? display(mission.current) : "Consultez les alertes, vérifiez vos stocks et préparez vos achats et votre production avant la prochaine période.")}</p></div><a href="#departement/production" class="mission-action">Aller aux décisions ${icon("arrow")}</a></section>
+      <section class="home-section"><div class="section-heading"><div><p class="eyebrow">LE POULS DE L’USINE</p><h2>Indicateurs globaux</h2></div><span>Valeurs calculées par le moteur</span></div>${state.globalKpis.length ? `<div class="global-kpis">${state.globalKpis.map((kpi) => `<a class="global-kpi" href="#departement/${escapeHtml(kpi.departmentId)}"><span>${escapeHtml(kpi.label)}</span><strong>${metricValue(kpi)}</strong><span class="kpi-link">Comprendre ${icon("arrow")}</span></a>`).join("")}</div>` : `<div class="empty-state panel">${icon("graphiques")}<strong>Aucun indicateur disponible</strong></div>`}</section>
       <section class="panel factory-panel"><div class="section-heading"><div><p class="eyebrow">CIRCULATION DES FLUX</p><h2>Votre usine, à portée de main</h2></div><div class="status-legend"><span><i class="status-dot status-vert"></i>Vert</span><span><i class="status-dot status-orange"></i>Orange</span><span><i class="status-dot status-rouge"></i>Rouge</span></div></div>${renderFactoryPlan()}</section>
       <div class="home-grid"><section class="panel"><div class="section-heading"><div><p class="eyebrow">À TRAITER</p><h2>Alertes de l’usine</h2></div></div>${renderAlerts(state.alerts, true)}</section><section class="panel"><div class="section-heading"><div><p class="eyebrow">CAP À SUIVRE</p><h2>Objectifs de la partie</h2></div></div>${renderObjectives()}</section></div>
       <section class="panel tools-panel"><div class="section-heading"><div><p class="eyebrow">ESPACE DE TRAVAIL</p><h2>Outils du joueur</h2></div><span>Lecture et calculs locaux, sans effet sur la partie</span></div>${renderTools("accueil")}</section>`;
@@ -187,19 +187,19 @@
 
   function renderTables(context) {
     const entries = tableData(context);
-    if (!entries.length) return `<section class="panel"><div class="empty-state">${icon("tableur")}<strong>Aucun tableau transmis</strong><span>Les données détaillées du moteur apparaîtront ici.</span></div></section>`;
+    if (!entries.length) return `<section class="panel"><div class="empty-state">${icon("tableur")}<strong>Aucune donnée disponible</strong><span>Les résultats apparaîtront après les premières opérations.</span></div></section>`;
     return entries.map(({ department, table }, tableIndex) => {
       const tableKey = `${context}-${tableIndex}`;
       const columns = table.columns || [];
-      return `<section class="panel data-panel"><div class="section-heading"><div><p class="eyebrow">DONNÉES DU MOTEUR${context === "accueil" ? ` · ${escapeHtml(department.shortName)}` : ""}</p><h2>${escapeHtml(table.title)}</h2></div><button class="text-button" type="button" data-action="send-table" data-context="${escapeHtml(context)}" data-table-id="${escapeHtml(table.id)}">${icon("tableur")} Envoyer au tableur</button></div><div class="table-filters"><label>${icon("search")}<span class="sr-only">Rechercher dans ${escapeHtml(table.title)}</span><input type="search" placeholder="Rechercher dans le tableau…" data-table-search="${escapeHtml(tableKey)}"></label><select data-table-column="${escapeHtml(tableKey)}" aria-label="Colonne à filtrer"><option value="">Toutes les colonnes</option>${columns.map((column) => `<option value="${escapeHtml(column.key)}">${escapeHtml(column.label)}</option>`).join("")}</select></div><div class="table-scroll"><table data-table="${escapeHtml(tableKey)}"><thead><tr>${columns.map((column) => `<th scope="col">${escapeHtml(column.label)}</th>`).join("")}</tr></thead><tbody>${(table.rows || []).map((row) => `<tr data-search="${escapeHtml(columns.map((column) => display(row[column.key])).join(" ").toLocaleLowerCase("fr"))}">${columns.map((column) => `<td data-column="${escapeHtml(column.key)}" data-value="${escapeHtml(display(row[column.key]).toLocaleLowerCase("fr"))}">${escapeHtml(display(row[column.key]))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>${(table.rows || []).length ? `<p class="filter-empty" data-filter-empty="${escapeHtml(tableKey)}" hidden>Aucune ligne ne correspond à cette recherche.</p>` : `<div class="empty-table">Aucune ligne transmise par le moteur.</div>`}</section>`;
+      return `<section class="panel data-panel"><div class="section-heading"><div><p class="eyebrow">SITUATION DU POSTE${context === "accueil" ? ` · ${escapeHtml(department.shortName)}` : ""}</p><h2>${escapeHtml(table.title)}</h2></div><button class="text-button" type="button" data-action="send-table" data-context="${escapeHtml(context)}" data-table-id="${escapeHtml(table.id)}">${icon("tableur")} Envoyer au tableur</button></div><div class="table-filters"><label>${icon("search")}<span class="sr-only">Rechercher dans ${escapeHtml(table.title)}</span><input type="search" placeholder="Rechercher dans le tableau…" data-table-search="${escapeHtml(tableKey)}"></label><select data-table-column="${escapeHtml(tableKey)}" aria-label="Colonne à filtrer"><option value="">Toutes les colonnes</option>${columns.map((column) => `<option value="${escapeHtml(column.key)}">${escapeHtml(column.label)}</option>`).join("")}</select></div><div class="table-scroll"><table data-table="${escapeHtml(tableKey)}"><thead><tr>${columns.map((column) => `<th scope="col">${escapeHtml(column.label)}</th>`).join("")}</tr></thead><tbody>${(table.rows || []).map((row) => `<tr data-search="${escapeHtml(columns.map((column) => display(row[column.key])).join(" ").toLocaleLowerCase("fr"))}">${columns.map((column) => `<td data-column="${escapeHtml(column.key)}" data-value="${escapeHtml(display(row[column.key]).toLocaleLowerCase("fr"))}">${escapeHtml(display(row[column.key]))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>${(table.rows || []).length ? `<p class="filter-empty" data-filter-empty="${escapeHtml(tableKey)}" hidden>Aucune ligne ne correspond à cette recherche.</p>` : `<div class="empty-table">Aucune opération enregistrée.</div>`}</section>`;
     }).join("");
   }
 
   function renderActions(department) {
-    if (!department.actions.length) return `<div class="empty-state compact">${icon("check")}<strong>Aucune action transmise</strong></div>`;
+    if (!department.actions.length) return `<div class="empty-state compact">${icon("check")}<strong>Aucune décision disponible sur ce poste</strong></div>`;
     return `<div class="action-list">${department.actions.map((action) => {
       const supported = supportedActions.has(action.id);
-      return `<button type="button" class="action-button" ${supported ? `data-action="open-action" data-action-id="${escapeHtml(action.id)}" data-action-label="${escapeHtml(action.label)}"` : "disabled"}><span class="action-button-icon">${icon(action.id === "purchase" ? "suppliers" : action.id === "production" ? "production" : action.id === "maintenance" ? "maintenance" : "lock")}</span><span><strong>${escapeHtml(action.label)}</strong><small>${supported ? "Décision appliquée par le moteur" : "Non prise en charge par l’API actuelle"}</small></span>${supported ? icon("arrow") : icon("lock")}</button>`;
+      return `<button type="button" class="action-button" ${supported ? `data-action="open-action" data-action-id="${escapeHtml(action.id)}" data-action-label="${escapeHtml(action.label)}"` : "disabled"}><span class="action-button-icon">${icon(action.id === "purchase" ? "suppliers" : action.id === "production" ? "production" : action.id === "maintenance" ? "maintenance" : "lock")}</span><span><strong>${escapeHtml(action.label)}</strong><small>${supported ? "Agir sur votre usine" : "Indisponible dans cette partie"}</small></span>${supported ? icon("arrow") : icon("lock")}</button>`;
     }).join("")}</div>`;
   }
 
@@ -209,10 +209,10 @@
     if (tab === "outils") {
       content = `<section class="panel"><div class="section-heading"><div><p class="eyebrow">PRÉ-REMPLIS AVEC CETTE PAGE</p><h2>Vos outils</h2></div></div>${renderTools(department.id)}</section>${renderTables(department.id)}`;
     } else if (tab === "configurations") {
-      content = `<div class="config-layout"><section class="panel"><div class="section-heading"><div><p class="eyebrow">DROITS DU FORMATEUR</p><h2>Configurations du joueur</h2></div></div>${department.configurations.length ? `<div class="config-list">${department.configurations.map((configuration) => renderConfiguration(department, configuration)).join("")}</div>` : `<div class="empty-state compact">${icon("lock")}<strong>Aucune configuration transmise</strong></div>`}</section><aside class="panel world-panel"><p class="eyebrow">LECTURE SEULE</p><h2>Paramètres du monde</h2><p>Ces réalités physiques sont fixées par le scénario.</p>${department.worldParameters.length ? department.worldParameters.map((parameter) => `<div class="world-parameter"><span>${escapeHtml(parameter.label)}</span><strong>${escapeHtml(display(parameter.value))}</strong></div>`).join("") : `<p class="muted">Aucun paramètre transmis.</p>`}</aside></div>`;
+      content = `<div class="config-layout"><section class="panel"><div class="section-heading"><div><p class="eyebrow">DROITS DU FORMATEUR</p><h2>Configurations du joueur</h2></div></div>${department.configurations.length ? `<div class="config-list">${department.configurations.map((configuration) => renderConfiguration(department, configuration)).join("")}</div>` : `<div class="empty-state compact">${icon("lock")}<strong>Aucun réglage disponible</strong></div>`}</section><aside class="panel world-panel"><p class="eyebrow">LECTURE SEULE</p><h2>Paramètres du monde</h2><p>Ces réalités physiques sont fixées par le scénario.</p>${department.worldParameters.length ? department.worldParameters.map((parameter) => `<div class="world-parameter"><span>${escapeHtml(parameter.label)}</span><strong>${escapeHtml(display(parameter.value))}</strong></div>`).join("") : `<p class="muted">Aucun paramètre disponible.</p>`}</aside></div>`;
     } else {
       tab = "kpis";
-      content = `${department.kpis.length ? `<section class="department-kpis">${department.kpis.map((kpi) => `<article class="department-kpi"><span>${escapeHtml(kpi.label)}</span><strong>${metricValue(kpi)}</strong><p class="trend-${escapeHtml(kpi.direction)}">${icon(kpi.direction === "up" ? "trendUp" : kpi.direction === "down" ? "trendDown" : "flat")}${escapeHtml(display(kpi.trend))}</p></article>`).join("")}</section>` : `<div class="empty-state panel">${icon("graphiques")}<strong>Aucun KPI transmis pour ce département</strong></div>`}<div class="department-grid"><section class="panel decision-panel"><div class="section-heading"><div><p class="eyebrow">À VOUS DE JOUER</p><h2>Décisions disponibles</h2></div></div>${renderActions(department)}</section><section class="panel"><div class="section-heading"><div><p class="eyebrow">SURVEILLANCE</p><h2>Alertes du département</h2></div></div>${renderAlerts(alerts, false)}</section></div>${renderTables(department.id)}`;
+      content = `${department.kpis.length ? `<section class="department-kpis">${department.kpis.map((kpi) => `<article class="department-kpi"><span>${escapeHtml(kpi.label)}</span><strong>${metricValue(kpi)}</strong><p class="trend-${escapeHtml(kpi.direction)}">${icon(kpi.direction === "up" ? "trendUp" : kpi.direction === "down" ? "trendDown" : "flat")}${escapeHtml(display(kpi.trend))}</p></article>`).join("")}</section>` : `<div class="empty-state panel">${icon("graphiques")}<strong>Aucun indicateur disponible pour ce département</strong></div>`}<div class="department-grid"><section class="panel decision-panel"><div class="section-heading"><div><p class="eyebrow">À VOUS DE JOUER</p><h2>Décisions disponibles</h2></div></div>${renderActions(department)}</section><section class="panel"><div class="section-heading"><div><p class="eyebrow">SURVEILLANCE</p><h2>Alertes du département</h2></div></div>${renderAlerts(alerts, false)}</section></div>${renderTables(department.id)}`;
     }
     return `${renderTopbar(department.name)}<div class="page-heading department-heading"><div class="department-title"><span class="department-hero-icon">${icon(departmentIcon(department.id))}</span><div><p class="eyebrow">POSTE DE L’USINE</p><h1>${escapeHtml(department.name)}</h1><p>${escapeHtml(department.description)}</p></div></div>${renderStatus(department)}</div>${renderClock()}<nav class="tabs" aria-label="Sections du département">${[["kpis", "KPIs"], ["outils", "Outils"], ["configurations", "Configurations"]].map(([id, label]) => `<a href="#departement/${escapeHtml(department.id)}/${id}" ${tab === id ? 'class="active" aria-current="page"' : ""}>${label}</a>`).join("")}</nav>${content}`;
   }
@@ -227,7 +227,7 @@
   }
 
   function renderRules() {
-    return `${renderTopbar("Règles de la partie")}<div class="page-heading"><div><p class="eyebrow">LE CADRE DE JEU</p><h1>Règles de la partie</h1><p>Les droits ci-dessous viennent du monde actuel. Consultez-les avant toute nouvelle partie.</p></div><a class="secondary-button" href="#nouvelle-partie">${icon("plus")} Nouvelle partie</a></div><div class="rights-summary"><article><span class="right-badge right-verrouille">${icon("lock")}Verrouillé</span><p>Valeur fixée par le formateur pour toute la partie.</p></article><article><span class="right-badge right-initial">${icon("rules")}Initial seulement</span><p>Choix initial, puis réglage non modifiable pendant la partie.</p></article><article><span class="right-badge right-libre">Libre</span><p>Modifiable uniquement si le serveur l’autorise.</p></article></div><div class="rules-layout"><div class="rules-departments">${state.departments.map((department) => `<details class="panel rules-department"><summary><span>${icon(departmentIcon(department.id))}<strong>${escapeHtml(department.name)}</strong></span><span>${escapeHtml(department.configurations.length)} réglages</span></summary><div class="rules-configs">${department.configurations.length ? department.configurations.map((configuration) => `<div><span>${escapeHtml(configuration.label)}</span><strong>${escapeHtml(display(configuration.value))}</strong><span class="right-badge right-${escapeHtml(configuration.right)}">${escapeHtml(rightLabels[configuration.right] || configuration.right)}</span></div>`).join("") : `<p class="muted">Aucun réglage transmis.</p>`}</div></details>`).join("")}</div><aside class="panel rules-tools"><p class="eyebrow">OUTILS DE LA PARTIE</p><h2>Votre espace de travail</h2>${state.tools.map((tool) => `<div class="rules-tool">${icon(tool.id)}<span><strong>${escapeHtml(tool.name)}</strong><small>${tool.available ? "Disponible" : "Désactivé par le formateur"}</small></span>${icon(tool.available ? "check" : "lock")}</div>`).join("")}</aside></div>`;
+    return `${renderTopbar("Règles de la partie")}<div class="page-heading"><div><p class="eyebrow">LE CADRE DE JEU</p><h1>Règles de la partie</h1><p>Les droits ci-dessous viennent du monde actuel. Consultez-les avant toute nouvelle partie.</p></div><a class="secondary-button" href="#nouvelle-partie">${icon("plus")} Nouvelle partie</a></div><div class="rights-summary"><article><span class="right-badge right-verrouille">${icon("lock")}Verrouillé</span><p>Valeur fixée par le formateur pour toute la partie.</p></article><article><span class="right-badge right-initial">${icon("rules")}Initial seulement</span><p>Choix initial, puis réglage non modifiable pendant la partie.</p></article><article><span class="right-badge right-libre">Libre</span><p>Modifiable uniquement si le serveur l’autorise.</p></article></div><div class="rules-layout"><div class="rules-departments">${state.departments.map((department) => `<details class="panel rules-department"><summary><span>${icon(departmentIcon(department.id))}<strong>${escapeHtml(department.name)}</strong></span><span>${escapeHtml(department.configurations.length)} réglages</span></summary><div class="rules-configs">${department.configurations.length ? department.configurations.map((configuration) => `<div><span>${escapeHtml(configuration.label)}</span><strong>${escapeHtml(display(configuration.value))}</strong><span class="right-badge right-${escapeHtml(configuration.right)}">${escapeHtml(rightLabels[configuration.right] || configuration.right)}</span></div>`).join("") : `<p class="muted">Aucun réglage disponible.</p>`}</div></details>`).join("")}</div><aside class="panel rules-tools"><p class="eyebrow">OUTILS DE LA PARTIE</p><h2>Votre espace de travail</h2>${state.tools.map((tool) => `<div class="rules-tool">${icon(tool.id)}<span><strong>${escapeHtml(tool.name)}</strong><small>${tool.available ? "Disponible" : "Désactivé par le formateur"}</small></span>${icon(tool.available ? "check" : "lock")}</div>`).join("")}</aside></div>`;
   }
 
   function renderNewGame() {
@@ -268,7 +268,7 @@
         if (typeof values[key] === "number" && !keys.includes(key)) keys.push(key);
       });
     });
-    return { periods, series: keys.map((key) => ({ key, label: key, values: state.history.map((item) => { const values = item.values && typeof item.values === "object" ? item.values : item; return typeof values[key] === "number" ? values[key] : null; }) })) };
+    return { periods, series: keys.map((key) => ({ key, label: ({otif:"OTIF clients (%)",trs:"Rendement des lignes (%)",produced:"Production (produits)",delivered:"Expéditions (produits)",quality_rate:"Qualité (%)",stock_value:"Valeur du stock (€)",service_rate:"Taux de service (%)",purchases_cost:"Achats (€)",stockouts:"PF sous leur minimum"})[key] || key, values: state.history.map((item) => { const values = item.values && typeof item.values === "object" ? item.values : item; return typeof values[key] === "number" ? values[key] : null; }) })) };
   }
 
   function chartPolyline(values, periods, color) {
@@ -284,16 +284,16 @@
 
   function renderCharts() {
     const data = historySeries();
-    if (!data.series.length || data.series.every((series) => series.values.filter((value) => typeof value === "number").length < 2)) return `<div class="empty-state tool-empty">${icon("graphiques")}<strong>Aucune série historique exploitable</strong><span>Les courbes apparaîtront lorsque le champ history contiendra des valeurs numériques sur plusieurs périodes. Aucun historique n’est reconstitué.</span></div>`;
+    if (!data.series.length || data.series.every((series) => series.values.filter((value) => typeof value === "number").length < 2)) return `<div class="empty-state tool-empty">${icon("graphiques")}<strong>Aucune série historique exploitable</strong><span>Simulez au moins deux périodes pour suivre l’évolution de vos résultats.</span></div>`;
     if (!data.series.some((series) => series.key === chartSelection.first)) chartSelection.first = data.series[0].key;
     const first = data.series.find((series) => series.key === chartSelection.first);
     const second = data.series.find((series) => series.key === chartSelection.second);
     const options = data.series.map((series) => `<option value="${escapeHtml(series.key)}">${escapeHtml(series.label)}</option>`).join("");
-    return `<div class="chart-controls"><label>Première série<select data-chart="first">${options}</select></label><label>Comparer avec<select data-chart="second"><option value="">Aucune</option>${options}</select></label><span>Données history, sans agrégation dans la tablette</span></div><div class="chart-canvas"><svg viewBox="0 0 800 250" role="img" aria-label="Courbes des séries historiques"><path d="M40 40H770M40 210H770" stroke="#dedfd4" stroke-width="1"/>${chartPolyline(first.values, data.periods, "#d67b32")}${second ? chartPolyline(second.values, data.periods, "#28614f") : ""}</svg><div class="chart-periods">${data.periods.map((period) => `<span>${escapeHtml(period)}</span>`).join("")}</div></div><div class="chart-legend"><span><i class="legend-first"></i>${escapeHtml(first.label)}</span>${second ? `<span><i class="legend-second"></i>${escapeHtml(second.label)}</span>` : ""}</div><details class="chart-data"><summary>Afficher les valeurs sources</summary><div class="table-scroll"><table><thead><tr><th>Période</th>${(second ? [first, second] : [first]).map((series) => `<th>${escapeHtml(series.label)}</th>`).join("")}</tr></thead><tbody>${data.periods.map((period, index) => `<tr><td>${escapeHtml(period)}</td>${(second ? [first, second] : [first]).map((series) => `<td>${escapeHtml(display(series.values[index]))}</td>`).join("")}</tr>`).join("")}</tbody></table></div></details><p class="tool-note">Les Pareto et autres agrégations métier devront être fournis par le moteur.</p>`;
+    return `<div class="chart-controls"><label>Première série<select data-chart="first">${options}</select></label><label>Comparer avec<select data-chart="second"><option value="">Aucune</option>${options}</select></label><span>Évolution des résultats enregistrés</span></div><div class="chart-canvas"><svg viewBox="0 0 800 250" role="img" aria-label="Courbes des séries historiques"><path d="M40 40H770M40 210H770" stroke="#dedfd4" stroke-width="1"/>${chartPolyline(first.values, data.periods, "#d67b32")}${second ? chartPolyline(second.values, data.periods, "#28614f") : ""}</svg><div class="chart-periods">${data.periods.map((period) => `<span>${escapeHtml(period)}</span>`).join("")}</div></div><div class="chart-legend"><span><i class="legend-first"></i>${escapeHtml(first.label)}</span>${second ? `<span><i class="legend-second"></i>${escapeHtml(second.label)}</span>` : ""}</div><details class="chart-data"><summary>Afficher les valeurs sources</summary><div class="table-scroll"><table><thead><tr><th>Période</th>${(second ? [first, second] : [first]).map((series) => `<th>${escapeHtml(series.label)}</th>`).join("")}</tr></thead><tbody>${data.periods.map((period, index) => `<tr><td>${escapeHtml(period)}</td>${(second ? [first, second] : [first]).map((series) => `<td>${escapeHtml(display(series.values[index]))}</td>`).join("")}</tr>`).join("")}</tbody></table></div></details><p class="tool-note">Chaque courbe utilise sa propre échelle. Consultez les valeurs ci-dessus pour comparer les niveaux.</p>`;
   }
 
   function currentSheetKey() {
-    return `gmix.tableur.${encodeURIComponent(state.companyName)}.${encodeURIComponent(state.raw.scenario_id || "default")}`;
+    return `gmix.tableur.${encodeURIComponent(state.companyName)}.${encodeURIComponent(state.raw.scenario_id || "default")}.${encodeURIComponent(state.gameId ?? "legacy")}`;
   }
 
   function ensureSheet() {
@@ -331,7 +331,7 @@
     const suppliers = state.raw.suppliers || [];
     const customers = state.raw.customers || state.raw.clients || [];
     const hasCoordinates = [...suppliers, ...customers].some((partner) => partner.gps || partner.coordinates || partner.latitude !== undefined);
-    return `${hasCoordinates ? "" : `<div class="map-unavailable">${icon("carte")}<div><strong>Coordonnées géographiques non transmises</strong><p>La tablette ne fabrique ni position GPS, ni trajet, ni itinéraire. Le plan d’usine réel reste disponible ci-dessous.</p></div></div>`}${renderFactoryPlan()}`;
+    return `${hasCoordinates ? "" : `<div class="map-unavailable">${icon("carte")}<div><strong>Plan de votre usine</strong><p>Ouvrez un poste pour consulter sa situation et prendre vos décisions. Les itinéraires géographiques ne sont pas disponibles dans cette partie.</p></div></div>`}${renderFactoryPlan()}`;
   }
 
   function renderTool(tool, context) {
@@ -423,17 +423,17 @@
 
   function openAction(actionId, label, trigger) {
     let form = "";
-    if (actionId === "purchase") {
+    if (actionId === "purchase" || actionId === "compare") {
       const stocks = rawStocks(["MP", "PDR"]);
-      form = stocks.length ? `<form id="action-form" data-action-type="purchase"><label>Article MP ou PDR<select name="sku" data-purchase-sku required>${skuOptions(stocks)}</select></label><label>Fournisseur<select name="supplier_id" data-purchase-supplier required>${supplierOptionsHtml(stocks[0].sku)}</select></label><label>Quantité<input name="quantity" type="number" min="1" step="1" inputmode="numeric" required></label><div class="quote-actions"><button type="button" class="secondary-button" data-action="compare-quotes">${icon("graphiques")} Comparer les offres</button><span>Coûts et arrivées calculés par le moteur.</span></div><div id="quote-results" aria-live="polite"></div><button type="submit" class="primary-button">Passer la commande ${icon("arrow")}</button></form>` : `<div class="empty-state">${icon("stock")}<strong>Aucun article MP ou PDR transmis</strong><span>La commande reste indisponible sans références du moteur.</span></div>`;
+      form = stocks.length ? `<form id="action-form" data-action-type="purchase"><label>Article MP ou PDR<select name="sku" data-purchase-sku required>${skuOptions(stocks)}</select></label><label>Fournisseur<select name="supplier_id" data-purchase-supplier required>${supplierOptionsHtml(stocks[0].sku)}</select></label><label>Quantité<input name="quantity" type="number" min="1" step="1" inputmode="numeric" required></label><div class="quote-actions"><button type="button" class="secondary-button" data-action="compare-quotes">${icon("graphiques")} Comparer les offres</button><span>Coûts et arrivées calculés par le moteur.</span></div><div id="quote-results" aria-live="polite"></div><button type="submit" class="primary-button">Passer la commande ${icon("arrow")}</button></form>` : `<div class="empty-state">${icon("stock")}<strong>Aucune matière ni pièce disponible</strong><span>Le scénario ne propose aucun article à commander.</span></div>`;
     } else if (actionId === "production") {
       const products = rawStocks(["PF"]);
-      form = products.length ? `<form id="action-form" data-action-type="production"><label>Produit fini<select name="sku" required>${skuOptions(products)}</select></label><label>Quantité de l’OF<input name="quantity" type="number" min="1" step="1" inputmode="numeric" required></label><p class="form-note">Le lancement, le kit et les conséquences de l’OF sont gérés par le moteur.</p><button type="submit" class="primary-button">Lancer l’ordre de fabrication ${icon("arrow")}</button></form>` : `<div class="empty-state">${icon("production")}<strong>Aucun produit fini transmis</strong><span>Impossible de préparer un OF sans catalogue du moteur.</span></div>`;
+      form = products.length ? `<form id="action-form" data-action-type="production"><label>Produit fini<select name="sku" required>${skuOptions(products)}</select></label><label>Quantité de l’OF<input name="quantity" type="number" min="1" step="1" inputmode="numeric" required></label><p class="form-note">Le lancement, le kit et les conséquences de l’OF sont gérés par le moteur.</p><button type="submit" class="primary-button">Lancer l’ordre de fabrication ${icon("arrow")}</button></form>` : `<div class="empty-state">${icon("production")}<strong>Aucun produit disponible</strong><span>Le scénario ne propose aucun produit à fabriquer.</span></div>`;
     } else if (actionId === "maintenance") {
       const lines = (state.raw.production_lines || []).filter((line) => (line.machines || []).some((machine) => machine.state === "panne"));
       form = lines.length ? `<form id="action-form" data-action-type="maintenance"><label>Ligne en panne<select name="line_id" required>${lines.map((line) => `<option value="${escapeHtml(line.id)}">${escapeHtml(line.name)} · ${escapeHtml(line.id)}</option>`).join("")}</select></label><p class="form-note">Seules les lignes dont une machine est en panne sont proposées.</p><button type="submit" class="primary-button">Envoyer le technicien ${icon("arrow")}</button></form>` : `<div class="empty-state">${icon("check")}<strong>Aucune ligne en panne</strong><span>Aucune intervention corrective ne peut être lancée depuis ce formulaire.</span></div>`;
     }
-    openModal(`<p class="eyebrow">DÉCISION DU JOUEUR</p><h2 id="modal-title">${escapeHtml(label)}</h2><p class="modal-intro">Vérifiez votre choix. La réponse du serveur confirmera la mutation réelle.</p>${form}`, trigger);
+    openModal(`<p class="eyebrow">DÉCISION DU JOUEUR</p><h2 id="modal-title">${escapeHtml(label)}</h2><p class="modal-intro">Vérifiez votre choix, puis confirmez votre décision.</p>${form}`, trigger);
   }
 
   function openModal(content, trigger) {
@@ -551,10 +551,10 @@
     else if (action === "retry-load") await loadState();
     else if (action === "refresh") {
       const snapshot = await withBusy(trigger, () => api.getState());
-      if (snapshot) { state = snapshot; sheetKey = ""; render(); notify("Données actualisées depuis le moteur.", "success"); }
+      if (snapshot) { state = snapshot; sheetKey = ""; render(); notify("Situation de l’usine actualisée.", "success"); }
     } else if (action === "next-turn") {
       const snapshot = await withBusy(trigger, () => api.nextTurn());
-      if (snapshot) { state = snapshot; sheetKey = ""; render(); notify(`${state.clock.label} : simulation terminée par le moteur.`, "success"); }
+      if (snapshot) { state = snapshot; sheetKey = ""; render(); notify(`${state.clock.label} : simulation terminée.`, "success"); }
     } else if (action === "open-action") openAction(trigger.dataset.actionId, trigger.dataset.actionLabel, trigger);
     else if (action === "close-modal") closeModal();
     else if (action === "compare-quotes") await compareQuotes(trigger);
@@ -619,7 +619,7 @@
       const setup = { company_name: String(data.get("company_name")).trim(), difficulty: data.get("difficulty"), rules_confirmed: data.get("rules_confirmed") === "on" };
       if (!form.reportValidity()) return;
       const snapshot = await withBusy(form.querySelector('[type="submit"]'), () => api.newGame(setup));
-      if (snapshot) { state = snapshot; sheetKey = ""; window.location.hash = "#accueil"; render(); notify("Nouvelle partie créée par le moteur.", "success"); }
+      if (snapshot) { state = snapshot; sheetKey = ""; window.location.hash = "#accueil"; render(); notify("Votre nouvelle partie est prête.", "success"); }
       return;
     }
     if (form.id === "action-form") {
@@ -631,7 +631,7 @@
       else if (type === "production") payload = { action: "production", sku: data.get("sku"), quantity: Number(data.get("quantity")) };
       else payload = { action: "maintenance", line_id: data.get("line_id") };
       const snapshot = await withBusy(form.querySelector('[type="submit"]'), () => api.performAction(payload));
-      if (snapshot) { closeModal(); state = snapshot; sheetKey = ""; render(); notify("Décision enregistrée : le moteur a appliqué la mutation.", "success"); }
+      if (snapshot) { closeModal(); state = snapshot; sheetKey = ""; render(); notify("Décision enregistrée dans votre partie.", "success"); }
       return;
     }
     if (form.classList.contains("config-form")) {

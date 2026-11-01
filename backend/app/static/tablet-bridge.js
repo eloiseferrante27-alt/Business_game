@@ -39,7 +39,8 @@ export function createTablet({ refreshState, onAction = () => {} }) {
     for (const [key, value] of Object.entries(options)) {
       if (key !== "department" && value !== undefined) url.searchParams.set(key, value);
     }
-    if (frame.src !== url.href) frame.src = url.href;
+    // Reload on every opening: a week may have advanced in the 3D view.
+    frame.src = url.href;
     previousFocus = document.activeElement;
     overlay.hidden = false;
     opened = true;

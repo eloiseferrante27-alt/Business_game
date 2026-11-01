@@ -62,6 +62,7 @@ let roof = null;
 let state = null;
 let savedState = null;
 let tabletSnapshot = null;
+let lastTruckPeriod = null;
 let playerPath = [];
 let dragging = false;
 let lastPointer = { x: 0, y: 0 };
@@ -804,7 +805,7 @@ function selectInteraction(info) {
     if (line && !line.operational) {
       action.textContent = spareCount() > 0 ? "Planifier l’intervention (tablette) →" : "Commander une pièce de rechange →";
       action.hidden = false;
-      action.onclick = () => spareCount() > 0 ? tablet.open("stocks") : tablet.open("achats", { sku: "MAT-PDR" });
+      action.onclick = () => spareCount() > 0 ? tablet.open("maintenance_pdr") : tablet.open("achats", { sku: "MAT-PDR" });
     }
   } else if (info.type === "worker") {
     copy.textContent = `${info.title} · ${info.subtitle}. Approchez-vous et appuyez sur E pour lui parler.`;
@@ -898,6 +899,15 @@ async function refreshState() {
   tabletSnapshot = await response.json();
   savedState = tabletSnapshot.raw;
   updateHUD(tabletSnapshot.raw);
+  syncPeriodTrucks();
+}
+
+function syncPeriodTrucks() {
+  const period = `${tabletSnapshot.gameId}:${tabletSnapshot.clock.period}`;
+  if (lastTruckPeriod !== null && period !== lastTruckPeriod) {
+    queueTrucks(tabletSnapshot.raw.trucks);
+  }
+  lastTruckPeriod = period;
 }
 
 function raycastFromPointer(event) {
@@ -1046,6 +1056,7 @@ async function loadState() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     tabletSnapshot = await response.json();
     savedState = tabletSnapshot.raw;
+    lastTruckPeriod = `${tabletSnapshot.gameId}:${tabletSnapshot.clock.period}`;
     state = savedState;
     if (savedState.started) {
       $("#company-input").value = savedState.company_name || "G-mix";
@@ -1080,6 +1091,7 @@ async function createNewGame(event) {
     const result = await response.json();
     if (!response.ok) throw new Error(result.detail?.[0]?.msg || result.detail || `HTTP ${response.status}`);
     tabletSnapshot = result;
+    lastTruckPeriod = `${result.gameId}:${result.clock.period}`;
     savedState = result.raw;
     updateHUD(result.raw);
     $("#setup-screen").hidden = true;
@@ -1107,7 +1119,7 @@ async function nextWeek() {
     tabletSnapshot = result;
     const nextState = result.raw;
     updateHUD(nextState);
-    queueTrucks(nextState.trucks);
+    syncPeriodTrucks();
     const r = nextState.last_week || {};
     showToast(`Semaine ${nextState.current_week} · reçu ${fmt(r.received_units)} · fabriqué ${fmt(r.produced)} · emballé ${fmt(r.packed)} · expédié ${fmt(r.delivered)} · ${fmt(r.customer_orders_late)} commande(s) en retard.`);
     advanceTutorial("week");
