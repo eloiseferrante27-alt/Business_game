@@ -11,9 +11,12 @@ et consulte les commandes clients. Toutes les valeurs viennent du scénario.
 
 import math
 import random
+from functools import wraps
+from threading import RLock
 
 from .agents import CustomerAgent, MarketAgent, SupplierAgent
-from .database import load_snapshot, save_snapshot
+from .database import load_runtime, load_snapshot, save_snapshot
+from .engine.journal import Journal
 from .models import (
     SCHEMA_VERSION,
     Agent,
@@ -37,20 +40,45 @@ SEED = 42
 PURCHASABLE = {"MP", "PDR"}
 
 
+def synchronized(function):
+    @wraps(function)
+    def guarded(self, *args, **kwargs):
+        with self.lock:
+            return function(self, *args, **kwargs)
+    return guarded
+
+
 class SimulationEngine:
     """État de partie chargé depuis SQLite et sauvegardé après chaque action."""
 
     def __init__(self, persist: bool = True) -> None:
         self.persist = persist
+        self.lock = RLock()
         self.rng = random.Random(SEED)
+        self.journal = Journal()
+        self._journal_saved = 0
+        self.generation = 0
         self.supplier_agent = SupplierAgent()
         self.market_agent = MarketAgent()
         self.customer_agent = CustomerAgent()
         self.state = self._build_state(NewGameRequest(company_name="G-mix"), started=False)
         saved = load_snapshot(SCHEMA_VERSION) if persist else None
+        runtime = load_runtime() if persist else None
         if saved:
             self.state = GameState.model_validate(saved)
+            if runtime:
+                def tuples(value):
+                    return tuple(tuples(item) for item in value) if isinstance(value, list) else value
+                self.rng.setstate(tuples(runtime["rng_state"]))
+                self.generation = runtime["generation"]
+                self.journal = Journal(runtime["events"])
+                self._journal_saved = len(self.journal.events)
+            # Upgrade an existing compatible snapshot without discarding its state.
+            if not self.journal.events or self.journal.state != self.state.model_dump(mode="json"):
+                self._save()
         else:
+            if runtime:
+                self.generation = runtime["generation"] + 1
             self._save()
 
     # ------------------------------------------------------------------ outils
@@ -59,9 +87,16 @@ class SimulationEngine:
     def scenario(self) -> dict:
         return load_scenario(self.state.scenario_id)
 
-    def _save(self) -> None:
+    def _save(self, cause="regle", *, new_game=False) -> None:
+        if new_game:
+            self.generation += 1
+            self.journal = Journal()
+            self._journal_saved = 0
+        self.journal.capture(self.state.model_dump(mode="json"), cause)
         if self.persist:
-            save_snapshot(self.state.model_dump(mode="json"))
+            save_snapshot(self.state.model_dump(mode="json"), events=self.journal.events[self._journal_saved:],
+                          generation=self.generation, rng_state=self.rng.getstate())
+        self._journal_saved = len(self.journal.events)
 
     def _next_id(self, prefix: str) -> str:
         value = self.state.next_id
@@ -146,15 +181,17 @@ class SimulationEngine:
         self._refresh_alerts()
         return state
 
+    @synchronized
     def new_game(self, setup: NewGameRequest) -> GameState:
         """Reset the simulation using the selected scenario, company profile and difficulty."""
-        self.rng = random.Random(SEED)
         self._build_state(setup, started=True)
-        self._save()
+        self.rng = random.Random(SEED)
+        self._save("decision", new_game=True)
         return self.state
 
     # ---------------------------------------------------------------- tablette
 
+    @synchronized
     def quotes(self, sku: str, quantity: int) -> list[SupplierQuote]:
         """Comparateur de la tablette : coût et risque de chaque fournisseur pour une MP."""
         item = self.stock(sku)
@@ -175,6 +212,7 @@ class SimulationEngine:
             ))
         return sorted(quotes, key=lambda quote: quote.total_cost)
 
+    @synchronized
     def submit_decisions(self, decisions: DecisionsRequest) -> int:
         suppliers = {supplier.id: supplier for supplier in self.state.suppliers}
         for order in decisions.orders:
@@ -212,20 +250,26 @@ class SimulationEngine:
             ))
         self.state.maintenance_queue = list(dict.fromkeys([*self.state.maintenance_queue, *decisions.maintenance_line_ids]))
         self._refresh_alerts()
-        self._save()
+        self._save("decision")
         return len(decisions.orders)
 
     # ----------------------------------------------------------------- semaine
 
+    @synchronized
     def next_turn(self) -> GameState:
         """Fait avancer une semaine en traversant les blocs dans l'ordre du flux."""
         state = self.state
         state.current_week += 1
         state.trucks = []
         purchases_cost = state.kpis.purchases_cost
+        state.events = []
+        self.journal.capture(state.model_dump(mode="json"), "regle")
         event = self.market_agent.generate_event(self.rng)
         state.events = [event.description] if event else []
+        if event:
+            self.journal.note(state.current_week, "EXT-MARCHE-01", event.description, cause="alea", department="fournisseurs")
         self.market_agent.apply_cost_impact(state.suppliers, event)
+        self.journal.capture(state.model_dump(mode="json"), "alea" if event else "regle")
         busy: set[str] = set()
 
         repaired = self._block_maintenance(busy)
@@ -307,7 +351,11 @@ class SimulationEngine:
         state.purchase_orders = pending
         suppliers = {supplier.id: supplier for supplier in state.suppliers}
         for order in delayed:
-            state.events.append(f"Retard : la commande {order.id} de {suppliers[order.supplier_id].name} arrivera semaine {order.arrival_week}.")
+            message = f"Retard : la commande {order.id} de {suppliers[order.supplier_id].name} arrivera semaine {order.arrival_week}."
+            state.events.append(message)
+            self.journal.note(state.current_week, order.id, message, cause="alea", department="fournisseurs")
+        if delayed:
+            self.journal.capture(state.model_dump(mode="json"), "alea")
         units = quarantined = 0
         for delivery in deliveries:
             item = self.stock(delivery.order.sku)
@@ -409,11 +457,15 @@ class SimulationEngine:
                     machine.produced_since_tool_change = 0
                     state.events.append(f"Outil changé sur {machine.id}.")
                 elif self.rng.random() < blocking_share * (volume * machine.cycle_minutes / 60) / machine.mtbf_hours:
+                    self.journal.capture(state.model_dump(mode="json"), "regle")
                     machine.state = "panne"
                     machine.availability = max(20, machine.availability - machine.mttr_hours * 10)
                     line.operational = False
                     line.efficiency = 0
-                    state.events.append(f"Panne sur {line.name}, machine {machine.id} : intervention maintenance nécessaire.")
+                    message = f"Panne sur {line.name}, machine {machine.id} : intervention maintenance nécessaire."
+                    state.events.append(message)
+                    self.journal.note(state.current_week, machine.id, message, cause="alea", department="maintenance")
+                    self.journal.capture(state.model_dump(mode="json"), "alea")
                     break
 
         state.production_orders = [order for order in state.production_orders if order.status != "terminé"]
@@ -456,11 +508,17 @@ class SimulationEngine:
     def _block_logistics(self, event, busy: set[str]) -> dict[str, int]:
         """Logistique & transport : nouvelles commandes, chargement de nos camions et des camions clients."""
         state = self.state
-        state.customer_orders.extend(self.customer_agent.generate_orders(
+        self.journal.capture(state.model_dump(mode="json"), "regle")
+        new_orders = self.customer_agent.generate_orders(
             self.scenario["customers"], state.current_week, self.rng,
             demand_multiplier=event.demand_multiplier if event else 1.0,
             next_id=self._next_id,
-        ))
+        )
+        state.customer_orders.extend(new_orders)
+        for order in new_orders:
+            self.journal.note(state.current_week, order.id, f"{order.customer} commande {order.quantity} unités de {order.sku}, échéance semaine {order.due_week}.",
+                              cause="alea", department="clients")
+        self.journal.capture(state.model_dump(mode="json"), "alea")
         transport = self.scenario["transport"]
         truck_capacity = transport["truck_capacity_units"]
         own_capacity = transport["own_trucks"] * truck_capacity

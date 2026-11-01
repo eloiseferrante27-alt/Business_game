@@ -5,7 +5,7 @@ import * as THREE from "./three.module.js";
 import { createKit } from "./kit.js";
 import { createAssets } from "./assets.js";
 import { ZONES, FACTORY_FRAME, WALK_BOUNDS, DOCKS, FLOW, SUPPORT, BLOCK_ROLES, ROLE_OUTFITS } from "./layout.js";
-import { createTablet } from "./tablet.js";
+import { createTablet, DEPARTMENT_BY_ZONE } from "./tablet-bridge.js";
 
 const $ = (selector) => document.querySelector(selector);
 const canvas = $("#world");
@@ -61,6 +61,8 @@ let roof = null;
 
 let state = null;
 let savedState = null;
+let tabletSnapshot = null;
+let lastTruckPeriod = null;
 let playerPath = [];
 let dragging = false;
 let lastPointer = { x: 0, y: 0 };
@@ -79,7 +81,8 @@ const stocksOf = (...categories) => (state?.stocks || []).filter((item) => categ
 const stockBySku = (sku) => (state?.stocks || []).find((item) => item.sku === sku);
 const spareCount = () => stockBySku("MAT-PDR")?.quantity || 0;
 const blockName = (id) => state?.blocks?.find((block) => block.id === id)?.name || id;
-const agentsIn = (blockId) => (state?.agents || []).filter((agent) => agent.block_id === blockId || agent.also_in?.includes(blockId));
+const canonicalBlock = (blockId) => blockId === "bureau_etude" ? "chaine_production" : blockId;
+const agentsIn = (blockId) => (state?.agents || []).filter((agent) => canonicalBlock(agent.block_id) === canonicalBlock(blockId) || agent.also_in?.includes(blockId));
 const fmt = (value, digits = 0) => new Intl.NumberFormat("fr-FR", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value ?? 0);
 
 function addObstacle(x, z, width, depth) { obstacles.push({ x, z, width, depth }); }
@@ -366,11 +369,11 @@ function furnishLogistics() {
 }
 
 function furnishEngineering() {
-  placeIn("bureau_etude", "bureau_chaise", -3, -2.3, { solid: [1.7, 0.9] });
-  placeIn("bureau_etude", "ordinateur", -3.3, -2.3, {});
-  placeIn("bureau_etude", "tableau_planning", 2.4, -2.95, { solid: [2.2, 0.3] });
-  placeIn("bureau_etude", "armoire_dossiers", 5.8, -2.85, { solid: [0.9, 0.5] });
-  placeIn("bureau_etude", "armoire_dossiers", 6.8, -2.85, { solid: [0.9, 0.5] });
+  // v3 folds methods into production. Keep the legacy ID as a navigation alias.
+  placeIn("chaine_production", "bureau_chaise", 6.8, 3.1, { solid: [1.7, 0.9] });
+  placeIn("chaine_production", "ordinateur", 6.5, 3.1, {});
+  placeIn("chaine_production", "tableau_planning", 4.3, 3.8, { solid: [2.2, 0.3] });
+  placeIn("chaine_production", "armoire_dossiers", 8.5, 3.6, { solid: [0.9, 0.5] });
 }
 
 function furnishMaintenance() {
@@ -460,7 +463,7 @@ hoverRing.visible = false;
 world.add(hoverRing);
 
 function zoneOfBlock(blockId) {
-  return Object.keys(ZONES).filter((id) => ZONES[id].block === blockId);
+  return Object.keys(ZONES).filter((id) => id !== "bureau_etude" && ZONES[id].block === canonicalBlock(blockId));
 }
 function insidePoints(zoneId) {
   const zone = ZONES[zoneId];
@@ -478,7 +481,7 @@ function makeAgents() {
     const outfit = ROLE_OUTFITS[agent.role] || { jacket: 0x4f8c7c, helmet: 0xe4bd54 };
     const worker = makePerson(`${agent.name} · ${agent.role_label}`, outfit, {
       type: "worker", agentId: agent.id, role: agent.role, title: agent.name, roleLabel: agent.role_label, zone: zones[0],
-      subtitle: `${agent.role_label} · ${blockName(agent.block_id)}`,
+      subtitle: `${agent.role_label} · ${blockName(canonicalBlock(agent.block_id))}`,
     });
     const start = targets[workers.length % targets.length];
     worker.position.copy(start);
@@ -570,7 +573,7 @@ function updateTrucks(delta) {
 // ---------------------------------------------------------------- construction
 function buildWorld() {
   makeGround();
-  Object.keys(ZONES).forEach(makeBlockShell);
+  Object.keys(ZONES).filter((id) => id !== "bureau_etude").forEach(makeBlockShell);
   makeDock("quai_dechargement", 0, "fournisseur");
   makeDock("logistique_transport", ZONES.logistique_transport.dockBays[0], "livraison");
   makeDock("logistique_transport", ZONES.logistique_transport.dockBays[1], "client");
@@ -626,18 +629,13 @@ function refreshWorld() {
 
 function buildFlowBar() {
   const nav = $("#factory-flow");
-  nav.innerHTML = [...FLOW.map((step) => ({ ...step, kind: "flow" })), ...SUPPORT.map((step) => ({ ...step, kind: "support" }))]
+  nav.innerHTML = [...FLOW.map((step) => ({ ...step, kind: "flow" })), ...SUPPORT.filter((step) => step.zone !== "bureau_etude").map((step) => ({ ...step, kind: "support" }))]
     .map((step) => `<button type="button" data-zone="${step.zone}" class="flow-step ${step.kind === "support" ? "flow-support" : ""} ${step.zone.startsWith("stock_") ? "flow-stock" : ""}">${step.label}</button>`).join("");
   nav.querySelectorAll(".flow-step").forEach((button) => button.addEventListener("click", () => {
     nav.querySelectorAll(".flow-step").forEach((step) => step.classList.toggle("active", step === button));
     const zone = ZONES[button.dataset.zone];
     selectInteraction({ type: "block", zone: button.dataset.zone, title: zone.title || blockName(zone.block) });
-    // La barre du haut sert de raccourci : le joueur est placé devant l'entrée du bloc.
-    const [x, z] = nearestWalkable(...toWorld(zone, 0, zone.d / 2 + 1));
-    player.position.set(x, 0, z);
-    player.rotation.y = zone.door === 1 ? Math.PI : 0;
-    playerPath = [];
-    player.userData.route = playerPath;
+    tablet?.open(button.dataset.zone, { department: DEPARTMENT_BY_ZONE[button.dataset.zone] });
   }));
 }
 
@@ -807,7 +805,7 @@ function selectInteraction(info) {
     if (line && !line.operational) {
       action.textContent = spareCount() > 0 ? "Planifier l’intervention (tablette) →" : "Commander une pièce de rechange →";
       action.hidden = false;
-      action.onclick = () => spareCount() > 0 ? tablet.open("stocks") : tablet.open("achats", { sku: "MAT-PDR" });
+      action.onclick = () => spareCount() > 0 ? tablet.open("maintenance_pdr") : tablet.open("achats", { sku: "MAT-PDR" });
     }
   } else if (info.type === "worker") {
     copy.textContent = `${info.title} · ${info.subtitle}. Approchez-vous et appuyez sur E pour lui parler.`;
@@ -873,7 +871,8 @@ function updateHUD(newState) {
   state = newState;
   $("#company-name").textContent = state.company_name || "L’atelier";
   $("#week").textContent = `SEMAINE ${String(state.current_week).padStart(2, "0")}`;
-  $("#otif").textContent = Number(state.kpis.otif).toFixed(1).replace(".", ",");
+  const service = tabletSnapshot?.globalKpis?.find((metric) => metric.id === "otif");
+  $("#otif").textContent = service ? (service.value == null ? "—" : Number(service.value).toFixed(1).replace(".", ",")) : "—";
   $("#trs").textContent = Number(state.kpis.trs).toFixed(1).replace(".", ",");
   $("#stock-value").textContent = fmt(state.kpis.stock_value);
   $("#quality").textContent = Number(state.kpis.quality_rate ?? 100).toFixed(1).replace(".", ",");
@@ -895,8 +894,20 @@ function updateHUD(newState) {
 }
 
 async function refreshState() {
-  const response = await fetch("/api/state");
-  updateHUD(await response.json());
+  const response = await fetch("/api/v2/tablet");
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  tabletSnapshot = await response.json();
+  savedState = tabletSnapshot.raw;
+  updateHUD(tabletSnapshot.raw);
+  syncPeriodTrucks();
+}
+
+function syncPeriodTrucks() {
+  const period = `${tabletSnapshot.gameId}:${tabletSnapshot.clock.period}`;
+  if (lastTruckPeriod !== null && period !== lastTruckPeriod) {
+    queueTrucks(tabletSnapshot.raw.trucks);
+  }
+  lastTruckPeriod = period;
 }
 
 function raycastFromPointer(event) {
@@ -924,7 +935,7 @@ function onCanvasClick(event) {
     if (!target) continue;
     selectInteraction(target.info);
     if (target.info.type === "worker") openNpcDialog(target.info);
-    if (target.info.type === "block") { setDestination(hit.point); return; }
+    if (target.info.type === "block") { tablet?.open(target.info.zone, { department: DEPARTMENT_BY_ZONE[target.info.zone] }); return; }
     const closePoint = target.group.getWorldPosition(new THREE.Vector3());
     const approach = closePoint.add(player.position.clone().sub(closePoint).setY(0).normalize().multiplyScalar(1.8));
     setDestination(approach);
@@ -1041,9 +1052,11 @@ function addSupplierRow() {
 }
 async function loadState() {
   try {
-    const response = await fetch("/api/state");
+    const response = await fetch("/api/v2/tablet");
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    savedState = await response.json();
+    tabletSnapshot = await response.json();
+    savedState = tabletSnapshot.raw;
+    lastTruckPeriod = `${tabletSnapshot.gameId}:${tabletSnapshot.clock.period}`;
     state = savedState;
     if (savedState.started) {
       $("#company-input").value = savedState.company_name || "G-mix";
@@ -1060,12 +1073,13 @@ async function createNewGame(event) {
   const button = $("#start-new-game");
   button.disabled = true;
   try {
-    const response = await fetch("/api/new-game", {
+    const response = await fetch("/api/v2/tablet/new-game", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         company_name: $("#company-input").value.trim(),
         difficulty: $("#difficulty-input").value,
+        rules_confirmed: $("#rules-confirmed").checked,
         additional_suppliers: [...$("#custom-supplier-list").querySelectorAll(".supplier-entry")].map((row) => ({
           name: row.querySelector('[data-field="name"]').value.trim(),
           lead_time_weeks: Number(row.querySelector('[data-field="lead_time_weeks"]').value),
@@ -1076,9 +1090,13 @@ async function createNewGame(event) {
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.detail?.[0]?.msg || result.detail || `HTTP ${response.status}`);
-    updateHUD(result);
+    tabletSnapshot = result;
+    lastTruckPeriod = `${result.gameId}:${result.clock.period}`;
+    savedState = result.raw;
+    updateHUD(result.raw);
     $("#setup-screen").hidden = true;
     if ($("#tutorial-enabled").checked) beginTutorial();
+    tablet?.open();
   } catch (error) {
     $("#setup-note").textContent = `Impossible de créer la partie : ${error.message}`;
   } finally {
@@ -1095,11 +1113,13 @@ async function nextWeek() {
   const button = $("#next-turn");
   button.disabled = true;
   try {
-    const response = await fetch("/api/next-turn", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-    const nextState = await response.json();
-    if (!response.ok) throw new Error(nextState.detail || `HTTP ${response.status}`);
+    const response = await fetch("/api/v2/tablet/next-turn", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.detail || `HTTP ${response.status}`);
+    tabletSnapshot = result;
+    const nextState = result.raw;
     updateHUD(nextState);
-    queueTrucks(nextState.trucks);
+    syncPeriodTrucks();
     const r = nextState.last_week || {};
     showToast(`Semaine ${nextState.current_week} · reçu ${fmt(r.received_units)} · fabriqué ${fmt(r.produced)} · emballé ${fmt(r.packed)} · expédié ${fmt(r.delivered)} · ${fmt(r.customer_orders_late)} commande(s) en retard.`);
     advanceTutorial("week");

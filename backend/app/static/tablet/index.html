@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#18352d">
+  <title>G-MIX — Tablette de pilotage</title>
+  <link rel="stylesheet" href="/static/tablet/styles.css">
+  <script defer src="/static/tablet/live-api.js"></script>
+  <script defer src="/static/tablet/spreadsheet.js"></script>
+  <script defer src="/static/tablet/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Aller au contenu</a>
+  <div id="toast" class="toast" role="alert" aria-live="assertive" hidden></div>
+  <div id="network-status" class="sr-only" role="status" aria-live="polite"></div>
+  <div id="app">
+    <main class="loading-screen" id="main-content">
+      <span class="brand-mark" aria-hidden="true">G</span>
+      <span class="loader" aria-hidden="true"></span>
+      <p>Ouverture de votre tablette…</p>
+    </main>
+  </div>
+  <div id="action-modal" class="modal-backdrop" hidden>
+    <section class="action-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button class="modal-close" type="button" data-action="close-modal" aria-label="Fermer la fenêtre">×</button>
+      <div id="modal-content"></div>
+    </section>
+  </div>
+  <noscript>La tablette G-MIX nécessite JavaScript.</noscript>
+</body>
+</html>

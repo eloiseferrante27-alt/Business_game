@@ -43,3 +43,19 @@
 .breakdown{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0;padding:9px 10px;border:1px solid #d9634f70;border-radius:8px;background:#d9634f14;color:#f6c1b4;font-size:10.5px}
 .flow-step.flow-stock{color:#cbd7a4}
 @media(max-width:700px){.tablet{border-width:6px;border-radius:14px}.tablet-head{flex-wrap:wrap}.form-row select,.form-row input{min-width:130px}}
+[hidden].live-tablet-overlay { display: none !important; }
+.live-tablet-overlay { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 2vh 2vw; background: #10231dd9; backdrop-filter: blur(9px); }
+.live-tablet-frame { width: min(1500px, 100%); height: 96vh; overflow: hidden; border: 1px solid #779184; border-radius: 20px; background: #f3f1e7; box-shadow: 0 26px 90px #0008; display: flex; flex-direction: column; }
+.live-tablet-frame > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 0 16px; background: #173a31; color: #e5efdf; font: 600 10px/1.4 system-ui; letter-spacing: .1em; }
+.live-tablet-frame > header span { display: flex; align-items: center; gap: 8px; }
+.live-tablet-frame > header i { width: 7px; height: 7px; border-radius: 50%; background: #d8ef83; box-shadow: 0 0 12px #d8ef8366; }
+.live-tablet-frame > header button { border: 0; background: transparent; color: inherit; cursor: pointer; min-height: 40px; padding: 4px 10px; font: inherit; letter-spacing: .03em; }
+.live-tablet-frame > header button:focus-visible { outline: 2px solid #dfb469; outline-offset: -2px; border-radius: 5px; }
+.live-tablet-frame > header b { margin-left: 10px; font-size: 24px; font-weight: 400; vertical-align: middle; }
+.live-tablet-frame iframe { border: 0; flex: 1; width: 100%; min-height: 0; background: #f3f1e7; }
+.live-tablet-open { overflow: hidden; }
+@media (max-width: 800px) { .live-tablet-overlay { padding: 0; } .live-tablet-frame { height: 100dvh; width: 100%; border-radius: 0; } .live-tablet-frame > header { padding: 0 10px; } }
+[hidden].objective-progress { display: none; }
+.setup-rules { margin: 12px 0; padding: 11px 13px; border: 1px solid #d9ef8330; border-radius: 8px; background: #d9ef8308; color: #d6dfd4; font-size: 11px; line-height: 1.6; }
+.setup-rules summary { color: #d9ef83; cursor: pointer; font-weight: 600; }
+.setup-rules p { margin: 9px 0 0; }
