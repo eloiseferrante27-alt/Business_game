@@ -102,6 +102,7 @@ Status: `todo` · `in progress` · `blocked` · `review` · `done`. Owner is a s
 
 | ID | Task | Depends on | Suggested owner | Status |
 |---|---|---|---|---|
+| GAME-01 | User-requested playable game integration: live tablet API, real decisions, server refusals, event history, legacy compatibility and 3D tablet navigation | T06 | Codex | in progress |
 | T00 | Human decisions: time unit/period, spreadsheet lib, map lib (§25) | — | Amine | todo |
 | T01 | **Gap report** (Livrable 1): inventory current code vs spec, list present / to complete / missing, map AL-03…AL-13 → `docs/rapport-ecart.md` | — | Codex | in progress |
 | T02 | `config/world.yaml` from Annexe A + `engine/config.py` loader & §4 validations (MTTR<MTBF, reorder point, ≥2 offers per article, capacities) | T01 | Codex | todo |
