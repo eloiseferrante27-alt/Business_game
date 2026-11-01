@@ -108,7 +108,7 @@ Status: `todo` · `in progress` · `blocked` · `review` · `done`. Owner is a s
 | T03 | `engine/journal.py` + `engine/clock.py` (8 h day, ×1–×60, pause, time-jump, seed) | T00 | Codex | todo |
 | T04 | `engine/rights.py` + server checks + refusal logging; `engine/alerts.py` | T02, T03 | Codex | todo |
 | T05 | `engine/kpis.py` skeleton + `/api/v2` router (state, page data, set config, actions) | T03 | Codex | todo |
-| T06 | Tablet shell: home page (§8), common page layout with 3 tabs (§6), red pop-up (4 s), "Règles de la partie" screen (§5) | T05 (can mock API first) | Kimi | in progress |
+| T06 | Tablet shell: home page (§8), common page layout with 3 tabs (§6), red pop-up (4 s), "Règles de la partie" screen (§5) | T05 (can mock API first) | Kimi | done |
 | T07 | Tools: spreadsheet, world map, charts (curve + Pareto), planning, journal viewer (§7) | T06 | Kimi | todo |
 | T10 | Engine: Suppliers (§10) | T02–T05 | Codex | todo |
 | T11 | Engine: Unloading dock (§11) + Reception (§12) | T10 | Codex | todo |
@@ -127,4 +127,5 @@ Status: `todo` · `in progress` · `blocked` · `review` · `done`. Owner is a s
 
 Newest first. Format: `YYYY-MM-DD · agent · task · what changed · what's left · questions`.
 
+- 2026-11-01 · Kimi · T06 · Added `/tablet` with the home dashboard, 10 department shells and three tabs, startup rules/rights screen, five tool entry points, clock controls, and exact 4 s red refusal pop-up. Added an isolated mock API plus Python/JS tests; existing game endpoints remain available. Verified with 12 pytest tests, 5 Node tests, and headless Chrome flows at 1440/1024/768 px. · T05 must replace `backend/app/static/tablet/mock-api.js` with `/api/v2`; T07 implements the tool workspaces; T04/T05 own real server-side rights and journaling. · No new questions.
 - 2026-11-01 · Claude · setup · Wrote this AGENTS.md from the v3 doc, the cahier des charges and a read of the current backend. No code changed yet. · Next: T00 (Amine) and T01 (gap report). · Questions: see §7 "Pending".

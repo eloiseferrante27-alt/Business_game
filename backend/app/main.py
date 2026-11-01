@@ -18,6 +18,12 @@ def game_interface() -> FileResponse:
     return FileResponse(STATIC_DIR / "game3d.html")
 
 
+@app.get("/tablet")
+@app.get("/tablet/")
+def tablet_interface() -> FileResponse:
+    return FileResponse(STATIC_DIR / "tablet" / "index.html")
+
+
 @app.get("/health")
 def health_check() -> dict[str, str]:
     return {"status": "ok"}
