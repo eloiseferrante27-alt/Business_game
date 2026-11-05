@@ -1,5 +1,9 @@
 # G-mix — objectif et guide de jeu (monde v3)
 
+## Démarrer et arrêter le jeu
+
+Depuis l’explorateur de fichiers, double-cliquez sur `start.bat` pour construire et démarrer le jeu avec Docker, attendre que l’API soit prête, puis ouvrir l’interface dans le navigateur. Pour arrêter le jeu, double-cliquez sur `stop.bat`. L’arrêt conserve la sauvegarde et les autres données.
+
 ## Le but
 
 Vous pilotez une usine qui fabrique et livre des produits. Gardez les produits disponibles, faites tourner les lignes et livrez les commandes clients complètes et à l’heure. La partie avance semaine par semaine. Suivez surtout l’OTIF (commandes livrées complètes et à l’heure), le rendement des lignes, la qualité et la valeur du stock.

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 from contextlib import contextmanager
-import fcntl
 import hashlib
 import json
 import os
@@ -21,6 +21,53 @@ import uuid
 SOURCE = Path(__file__).resolve().parents[1]
 REFERENCES = ("docs/Mon monde v3 - blocs, agents et assets.md",
               "docs/Cahier des charges - configurations et interface.md")
+
+try:
+    import fcntl
+except ModuleNotFoundError:  # pragma: no cover - Windows-only fallback
+    class _WindowsFcntl:
+        LOCK_EX = 1
+        LOCK_NB = 2
+
+        @staticmethod
+        def flock(handle, mode):
+            name = os.path.abspath(getattr(handle, "name", str(handle)))
+            mutex_name = "gmix-lock-" + re.sub(r"[^A-Za-z0-9_.-]+", "_", name)
+            mutex = ctypes.windll.kernel32.CreateMutexW(None, False, mutex_name)
+            if not mutex:
+                raise OSError("CreateMutexW failed")
+            existing = getattr(handle, "_gmix_mutex", None)
+            if existing is None:
+                handle._gmix_mutex = mutex
+            else:
+                ctypes.windll.kernel32.CloseHandle(mutex)
+                mutex = existing
+            wait = ctypes.windll.kernel32.WaitForSingleObject(mutex, 0 if mode & _WindowsFcntl.LOCK_NB else 0xFFFFFFFF)
+            if wait == 0x00000102:
+                raise BlockingIOError("lock unavailable")
+            if wait not in (0x00000000, 0x00000080):
+                raise OSError(f"WaitForSingleObject failed: {wait}")
+
+        @staticmethod
+        def unlock(handle):
+            mutex = getattr(handle, "_gmix_mutex", None)
+            if mutex:
+                ctypes.windll.kernel32.ReleaseMutex(mutex)
+                ctypes.windll.kernel32.CloseHandle(mutex)
+                delattr(handle, "_gmix_mutex")
+
+    fcntl = _WindowsFcntl()
+
+if not hasattr(os, "killpg"):
+    def _killpg(pid: int, sig: int) -> None:
+        if sig == 0 and os.name == "nt":
+            handle = ctypes.windll.kernel32.OpenProcess(0x100000, False, pid)
+            if not handle:
+                raise ProcessLookupError(pid)
+            ctypes.windll.kernel32.CloseHandle(handle)
+            return
+        os.kill(pid, sig)
+    os.killpg = _killpg  # type: ignore[attr-defined]
 
 
 class CoordinationError(Exception):
@@ -95,6 +142,8 @@ class Store:
                 temporary = path.with_suffix(".tmp")
                 temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n")
                 temporary.replace(path)
+                if hasattr(fcntl, "unlock"):
+                    fcntl.unlock(handle)
 
     @contextmanager
     def execution(self, task):
@@ -102,14 +151,21 @@ class Store:
         with (self.root / f"execution-{task}.lock").open("a") as handle:
             try:
                 fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError as error:
+            except (BlockingIOError, OSError) as error:
                 raise CoordinationError("Ancienne exécution encore active ; aucun second agent lancé") from error
-            yield handle.fileno()
+            try:
+                yield handle.fileno()
+            finally:
+                if hasattr(fcntl, "unlock"):
+                    fcntl.unlock(handle)
 
 
 def executable(cfg: dict, agent: str) -> str:
     command = cfg["agents"][agent]["command"]
-    found = shutil.which(os.path.expanduser(command))
+    expanded = os.path.expanduser(command)
+    if os.path.isabs(expanded) and os.path.exists(expanded) and os.access(expanded, os.X_OK):
+        return expanded
+    found = shutil.which(expanded)
     # IDE/background processes do not always inherit the interactive shell PATH.
     if not found and agent == "kimi" and command == "kimi":
         installed = Path.home() / ".kimi-code/bin/kimi"
@@ -133,22 +189,67 @@ def command(cfg: dict, agent: str, worktree: Path, output: Path, prompt: str, *,
             "--output-format", "text", "--prompt", prompt]
 
 
+def _terminate_process_group(pid: int, signum: int) -> None:
+    if hasattr(os, "killpg"):
+        os.killpg(pid, signum)
+    else:
+        try:
+            os.kill(pid, signum)
+        except OSError:
+            pass
+
+
+def _normalize_argv(argv: list[str]) -> list[str]:
+    if os.name != "nt" or not argv:
+        return argv
+    target = argv[0]
+    if not os.path.exists(target) or not os.path.isfile(target):
+        return argv
+    try:
+        with open(target, "rb") as handle:
+            header = handle.read(64)
+    except OSError:
+        return argv
+    if not header.startswith(b"#!"):
+        return argv
+    if sys.executable:
+        return [sys.executable, target, *argv[1:]]
+    shell = shutil.which("bash") or shutil.which("sh")
+    if shell:
+        return [shell, target, *argv[1:]]
+    return argv
+
+
 def process(argv: list[str], cwd: Path, folder: Path, timeout: int, prompt: str | None = None, *, execution_fd=None, run_id=None) -> int:
+    argv = _normalize_argv(argv)
     folder.mkdir(parents=True, exist_ok=True, mode=0o700)
+    process_kwargs = dict(
+        cwd=cwd,
+        stdin=subprocess.PIPE if prompt else subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+    )
+    if execution_fd is not None and os.name != "nt":
+        try:
+            process_kwargs["pass_fds"] = (execution_fd,)
+        except TypeError:
+            pass
     with (folder / "stdout.log").open("w") as stdout, (folder / "stderr.log").open("w") as stderr:
-        child = subprocess.Popen(argv, cwd=cwd, stdin=subprocess.PIPE if prompt else subprocess.DEVNULL,
-                                 stdout=stdout, stderr=stderr, text=True, start_new_session=True,
-                                 pass_fds=() if execution_fd is None else (execution_fd,))
+        process_kwargs["stdout"] = stdout
+        process_kwargs["stderr"] = stderr
+        child = subprocess.Popen(argv, **process_kwargs)
         # Durable process-group evidence; the inherited lock covers the spawn/write gap.
         (folder / "process.json").write_text(json.dumps(dict(pgid=child.pid, run_id=run_id)) + "\n")
         try:
             child.communicate(input=prompt, timeout=timeout)
         except (subprocess.TimeoutExpired, KeyboardInterrupt):
-            os.killpg(child.pid, signal.SIGTERM)
+            _terminate_process_group(child.pid, signal.SIGTERM)
             try:
                 child.wait(timeout=5)
             except subprocess.TimeoutExpired:
-                os.killpg(child.pid, signal.SIGKILL)
+                _terminate_process_group(child.pid, signal.SIGKILL)
                 child.wait()
             raise CoordinationError(f"Exécution interrompue ou délai dépassé ; logs : {folder}")
     return child.returncode
@@ -407,6 +508,17 @@ def doctor(args, repo: Path, cfg: dict):
                 print(f"{agent}: connexion réelle OK")
 
 
+def _process_exists(pid: int) -> bool:
+    try:
+        if hasattr(os, "killpg"):
+            os.killpg(pid, 0)
+        else:
+            os.kill(pid, 0)
+        return True
+    except (ProcessLookupError, OSError):
+        return False
+
+
 def ensure_stopped(record, *, confirm_stopped=False):
     folder = Path(record["execution_folder"]) if record.get("execution_folder") else None
     evidence = list(folder.rglob("process.json")) if folder and folder.exists() else []
@@ -416,9 +528,7 @@ def ensure_stopped(record, *, confirm_stopped=False):
         entry = json.loads(path.read_text())
         if entry.get("run_id") != record.get("run_id"):
             raise CoordinationError("Identifiant d’exécution incohérent ; inspection manuelle requise")
-        try:
-            os.killpg(entry["pgid"], 0)
-        except ProcessLookupError:
+        if not _process_exists(entry["pgid"]):
             continue
         raise CoordinationError(f"Ancien groupe encore actif (PGID {entry['pgid']}) ; arrêter ce groupe avant reprise")
 
@@ -506,7 +616,7 @@ def main(argv=None):
                 if record["status"] in {"running", "review_running"}:
                     try:
                         os.kill(record["pid"], 0)
-                    except ProcessLookupError:
+                    except (ProcessLookupError, OSError):
                         pass
                     else:
                         raise CoordinationError("Coordinateur encore actif ; attendre sa fin")

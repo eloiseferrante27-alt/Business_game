@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "domain": "supply_chain",
+  "label": "Supply chain · usine de produits du quotidien (monde v3)",
+  "base_scenario": "default",
+  "_sources": {
+    "base_scenario": "Tout ce qui n'est pas listé ici (blocs, agents, profils de difficulté, qualité, emballage, transport, maintenance, stock SF et PDR) est repris tel quel de scenarios/default.json.",
+    "ranges": "Plages encadrant les valeurs du monde par défaut (default.json) ; à valider par le formateur.",
+    "ratios": "Rapports mesurés dans default.json : valeur MP = 0,28 × PF, SF = 0,577 × PF, prix fournisseur 0,91 à 1,12 × valeur MP, PF : minimum 0,25 sem., point de commande 0,8 sem., quantité 1,2 sem., capacité 4 sem. de demande.",
+    "reorder_point": "Cahier des charges §4 : point de commande >= consommation × délai effectif + stock de sécurité (ici en semaines, unité actuelle du moteur ; T00 ouvert).",
+    "offers": "Cahier des charges §4 : chaque article a au moins deux offres de fournisseurs.",
+    "catalogues": "Noms de produits, fournisseurs, clients et lignes fictifs, dans l'esprit de default.json ; à valider par le formateur."
+  },
+
+  "counts": {
+    "products": [2, 5],
+    "offers_per_article": [2, 3],
+    "machines": [3, 5],
+    "customers": [3, 5]
+  },
+
+  "ranges": {
+    "pf_unit_value": [9, 24],
+    "weekly_demand": [300, 600],
+    "lead_weeks": { "matiere": [2, 4], "emballage": [1, 2], "pdr": [1, 2] },
+    "reliability": [86, 97],
+    "nonconformity_rate": [0.5, 3.0],
+    "price_factor": [0.9, 1.12],
+    "cycle_minutes": [1.0, 3.0],
+    "defect_rate": [1.0, 3.0],
+    "mtbf_hours": [40, 100],
+    "mttr_hours": [0.5, 1.0],
+    "mp_reorder_weeks": [2, 4],
+    "mp_extra_initial_weeks": [0.4, 1.0],
+    "pf_initial_weeks": [0.7, 1.4]
+  },
+
+  "ratios": {
+    "mp_value": 0.28,
+    "sf_value": 0.577,
+    "safety_weeks": 1.0,
+    "storage_margin": 1.2,
+    "pf_minimum_weeks": 0.25,
+    "pf_reorder_weeks": 0.8,
+    "pf_reorder_qty_weeks": 1.2,
+    "pf_capacity_weeks": 4
+  },
+
+  "products": [
+    { "name": "Gourde isotherme", "category": "Accessoire nomade" },
+    { "name": "Boîte hermétique", "category": "Rangement cuisine" },
+    { "name": "Organiseur modulaire", "category": "Rangement maison" },
+    { "name": "Lampe atelier LED", "category": "Éclairage" },
+    { "name": "Mug de voyage", "category": "Accessoire nomade" },
+    { "name": "Panier de rangement", "category": "Rangement maison" },
+    { "name": "Planche à découper", "category": "Ustensile cuisine" },
+    { "name": "Lampe de chevet", "category": "Éclairage" },
+    { "name": "Boîte à outils", "category": "Bricolage" },
+    { "name": "Lunch box", "category": "Rangement cuisine" },
+    { "name": "Pot de fleurs", "category": "Jardin" },
+    { "name": "Porte-savon", "category": "Salle de bain" }
+  ],
+
+  "line_names": ["Conditionnement", "Assemblage", "Moulage", "Contrôle", "Découpe", "Montage", "Injection", "Finition"],
+
+  "operations": {
+    "first": "Préparation",
+    "middle": ["Découpe", "Moulage", "Assemblage", "Soudure", "Finition"],
+    "last": "Vérification"
+  },
+
+  "suppliers": {
+    "matiere": [
+      { "name": "PolyNord Matières", "specialty": "Polymères recyclés", "region": "Lille" },
+      { "name": "Résines Atlantique", "specialty": "Résines techniques", "region": "Bordeaux" },
+      { "name": "Acier & Alliages Ouest", "specialty": "Métaux et pièces", "region": "Nantes" },
+      { "name": "Électro Composants Est", "specialty": "Composants électriques", "region": "Strasbourg" },
+      { "name": "PlastiOuest", "specialty": "Plastiques injectés", "region": "Rennes" },
+      { "name": "Inox & Verre Centre", "specialty": "Verre et inox", "region": "Clermont-Ferrand" },
+      { "name": "Bois des Ardennes", "specialty": "Bois et dérivés", "region": "Charleville-Mézières" },
+      { "name": "Silicones Méditerranée", "specialty": "Silicones et joints", "region": "Montpellier" }
+    ],
+    "emballage": [
+      { "name": "Cartonnerie du Rhône", "specialty": "Emballages carton", "region": "Lyon" },
+      { "name": "Emballages ÉcoSud", "specialty": "Emballages durables", "region": "Toulouse" },
+      { "name": "Pack Normandie", "specialty": "Cartons et calages", "region": "Rouen" }
+    ],
+    "pdr": [
+      { "name": "Maintenance Pro", "specialty": "Pièces de rechange", "region": "Lyon" },
+      { "name": "Mécanique Express", "specialty": "Pièces de rechange", "region": "Marseille" },
+      { "name": "Pièces Industrie Nord", "specialty": "Pièces de rechange", "region": "Valenciennes" }
+    ]
+  },
+
+  "customers": ["Hypermarché Atlas", "Centrale Nord", "Boutique Médina", "Distrib Sud", "Supermarché Horizon", "Proxi Ouest", "Coopérative Alpine", "Maison en ligne"],
+
+  "layout": {
+    "aisle": 3.5,
+    "production_width_per_machine": 3.75,
+    "production_width_base": 4,
+    "rows": [
+      ["stock_mp", "stock_sf", "stock_pf"],
+      ["quai_dechargement", "bureau_reception", "chaine_production", "emballage", "logistique_transport"],
+      ["controle_qualite", "bureau_etude", "maintenance_pdr"]
+    ],
+    "zones": [
+      { "id": "stock_mp", "block": "stock", "part": "MP", "w": 16, "d": 6 },
+      { "id": "stock_sf", "block": "stock", "part": "SF", "w": 15, "d": 6 },
+      { "id": "stock_pf", "block": "stock", "part": "PF", "w": 16, "d": 6 },
+      { "id": "quai_dechargement", "block": "quai_dechargement", "w": 7, "d": 8.5 },
+      { "id": "bureau_reception", "block": "bureau_reception", "w": 6.5, "d": 8.5 },
+      { "id": "chaine_production", "block": "chaine_production", "w": 19, "d": 8.5 },
+      { "id": "emballage", "block": "emballage", "w": 7, "d": 8.5 },
+      { "id": "logistique_transport", "block": "logistique_transport", "w": 9, "d": 8.5 },
+      { "id": "controle_qualite", "block": "controle_qualite", "w": 15, "d": 6.5 },
+      { "id": "bureau_etude", "block": "bureau_etude", "w": 15, "d": 6.5 },
+      { "id": "maintenance_pdr", "block": "maintenance_pdr", "w": 15, "d": 6.5 }
+    ]
+  }
+}
