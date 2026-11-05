@@ -59,4 +59,4 @@ Consoles : stockage S3 http://localhost:9001 · Kafka http://localhost:8085 (`.\
 | `knowledge/` | corpus de documents sourcés pour le RAG |
 | `infra/`, `docker-compose.yml` | infrastructure locale |
 | `docs/` | architecture, IA, Kafka, rôles, game design, décisions, blocages |
-| `.claude/agents/` | agents Claude Code spécialisés (voir CLAUDE.md) |
+| `../.claude/agents/` | agents Claude Code spécialisés, dans l'espace de travail parent, hors git (voir ../CLAUDE.md) |

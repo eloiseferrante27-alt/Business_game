@@ -162,6 +162,12 @@ def read_meta(transcript):
     return data if isinstance(data, dict) else {}
 
 
+def team_dir(root):
+    """Dossier `.claude` de l'équipe : dans le dépôt, sinon dans l'espace de travail parent (choix du 05/11)."""
+    inside = Path(root) / ".claude"
+    return inside if inside.is_dir() else Path(root).parent / ".claude"
+
+
 def find_project_dir(root):
     """Dossier des transcripts du projet : le chemin du dépôt dont tout caractère non alphanumérique devient « - ».
     Repli sur le dossier parent : l'utilisateur ouvre VS Code sur l'espace de travail qui contient le dépôt."""
@@ -184,7 +190,7 @@ def find_project_dir(root):
 
 def read_ownership(root):
     """(carte, erreurs) : .claude/ownership.json lu et vérifié dans sa forme."""
-    path = root / ".claude" / "ownership.json"
+    path = team_dir(root) / "ownership.json"
     if not path.is_file():
         return None, [".claude/ownership.json absent"]
     try:
@@ -220,7 +226,7 @@ def load_ownership(root):
 def agent_names(root):
     """Noms des agents de .claude/agents/*.md (champ « name » du début de fichier, sinon nom du fichier)."""
     names = []
-    for f in sorted((root / ".claude" / "agents").glob("*.md")):
+    for f in sorted((team_dir(root) / "agents").glob("*.md")):
         head = re.match(r"---\s*\n(.*?)\n---", f.read_text(encoding="utf-8-sig", errors="replace"), re.S)
         name = re.search(r"^name:\s*(\S+)", head.group(1), re.M) if head else None
         names.append(name.group(1).strip("'\"") if name else f.stem)

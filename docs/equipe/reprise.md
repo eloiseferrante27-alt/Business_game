@@ -1,8 +1,8 @@
 # Reprise de session (après /clear) - 05/11/2026
 
-VS Code s'ouvre sur le dossier parent `G_mix-Generateur-Business_Games` (choix de l'utilisateur). Il porte un CLAUDE.md
-qui importe celui-ci, une jonction `.claude/agents` vers les agents du dépôt et une copie de `.claude/settings.json`
-aux chemins préfixés (hors git) : commandes à lancer en `.\Business_game-contribution_Romain\scripts\...`.
+VS Code s'ouvre sur le dossier parent `G_mix-Generateur-Business_Games` (choix de l'utilisateur, 05/11). L'équipe y vit,
+hors git : `../CLAUDE.md` et `../.claude/` (agents, réglages, `ownership.json`), retirés du dépôt le 05/11 (ils restent
+dans l'historique). Commandes à lancer en `.\Business_game-contribution_Romain\scripts\...`.
 
 ## État
 
