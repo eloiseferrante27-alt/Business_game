@@ -122,3 +122,59 @@ Si le nettoyage échoue, le script affiche les identifiants à nettoyer :
 
 Limites connues (clic réel, clavier AZERTY réel, pavé tactile non éprouvés ; outils non suivis par git) :
 docs/blocages.md.
+
+## Pièges et procédures (agent godot-dev)
+
+Sorti de `.claude/agents/godot-dev.md` le 05/11 pour alléger chaque délégation : l'agent lit la sous-section de sa
+tâche (`Grep -n "^### " godot/README.md`, puis Read avec plage).
+
+### Pièges connus
+
+`look_at` exige un nœud déjà dans l'arbre (`add_child` d'abord) ; `multiplayer.get_unique_id()` sans pair connecté ;
+ne nommez pas une variable `name` ou `sign` (elle masque un membre ou une fonction intégrée) ; un PanelContainer
+s'étire à la hauteur de son parent (`size_flags_vertical = SIZE_SHRINK_BEGIN`) ; modifier une propriété d'asset
+reconstruit son décor (rayonnage) : ne l'affectez que si la valeur change ; `Label3D.visibility_range_end` évite
+l'encombrement des étiquettes ; **le thème commun ne traverse ni un simple `Node` ni une `CanvasLayer`** : un outil
+d'interface étend `Control` (ui_tour), le HUD (CanvasLayer) pose le thème sur sa racine ; un outil lancé comme scène
+principale disparaît au changement de scène (flow_test se double sous la racine) ; le rayon de navigation est un
+multiple de la taille de cellule (0,25), sinon Godot arrondit avec un avertissement ; une StyleBox à marges plus
+grandes crée des dépassements à 1024x600 (revérifier le tour après chaque changement de marge).
+
+### Direction artistique (référence : la tablette du Business_game, ADR 0010)
+
+- Palette chaude limitée (fond, surface, accent, succès, alerte), définie en un seul endroit, `Ui.make_theme` ;
+  aucune couleur codée en dur dans les écrans. Contraste de texte d'au moins 4,5:1 (WCAG AA), à calculer.
+- Coins arrondis ; marges et espacements sur une échelle fixe (4, 8, 16, 24) ; hiérarchie typographique : titre,
+  sous-titre, corps (le corps reste à 18 px, jamais sous 15 px).
+- États vides accueillants : une phrase qui explique et un bouton vers l'action suivante. Accueil personnalisé
+  (identifiant, rôle) sur F1, J1, la modale de session F4, la salle d'attente (cartes de rôles) et la tablette en jeu.
+- Icônes cohérentes ; vouvoiement partout. Transitions légères : tween court, désactivable, sans coût pour les 60 FPS.
+- Police ou icônes ajoutées seulement sous licence libre vérifiée (OFL, CC0), avec fichier de licence et crédit dans
+  le dépôt ; rien à télécharger à l'exécution. Pas d'IA externe pour générer des visuels.
+- Procédure : `-Tour -Snapshot` « avant » ; thème d'abord, puis écran par écran ; captures « après » regardées à
+  1280x720 et 1024x600 et comparées à « avant » ; `-Tour` à 0 défaut et `-Flow -NoLlm` vert.
+
+### Vue Sims et troisième personne
+
+- Caméra 3/4 suivie ou libre, rotation et zoom ; clic pour marcher sur un maillage de navigation cuit à l'exécution
+  depuis les collisions du plan généré ; menu contextuel et survol sur les agents et les postes (métadonnée
+  `GmixSimsView.META`) ; toit masqué et murs abaissés côté caméra.
+- Un asset sans collision reçoit une emprise de secours sur la couche 16 (`_block` de world.gd) : signaler l'écart à
+  `assets-3d`. Les agents patrouillent en ligne droite, sans maillage de navigation.
+- Un ordre (marcher, parler, utiliser un poste) passe par world.gd (`_walk`, `_go_to_agent`, `_go_to_station`) ; les
+  outils de contrôle lisent `view()`, `is_navigation_ready()`, `sims_view()` et `screen_point()`.
+
+### Parcours scripté (flow_test)
+
+- Test headless qui exécute les vraies scènes de bout en bout contre l'API réelle, avec des comptes jetables
+  (`flowtest_…`, créés puis supprimés via `gmix.tools.ui_accounts`, jamais de jeton affiché ni écrit). Il échoue sur
+  toute erreur de script ; `-NoLlm` saute les dialogues, donc tout appel à Ollama.
+- Seul le parcours A (formateur) existe ; B (joueurs) et V sont annoncés (`--only=A,B,V`) mais non écrits. Une
+  nouvelle fonction du client se couvre en ajoutant une étape au parcours A.
+
+### Vérification visuelle du monde (tout changement de rendu)
+
+Créer un lobby de test par l'API, puis, après `. .\scripts\_common.ps1`,
+`& (Get-GodotExe) --path "$GodotDir" res://scenes/tools/world_preview/world_preview.tscn -- --api=http://127.0.0.1:8000 --lobby=<id> --snapshot=<dossier>`
+avec le jeton dans la variable d'environnement GMIX_TOKEN (fenêtre et GPU requis). Regarder les captures
+(étiquettes, superpositions, échelle, vue Sims, menu contextuel), puis supprimer le lobby et le compte de test.

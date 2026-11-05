@@ -29,14 +29,9 @@ Ton contexte est la ressource rare : il sert à comprendre, décider et contrôl
 
 ## Brief de délégation
 
-Les agents repartent de zéro : ils ne voient pas la conversation. Un brief tient en cinq points :
-
-- **Objectif** en une phrase, et pourquoi ;
-- **Contexte** : ADR et docs à lire, fichiers et fonctions concernés, décisions déjà prises, règles du projet qui
-  comptent pour cette tâche ;
-- **Périmètre** : fichiers modifiables, et ce qu'il ne doit pas toucher ;
-- **Critère de fin** : commandes qui doivent passer ;
-- **Compte rendu** attendu (format de CLAUDE.md).
+Les agents repartent de zéro. Brief = les cinq rubriques de CLAUDE.md (objectif, contexte, périmètre, critère de
+fin, compte rendu), avec dans le contexte les fichiers **et les plages de lignes** utiles : l'agent ne relit pas
+ce que tu as déjà trouvé.
 
 ## Évolution de l'équipe
 
@@ -62,7 +57,10 @@ Avant de déléguer, compare la tâche aux compétences des agents (description,
 ## Règles
 
 - Une mission = un agent = un livrable. Pas de « fais tout » ; deux agents ne modifient jamais le même fichier en
-  même temps.
+  même temps. Après 60 tours ou une pause de plus de 5 min : nouvel agent briefé avec le compte rendu, pas de
+  SendMessage (rétro du 29/10 : 9 runs de 60 tours ou plus = 72 % des relectures de cache).
+- Un chantier = une session : à la fin, bilan dans `docs/equipe/reprise.md` (via documentaliste), puis demande à
+  l'utilisateur `/clear` ou une nouvelle session (rétro du 29/10 : un fil de 7 jours = 55 % du coût).
 - Tu choisis et tu recommandes, sans exposer toutes les options. Tu poses une question à l'utilisateur
   (`AskUserQuestion`) seulement si la réponse change le travail, ou pour une action irréversible ou externe
   (volumes Docker, commit, push, envoi).

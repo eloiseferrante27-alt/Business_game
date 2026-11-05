@@ -1,29 +1,44 @@
-# Reprise de session (après /clear) - 29/10/2026
+# Reprise de session (après /clear) - 05/11/2026
+
+Ouvrir VS Code sur **ce dossier** (`Business_game-contribution_Romain`), pas sur son parent : sinon `.claude/` (agents,
+réglages, orchestrateur) et CLAUDE.md ne sont pas chargés.
 
 ## État
-- Commit e57bf28 « V2 », arbre propre selon godot-dev. ADR 0006 à 0009 ; 0008 et 0009 acceptés par défaut le 29/10 (l'utilisateur peut revenir dessus).
-- Fait : spec de conception (ADR 0008 étape 1, 207 tests de contrat) ; tâches IA `game.design.*`, `LLMService.structured`, prompts, 24 cas d'éval (étape 4).
-- DA appliquée à l'interface, à l'ambiance 3D et à la caméra Sims (`godot/scenes/common/ui_tokens.gd`) : `-Check` 127 fichiers OK, `-Tour` 112 écrans 0 défaut, `-Flow -NoLlm` 519 vérifications 0 échec.
-- Coût : compaction automatique à 150 000 ; effort Sonnet medium / Opus high dans `~/.claude/settings.json` ; `.claude/settings.local.json` hors git.
-- Mesure ia-runtime (`ai/evals/results/game.design-format-small-2026-10-29.md`) : `pattern` et `maxLength` ne s'appliquent pas ensemble ; seule une liste blanche bornée dans le motif donne 0 chiffre.
 
-## À faire, dans l'ordre (plans : ADR 0008 annexe §10 et §10.1)
-1. Amendement ADR 0009 (éditeur de grille, menus contextuels).
-2. Vague A restante : spec 0009 (moteur-jeu) ; pack usine (game-designer : règles de placement sourcées, outils formateur, classes de distance) ; fiches sourcées (rag-knowledge, étape 4b).
-3. Vague B : `design.py` + `layout.py` (moteur-jeu) ; routes + migration (backend-api) ; assets usine à 100 % (assets-3d, étape 5c) ; écrans (godot-dev).
-4. Worker generation (pipeline-kafka), scripts (devops).
-5. `flow_test` parcours D, `eval_design`, docs, qa-reviewer.
+- Branche `contribution_Romain`, 5 commits au-dessus de `contribution_amine` (import amine, import G-mix, groupes
+  ADR 0011, verrou des groupes, équipe allégée). **Non poussée** : push décidé par l'utilisateur à la fin de la
+  première version (après B4), voir plus bas.
+- API de l'étape 7 livrée : `/ready` (prêt, vote sur les absents), `/pause`, `/event`, `/advance {ignore_absent}`,
+  `state.alerts[]`, critères (annexe 0010 §1 à §3) ; `/api/v1/groups` (ADR 0011). Le client Godot n'appelle encore
+  que `/advance`.
+- `backend/tests/test_groups.py` écrit, **jamais lancé** (`test.ps1 -Integration`).
 
-## Petits restes
-- Zoom molette en 3e personne.
-- Collisions de 5 assets : prop_kpi_screen, prop_desk_computer, prop_meeting_table, prop_pallet, prop_pallet_stack.
-- `flow_test` parcours B et V.
-- Garde-fou « nombre absent des faits » dans `npc.py` (décision utilisateur attendue).
-- Docs : `docs/ai-runtime.md` (mesure + tâches `game.design.*`), `docs/kafka.md` (topics de génération), `godot/README.md` (jetons, caméra, mesure GPU), `docs/blocages.md` (mémoire partagée des agents, décisions par défaut des ADR 0008/0009).
+## À faire, dans l'ordre : une tranche = une session
 
-## Règles de coût
-Une mission = un livrable · lecture par plages · au plus une capture par type d'écran · comptes rendus ≤ 15 lignes · effort adaptatif (champ `effort` des frontmatters) · agent neuf plutôt que reprise après plus de 60 tours · ne pas relancer `stop.ps1` ni `docker compose down`.
+0. qa-reviewer : `.\scripts\test.ps1 -Integration` ; un échec retourne à backend-api.
+1. **B1 Pilotage de la partie** (godot-dev ; EX-24, 25, 27, 28, 29) :
+   - `realtime.gd` `_route` : `lobby.round` -> nouveau signal `EventBus.lobby_round_changed(round)` ;
+     `session.gd` tient `lobby["round"]`, `reload()` après une action `advance`, vue relue toutes les 15 s quand la
+     partie tourne (`shortcut:` aucun événement à la déconnexion, annexe 0010 §1).
+   - Joueur (tablette `tablet.gd` `READY_REASON`, salle `lobby_screen.gd` `_ready_button`) : « Prêt pour la semaine
+     suivante » -> `POST /ready {ready}`, « k/n prêts » ; si `round.vote.open` : « Ignorer l'absent » / « Attendre »
+     (`/ready {ready: true, absent}`) avec le décompte.
+   - Formateur (`hud.gd` `_on_tool`, `lobby_screen.gd`) : Pause/Reprendre, « Déclencher un aléa » (`spec.events`),
+     « Forcer la semaine » avec la case « absents en pilote automatique », prêt et connecté par joueur.
+   - Barre du HUD : alertes de `state.alerts[]` (niveau, texte, bouton d'action prérempli si `action`), dans `GameText`.
+   - Tests : étapes dans le parcours A de `flow_test.gd`, écrans dans `ui_tour.gd`. Fin : `godot.ps1 -Check`,
+     `-Flow -NoLlm`, `-Tour` verts ; qa-reviewer ; documentaliste (cahier EX-24 à 28).
+   - Puis `coach-equipe` (`team.ps1 -Report`) pour mesurer l'effet des règles de coût du 05/11.
+2. **B2 Groupes** (EX-21, 22, 32) : création d'un groupe de N équipes (`home_screen.gd`), grand code + « Copier »,
+   cartes d'équipes et choix d'équipe (`/groups/join`), débrief comparé (`/groups/{id}/debrief`).
+3. **B3 Pages des départements** dans la tablette (EX-30), lecture seule hors du sien.
+4. **B4 F2/F3 + J3** (EX-08, 31) : progression de la conception, sections à régénérer, mode construction, écran de
+   débrief avec courbes ; `-Design` dans `scripts/godot.ps1` (devops) et `flow_test.gd` ; passe finale `-Tour` (EX-34).
+5. **Première version** : `git push -u origin contribution_Romain` (le dépôt semble public : code sous licence non
+   commerciale visible), vérifier `git ls-remote origin contribution_Romain` = HEAD.
 
-## Alertes pour l'utilisateur
-- `~/.claude/settings.json` contient des secrets Supabase en clair dans ses règles allow : à déplacer.
-- Une clé OpenAI a été collée dans le chat : à révoquer.
+## Règles de coût (appliquées dans CLAUDE.md et orchestrateur.md le 05/11)
+
+Un chantier = une session · une mission = un livrable, nouvel agent après 60 tours ou une pause · fichier de plus de
+300 lignes lu par plages, jamais relu sans modification · une capture lue une fois · comptes rendus de 15 lignes au
+plus · ne pas relancer `stop.ps1` ni `docker compose down`.

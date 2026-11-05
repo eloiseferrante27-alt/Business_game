@@ -89,14 +89,12 @@ Règles d'organisation :
 - Matériel : RTX 3060 Laptop 6 Go VRAM, 16 Go RAM. Un seul modèle d'environ 5 Go tient en VRAM.
 - Ne jamais supprimer les volumes Docker (`down -v`, `infra.ps1 reset`) sans accord explicite.
 - Avant de rendre la main : `.\scripts\test.ps1` (ou `-Fast` si Godot n'est pas touché).
+- Coût (rétro du 29/10) : fichier de plus de 300 lignes = `Grep -n` puis Read avec plage ; jamais relire un fichier
+  non modifié ; une capture lue une fois, seulement les tailles en échec de `-Tour` ; compte rendu de 15 lignes au plus.
 
 ## Documentation
-Dépôt : `eloiseferrante27-alt/Business_game`, branche `contribution_Romain` (G-mix importé sur contribution_amine,
-ADR 0011 §1). docs/business_game/ : cahier des charges, Monde v3, rapport d'écart et données (`default.json`) de
-contribution_amine, référence de l'ADR 0010.
-docs/prompt-projet.md : vision, attendus majeurs et prompt de session, à lire en premier
-docs/cahier-des-attentes.md : référence des attentes (EX-01…), états vérifiables, points à trancher
-docs/architecture.md · docs/ai-runtime.md · docs/kafka.md · docs/roles.md · docs/game-design.md ·
-docs/decisions/ (ADR) · docs/blocages.md (points bloquants et décisions en attente) · docs/equipe/ (évaluation de
-l'équipe) · godot/README.md · ai/evals/README.md (évaluations des agents IA)
-docs/references/usine-3d/ (inspiration « usine 3D » fournie par l'utilisateur : exemples non sourcés, lire le README)
+Dépôt `eloiseferrante27-alt/Business_game`, branche `contribution_Romain` (ADR 0011 §1) ; docs/business_game/ :
+documents et données de contribution_amine. À lire en premier : docs/prompt-projet.md, docs/cahier-des-attentes.md
+(EX-01…), docs/equipe/reprise.md (point de reprise). Ensuite selon le sujet : docs/decisions/ (ADR), docs/blocages.md,
+docs/{architecture,ai-runtime,kafka,roles,game-design}.md, godot/README.md, ai/evals/README.md,
+docs/references/usine-3d/ (inspiration non sourcée).
