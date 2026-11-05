@@ -28,6 +28,7 @@ Côté client, le format reçu est `{type, payload, meta}`.
 |---|---|---|---|
 | `lobby.state` | game.events | API -> WebSocket des membres du lobby | lobby_status, state (état public), action {type : start, advance ou action, by, module, summary} |
 | `lobby.members` | game.events | idem | members [{user_id, display_name, game_role}] |
+| `lobby.round` | game.events | idem ; consommé par le client Godot (`realtime.gd` -> `Session`, barre « prêt ») | round (prêts, vote, pause) |
 | `npc.exchange` | npc.transcripts | API (non relayé) | npc_id, message, reply, intent, sources |
 | `account.created`, `game.generated`, `game.imported`, `game.spec_saved`, `lobby.created` | audit | API | ids, graine et rôle de l'auteur |
 

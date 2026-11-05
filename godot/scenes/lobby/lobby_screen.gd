@@ -19,7 +19,6 @@ var _roles: VBoxContainer
 var _role_mission: Label
 var _enter_button: Button
 var _copy_button: Button
-var _ready_button: Button
 var _start_button: Button
 var _advance_button: Button
 var _debrief_button: Button
@@ -63,12 +62,11 @@ func _ready() -> void:
 	_start_button = Ui.button("Lancer la partie", _start, true)
 	_advance_button = Ui.button("Simuler la semaine", _confirm_advance, true)
 	_debrief_button = Ui.button("Débrief", _debrief)
-	_ready_button = Ui.button("Prêt", func() -> void: pass)
-	_ready_button.disabled = true
-	_ready_button.tooltip_text = "Bientôt : la semaine avancera quand tous les joueurs seront prêts."
-	actions.add_child(_ready_button)
 	for button in [_enter_button, _start_button, _advance_button, _debrief_button]:
 		actions.add_child(button)
+	var round_bar := GmixRoundBar.new()
+	round_bar.failed.connect(func(message: String) -> void: _status.text = message)
+	left_box.add_child(round_bar)
 
 	var right := Ui.panel(body)
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -103,7 +101,6 @@ func _render() -> void:
 	_code.text = "Code d'accès : %s" % lobby["join_code"] if manager and lobby.get("join_code") else ""
 	_code.visible = not _code.text.is_empty() and game_status != "finished"
 	_copy_button.visible = _code.visible
-	_ready_button.visible = not manager and game_status == "running"
 	_week.text = GameText.week_bbcode(spec, state)
 	_kpis.text = GameText.kpis_bbcode(state)
 	_start_button.visible = manager and game_status == "waiting"

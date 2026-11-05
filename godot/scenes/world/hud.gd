@@ -292,6 +292,9 @@ func _render() -> void:
 	var state := Session.state()
 	_week.text = GameText.week_bbcode(spec, state)
 	_kpis.text = GameText.kpis_line(state)
+	var alert_count: int = (state.get("alerts", []) as Array).size()
+	if alert_count > 0:
+		_kpis.text += "  |  Alertes (%d)" % alert_count
 	if Session.is_manager():
 		_role.text = "Vous pilotez la partie : vous pouvez agir sur tous les modules."
 	elif Session.lobby.get("my_role") == null:
@@ -439,6 +442,10 @@ func _act(module_id: String, action_id: String, getters: Dictionary) -> void:
 	var values := {}
 	for key: String in getters:
 		values[key] = (getters[key] as Callable).call()
+	await _send_action(module_id, action_id, values)
+
+
+func _send_action(module_id: String, action_id: String, values: Dictionary) -> void:
 	var res: Dictionary = await Api.post_json(Session.url("/actions"), {"module": module_id, "action": action_id, "values": values})
 	if not res["ok"]:
 		notice(res["error"], Ui.ERROR)
@@ -549,6 +556,11 @@ func _build_tablet() -> void:
 	_tablet.opened.connect(func() -> void: modal_changed.emit(true))
 	_tablet.closed.connect(func() -> void: modal_changed.emit(false))
 	_tablet.tool_requested.connect(_on_tool)
+	_tablet.failed.connect(func(message: String) -> void: notice(message, Ui.ERROR))
+	_tablet.alert_action.connect(
+		func(action: Dictionary) -> void:
+			_send_action(str(action.get("module_id", "")), str(action.get("action_id", "")), action.get("values", {}))
+	)
 	_root.add_child(_tablet)
 
 

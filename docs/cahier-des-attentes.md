@@ -159,12 +159,12 @@ Détail : docs/architecture.md, docs/kafka.md.
 | EX-21 | Lobby par groupe de travail avec code | Création, code copiable, rejoindre par code | partiel : création et code existent, « Copier » et cartes à l'étape 7 | ADR 0010 §4 F4 ; lobby_screen.gd |
 | EX-22 | Un lobby regroupe plusieurs équipes | Équipes dans un lobby, une entreprise chacune | partiel : API `/api/v1/groups` livrée (tests d'intégration écrits, non lancés), écrans Godot à l'étape 7 | ADR 0011 §2 ; backend/gmix/api/routes/groups.py |
 | EX-23 | Une entreprise par session, un département par joueur | Un rôle par joueur, rôles pris visibles | partiel : choix de rôle présent, cartes de rôles à l'étape 7 | ADR 0010 §7.1 |
-| EX-24 | Avance quand tous sont prêts ; forcer ; pause | Routes `/ready`, `/pause`, `/advance` | partiel : API livrée, client n'appelle que `/advance` | ADR 0010 annexe §1 ; lobbies.py |
-| EX-25 | Joueur absent : vote ignorer ou attendre | Majorité stricte, égalité = attendre, 409 sans vote ouvert | partiel : API livrée, écran client à faire | ADR 0010 §7.6 |
+| EX-24 | Avance quand tous sont prêts ; forcer ; pause | Routes `/ready`, `/pause`, `/advance` | fait : barre « prêt » client (prêt, pause et reprise, forçage sans absents), `-Flow -NoLlm` A.5b, 2026-11-05 | godot/scenes/common/round_bar.gd ; ADR 0010 annexe §1 |
+| EX-25 | Joueur absent : vote ignorer ou attendre | Majorité stricte, égalité = attendre, 409 sans vote ouvert | fait (clic de vote non testé automatiquement : un seul joueur dans le flux) | godot/scenes/common/round_bar.gd ; ADR 0010 §7.6 |
 | EX-26 | Module libre agi par le formateur : pilote arrêté pour la semaine | Test moteur `held_roles` | fait côté moteur | ADR 0010 annexe §11 ; backend/gmix/game/engine.py |
-| EX-27 | Alertes et critères de réussite avec verdict partiel | `state.alerts[]`, `criteria`, verdict atteint, partiel ou non | partiel : moteur et API livrés, affichage client à faire | ADR 0010 annexe §2 et §3 |
-| EX-28 | Aléas prévus et déclenchés par le formateur | Route `/event` | fait côté API ; menu formateur à l'étape 7 | lobbies.py |
-| EX-29 | Tableau de bord du formateur | Page de pilotage de la section 3.3 | partiel : onglet Supervision de la tablette, pas de page complète | tablet.gd ; ADR 0010 §4 F5 |
+| EX-27 | Alertes et critères de réussite avec verdict partiel | `state.alerts[]`, `criteria`, verdict atteint, partiel ou non | partiel : alertes affichées dans la tablette (bouton « Faire ») et « Alertes (n) » au HUD ; affichage des critères et du verdict à faire | godot/scenes/tablet/tablet.gd ; ADR 0010 annexe §2 et §3 |
+| EX-28 | Aléas prévus et déclenchés par le formateur | Route `/event` | fait : aléa déclenché depuis la barre du formateur (`/event`), `-Flow -NoLlm` A.5b, 2026-11-05 | godot/scenes/common/round_bar.gd ; lobbies.py |
+| EX-29 | Tableau de bord du formateur | Page de pilotage de la section 3.3 | partiel : barre de pilotage et onglet Supervision, la page F5 complète n'existe pas | round_bar.gd ; tablet.gd ; ADR 0010 §4 F5 |
 | EX-30 | Pages des départements dans la tablette | Une page par département, lecture seule hors du sien | à faire (étape 7) | ADR 0010 §6 étape 7 |
 | EX-31 | Débrief joueur et formateur | `GET /lobbies/{id}/debrief`, écran J3 avec courbes et causes | partiel : route et affichage simple présents, écran J3 à l'étape 7 | ADR 0010 §4 J3 |
 | EX-32 | Comparaison entre équipes ou sessions d'un jeu | Débrief comparatif | partiel : `GET /groups/{id}/debrief` met les débriefs côte à côte, écran à l'étape 7 | ADR 0011 §2 |

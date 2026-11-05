@@ -315,7 +315,7 @@ func _hud_tour() -> void:
 	# Même tablette avec une spec « usine » factice (les 5 types de panneaux, outils), côté joueur puis formateur.
 	var saved_lobby := Session.lobby
 	for manager: bool in [false, true]:
-		Session.lobby = {"spec": _demo_factory_spec(), "state": _demo_factory_state(), "is_manager": manager}
+		Session.lobby = {"spec": _demo_factory_spec(), "state": _demo_factory_state(), "is_manager": manager, "round": _demo_round(), "members": [], "my_role": "demo"}
 		hud.toggle_tablet()
 		var demo_tabs: Array = tablet.call("_tabs").map(func(tab: Array) -> String: return tab[0])
 		for tab_id: String in demo_tabs:
@@ -349,11 +349,21 @@ func _demo_factory_spec() -> Dictionary:
 		{"id": "t_help", "label": "Aide", "audience": "joueur", "kind": "aide", "bar": true}]}
 
 
+## Appel factice : le compte courant et un autre joueur connectés (le vote du joueur s'affiche), un absent, vote ouvert.
+func _demo_round() -> Dictionary:
+	return {"week": 5, "paused": false, "advance_mode": "auto", "ready": ["u1"], "connected": ["u1", str(Api.user.get("id", "u2"))], "absent": ["u3"],
+		"ready_count": 1, "expected_count": 3, "vote": {"open": true, "ignore": 1, "wait": 0, "voters": 2, "ballots": {"u1": "ignore"}}}
+
+
 func _demo_factory_state() -> Dictionary:
 	var history: Array = []
 	for week in range(1, 6):
 		history.append({"week": week, "otif": 70 + week * 5, "trs": 60 + week * 4})
-	return {"status": "running", "week": 5, "weeks": 8, "targets": {"otif": 95, "trs": 85}, "history": history,
+	var alerts := [
+		{"id": "a1", "level": "critical", "department_id": "d", "module_id": "m", "text": "Rupture imminente sur la référence principale : le stock couvre moins d'une semaine de demande.", "ref": "stock", "action": {"module_id": "m", "action_id": "reapprovisionner", "values": {"quantity": 100}}},
+		{"id": "a2", "level": "warning", "department_id": "d", "module_id": "m", "text": "Le TRS passe sous la cible.", "ref": "trs", "action": null},
+		{"id": "a3", "level": "info", "department_id": "d", "module_id": "m", "text": "Nouvelle commande client reçue.", "ref": "cmd", "action": null}]
+	return {"status": "running", "week": 5, "weeks": 8, "alerts": alerts, "targets": {"otif": 95, "trs": 85}, "history": history,
 		"kpis": {"otif": 90, "trs": 78, "cash": 18762},
 		"factory": {"lines": [{"label": "Ligne d'assemblage principale à très longue désignation", "output": 1240, "state": "running"}, {"label": "Ligne B", "output": 310, "state": "stopped"}],
 			"flow": {"nodes": [{"id": "a", "label": "Réception", "kind": "dock", "state": null, "count": 120}, {"id": "b", "label": "Presse", "kind": "machine", "state": "running", "count": 80}],

@@ -13,11 +13,14 @@ extends Control
 signal opened
 signal closed
 signal tool_requested(tool: Dictionary)
+## Refus de l'API pour un appel de la barre « prêt » ou d'une alerte (le HUD l'annonce).
+signal failed(message: String)
+## Bouton d'une alerte : {module_id, action_id, values} prérempli par le moteur (le HUD l'envoie à /actions).
+signal alert_action(action: Dictionary)
 
 const SLIDE_S := 0.28
 const BEZEL := Color("#150e0b")  # coque de la tablette : plus sombre que l'écran
 const RAIL_WIDTH := 224
-const READY_REASON := "Bientôt : la semaine avancera quand tous les joueurs seront prêts. Pour l'instant, le formateur la fait avancer."
 const SCREEN_MARGIN := 24  # écart entre la tablette et le bord de la fenêtre
 ## Outils que la tablette ne sait pas encore exécuter : affichés mais inactifs, avec la raison.
 const UNSUPPORTED := {
@@ -38,7 +41,8 @@ var _slide: Control
 var _dim: ColorRect
 var _rail: VBoxContainer
 var _bar: RichTextLabel
-var _ready_box: HBoxContainer
+var _alerts: VBoxContainer
+var _round_bar: GmixRoundBar
 var _stage: VBoxContainer
 var _week: Label
 var _tween: Tween
@@ -89,12 +93,10 @@ func _ready() -> void:
 	header.add_child(Ui.button("Ranger la tablette (T)", close))
 	_bar = Ui.rich()  # barre toujours visible : indicateurs clés de la semaine
 	column.add_child(_bar)
-	_ready_box = Ui.hbox(column)
-	var ready := Ui.button("Prêt pour la semaine suivante", func() -> void: pass)
-	ready.disabled = true
-	ready.tooltip_text = READY_REASON
-	_ready_box.add_child(ready)
-	_ready_box.add_child(Ui.label(READY_REASON, 0, Ui.MUTED, true))
+	_alerts = Ui.vbox(column, 4)  # alertes de la semaine (state.alerts[], annexe 0010 §2)
+	_round_bar = GmixRoundBar.new()  # appel « prêt », vote, pilotage du formateur
+	_round_bar.failed.connect(func(message: String) -> void: failed.emit(message))
+	column.add_child(_round_bar)
 	var body := Ui.hbox(column, 10)
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var rail_scroll := Ui.scroll_list(body, 100)  # rail des départements (modules de la spec) puis outils
@@ -218,7 +220,7 @@ func _render() -> void:
 			_week.text = "Semaine %s sur %s" % [GameText.number(state.get("week")), GameText.number(state.get("weeks"))]
 	_bar.text = GameText.kpis_line(state)
 	_bar.visible = not _bar.text.is_empty()
-	_ready_box.visible = _audience() == "joueur"
+	_render_alerts(state)
 	Ui.clear(_rail)
 	for tab: Array in tabs:
 		var button := Ui.button(_rail_title(tab), select_tab.bind(tab[0]), tab[0] == _tab, _rail_icon(str(tab[0])))
@@ -245,6 +247,21 @@ func _render() -> void:
 				_stage.add_child(text)
 			else:
 				_cards(panels, state)
+
+
+func _render_alerts(state: Dictionary) -> void:
+	Ui.clear(_alerts)
+	var alerts: Array = state.get("alerts", [])
+	_alerts.visible = not alerts.is_empty()
+	for alert: Dictionary in alerts:
+		var color: Color = {"critical": Ui.ERROR, "warning": Ui.WARN}.get(str(alert.get("level", "info")), Ui.MUTED)
+		var row := Ui.hbox(_alerts, 10)
+		var text := Ui.label(str(alert.get("text", "")), 0, color, true)
+		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(text)
+		var action: Variant = alert.get("action")
+		if action is Dictionary:
+			row.add_child(Ui.button("Faire", func() -> void: alert_action.emit(action)))
 
 
 func _cards(panels: Array, state: Dictionary) -> void:

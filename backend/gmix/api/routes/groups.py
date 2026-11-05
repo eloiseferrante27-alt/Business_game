@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from gmix.api.auth import CurrentUser, Session, Staff
 from gmix.api.routes.lobbies import _members, _view, audit_created, join, new_code, new_lobby, ready_game
@@ -33,7 +33,10 @@ def _manages(user: User, group: LobbyGroup) -> bool:
 
 
 async def _teams(session: Session, group: LobbyGroup) -> list[Lobby]:
-    return list(await session.scalars(select(Lobby).where(Lobby.group_id == group.id).order_by(Lobby.created_at)))
+    """Équipes dans l'ordre de leur numéro : « Équipe 1…N » est créé dans une transaction (created_at identique),
+    donc on départage par la longueur du nom puis le nom (« Équipe 2 » avant « Équipe 10 »)."""
+    query = select(Lobby).where(Lobby.group_id == group.id)
+    return list(await session.scalars(query.order_by(Lobby.created_at, func.length(Lobby.name), Lobby.name)))
 
 
 async def _view_group(session: Session, group: LobbyGroup, user: User) -> dict[str, Any]:

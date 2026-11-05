@@ -82,6 +82,8 @@ func _route(type: String, payload: Dictionary) -> void:
 			EventBus.lobby_state_changed.emit(payload)
 		"lobby.members":
 			EventBus.lobby_members_changed.emit(payload.get("members", []))
+		"lobby.round":
+			EventBus.lobby_round_changed.emit(payload.get("round", {}))
 
 
 func _retry() -> void:

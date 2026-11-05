@@ -246,6 +246,9 @@ func _trainer_journey() -> void:
 	if not await _lobby_waiting_then_start(lobby, game):
 		return
 
+	_begin("A.5b", "Barre d'appel de la salle : pause, reprise, aléa déclenché")
+	await _check_round_bar(lobby)
+
 	_begin("A.6", "Monde 3D : construction depuis la spec")
 	var world := await _enter_world(lobby)
 	if world == null:
@@ -606,6 +609,36 @@ func _lobby_waiting_then_start(lobby: Control, game: Dictionary) -> bool:
 	var server := await _raw(_trainer, HTTPClient.METHOD_GET, "/api/v1/lobbies/%s" % view["id"])
 	_check(server["data"]["state"]["status"] == "running" and server["data"]["status"] == "running", "API : lobby en cours")
 	return true
+
+
+func _check_round_bar(lobby: Control) -> void:
+	var bar: Node = null
+	for node in lobby.find_children("*", "VBoxContainer", true, false):
+		if node is GmixRoundBar:
+			bar = node
+	if not _check(bar != null and (bar as Control).visible, "barre d'appel visible pour le formateur"):
+		return
+	var host := bar.get_parent()
+	_check(not Session.round_view().get("paused", true), "partie non en pause au départ")
+	if not _click(_button(bar, "Mettre en pause"), "bouton « Mettre en pause »"):
+		return
+	_check(await _until(func() -> bool: return Session.round_view().get("paused", false)) != null, "la pause est enregistrée (round.paused)")
+	if not _click(_button(bar, "Reprendre la partie"), "bouton « Reprendre la partie »"):
+		return
+	_check(await _until(func() -> bool: return not Session.round_view().get("paused", true)) != null, "la reprise est enregistrée")
+	var events: Array = Session.spec().get("events", [])
+	if events.is_empty():
+		print("  aucun aléa dans la spec : déclenchement non testé")
+		return
+	var chosen: Dictionary = events[0]
+	if not _click(_button(bar, "Déclencher l'aléa"), "bouton « Déclencher l'aléa »"):
+		return
+	var dialog: Variant = await _until(func() -> Variant: return _dialog(host))
+	if not _check(dialog != null, "aléa : confirmation demandée"):
+		return
+	(dialog as ConfirmationDialog).get_ok_button().pressed.emit()
+	var seen: Variant = await _until(func() -> bool: return (Session.state().get("event") as Dictionary).get("id") == chosen["id"] if Session.state().get("event") is Dictionary else false)
+	_check(seen != null, "l'aléa choisi est dans state.event", str(Session.state().get("event")))
 
 
 # --- monde 3D --------------------------------------------------------------------------------------------------
