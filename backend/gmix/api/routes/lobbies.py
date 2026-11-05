@@ -23,6 +23,7 @@ from gmix.db.models import (
     BusinessGame,
     GameStatus,
     Lobby,
+    LobbyGroup,
     LobbyMember,
     LobbyStatus,
     LobbyTimeline,
@@ -244,11 +245,11 @@ async def audit_created(request: Request, actor: User, lobby: Lobby, game: Busin
 
 
 async def other_team(session: Session, lobby: Lobby, user: User) -> uuid.UUID | None:
-    """Équipe du même groupe que tient déjà `user` (un joueur, une équipe par groupe, ADR 0011).
-    shortcut: deux entrées simultanées du même compte dans deux équipes passent (verrous de lignes différentes) ;
-    verrouiller la ligne lobby_groups si cela arrive en séance."""
+    """Équipe du même groupe que tient déjà `user` (un joueur, une équipe par groupe, ADR 0011). Verrouille la ligne
+    du groupe : deux entrées simultanées dans deux équipes passent l'une après l'autre (ordre : lobby, puis groupe)."""
     if lobby.group_id is None:
         return None
+    await session.scalar(select(LobbyGroup.id).where(LobbyGroup.id == lobby.group_id).with_for_update())
     return await session.scalar(
         select(Lobby.id)
         .join(LobbyMember, LobbyMember.lobby_id == Lobby.id)
