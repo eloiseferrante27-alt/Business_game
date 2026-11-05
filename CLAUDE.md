@@ -91,6 +91,9 @@ Règles d'organisation :
 - Avant de rendre la main : `.\scripts\test.ps1` (ou `-Fast` si Godot n'est pas touché).
 
 ## Documentation
+Dépôt : `eloiseferrante27-alt/Business_game`, branche `contribution_Romain` (G-mix importé sur contribution_amine,
+ADR 0011 §1). docs/business_game/ : cahier des charges, Monde v3, rapport d'écart et données (`default.json`) de
+contribution_amine, référence de l'ADR 0010.
 docs/prompt-projet.md : vision, attendus majeurs et prompt de session, à lire en premier
 docs/cahier-des-attentes.md : référence des attentes (EX-01…), états vérifiables, points à trancher
 docs/architecture.md · docs/ai-runtime.md · docs/kafka.md · docs/roles.md · docs/game-design.md ·

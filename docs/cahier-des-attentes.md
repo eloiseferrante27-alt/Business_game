@@ -1,7 +1,7 @@
 # Cahier des attentes de G-mix
 
 Référence unique de ce qui est attendu du produit. Rédigé le 2026-11-05 à partir de docs/prompt-projet.md, des ADR
-0004 à 0010 et de docs/blocages.md. Il ne remplace pas les ADR : il les rassemble et donne à chaque attente un
+0004 à 0011 et de docs/blocages.md. Il ne remplace pas les ADR : il les rassemble et donne à chaque attente un
 identifiant et un état. Pour piloter : lire la section 9 (tableau) et la section 10 (points à trancher).
 
 États : **fait** (le code ou une doc à jour le prouve), **partiel** (une partie existe, la note dit laquelle),
@@ -94,13 +94,13 @@ débrief. Les pages des autres départements sont en lecture seule.
 | Placement | Placeur déterministe (`backend/gmix/game/layout.py`) sur grilles carte, site, bloc ; règles d'implantation avec provenance |
 | Chiffres | Ceux du pack, chacun avec `source`, `calibre` ou `exemple` ; les non sourcés sont listés |
 | Justesse | Validation `SimSpec` -> `check_design` -> essai en pilote automatique ; 2 réparations au plus, puis repli déterministe |
-| Parties de code simples | Voir le point à trancher P1 : la forme retenue décide de ce qu'on peut promettre |
+| Parties de code simples | Connexions déclaratives choisies dans les énumérations du pack (P1 A, ADR 0011 §3) |
 
 ## 6. Une partie
 
 | Notion | Fonctionnement |
 |---|---|
-| Entreprise | Une par lobby, un département par joueur ; plusieurs équipes : point P2 |
+| Entreprise | Une par équipe, un département par joueur ; un groupe réunit N équipes (ADR 0011) |
 | Semaine | Lecture des alertes, décisions, puis avance : maintenance, quai, réception, production, qualité, livraisons |
 | Avance | Automatique quand tous les joueurs « prêts » ; le formateur force ou met en pause |
 | Absent | Les connectés votent « ignorer » (département en pilote automatique pour la semaine) ou « attendre » ; majorité stricte, égalité = attendre |
@@ -148,7 +148,7 @@ Détail : docs/architecture.md, docs/kafka.md.
 | EX-10 | Brief libre de 20 à 2000 caractères | Brief trop court refusé avec message lisible | fait | backend/gmix/api/routes/games.py ; godot/scenes/main/home_screen.gd |
 | EX-11 | Paramètres et brief ensemble | Un même formulaire envoie paramètres et brief | partiel : brief et formulaire séparés dans home_screen.gd | ADR 0010 §4 F1 |
 | EX-12 | Documents du formateur alimentent la génération (RAG) | Un document déposé est ingéré et cité dans le jeu conçu | à faire : aucune route de dépôt par jeu | knowledge/ ; point P4 |
-| EX-13 | Parties de code simples pour les connexions | Connexions produites, validées, jamais exécutées telles quelles | à trancher | point P1 |
+| EX-13 | Parties de code simples pour les connexions | Connexions produites, validées, jamais exécutées telles quelles | à faire : forme déclarative retenue (P1 A) | ADR 0011 §3 |
 | EX-14 | Mode de saisie des décisions choisi par le formateur | Un paramètre par jeu ou module ; client le respecte | à faire : seuls `choice` et `int` existent | spec.py `ActionField` ; section 3.1 |
 | EX-15 | Monde posé sur grilles, déterministe | Même spec, même monde ; `check_placement` sans erreur | partiel : moteur et tests présents, `test.ps1 -Fast` non relancé le 2026-11-05 | ADR 0009 ; backend/gmix/game/layout.py |
 | EX-16 | Placement fondé sur le métier, règles sourcées | Chaque règle a une provenance ; violation refusée | partiel : règles `calibre` sans source, règles `protected_path` de la voie PL manquantes | ADR 0010 annexe §12 ; docs/blocages.md |
@@ -157,7 +157,7 @@ Détail : docs/architecture.md, docs/kafka.md.
 | EX-19 | L'IA aide et fait les connexions dans le mode créateur | Une modification déclenche une proposition validée | à trancher | point P3 |
 | EX-20 | Publication, pas de lobby sur un brouillon | `POST /games/{id}/publish` ; lobby refusé sur brouillon | fait côté API ; bouton « Publier » présent | backend/gmix/api/routes/games.py ; home_screen.gd |
 | EX-21 | Lobby par groupe de travail avec code | Création, code copiable, rejoindre par code | partiel : création et code existent, « Copier » et cartes à l'étape 7 | ADR 0010 §4 F4 ; lobby_screen.gd |
-| EX-22 | Un lobby regroupe plusieurs équipes | Équipes dans un lobby, une entreprise chacune | à trancher | point P2 |
+| EX-22 | Un lobby regroupe plusieurs équipes | Équipes dans un lobby, une entreprise chacune | partiel : API `/api/v1/groups` livrée (tests d'intégration écrits, non lancés), écrans Godot à l'étape 7 | ADR 0011 §2 ; backend/gmix/api/routes/groups.py |
 | EX-23 | Une entreprise par session, un département par joueur | Un rôle par joueur, rôles pris visibles | partiel : choix de rôle présent, cartes de rôles à l'étape 7 | ADR 0010 §7.1 |
 | EX-24 | Avance quand tous sont prêts ; forcer ; pause | Routes `/ready`, `/pause`, `/advance` | partiel : API livrée, client n'appelle que `/advance` | ADR 0010 annexe §1 ; lobbies.py |
 | EX-25 | Joueur absent : vote ignorer ou attendre | Majorité stricte, égalité = attendre, 409 sans vote ouvert | partiel : API livrée, écran client à faire | ADR 0010 §7.6 |
@@ -167,7 +167,7 @@ Détail : docs/architecture.md, docs/kafka.md.
 | EX-29 | Tableau de bord du formateur | Page de pilotage de la section 3.3 | partiel : onglet Supervision de la tablette, pas de page complète | tablet.gd ; ADR 0010 §4 F5 |
 | EX-30 | Pages des départements dans la tablette | Une page par département, lecture seule hors du sien | à faire (étape 7) | ADR 0010 §6 étape 7 |
 | EX-31 | Débrief joueur et formateur | `GET /lobbies/{id}/debrief`, écran J3 avec courbes et causes | partiel : route et affichage simple présents, écran J3 à l'étape 7 | ADR 0010 §4 J3 |
-| EX-32 | Comparaison entre équipes ou sessions d'un jeu | Débrief comparatif | à trancher | point P2 |
+| EX-32 | Comparaison entre équipes ou sessions d'un jeu | Débrief comparatif | partiel : `GET /groups/{id}/debrief` met les débriefs côte à côte, écran à l'étape 7 | ADR 0011 §2 |
 | EX-33 | PNJ qui disent les faits calculés et se souviennent | Dialogue sur `briefings`, 6 derniers échanges | fait (garde-fou des nombres de `npc.py` en attente de décision) | ADR 0006 ; docs/blocages.md |
 | EX-34 | Interfaces ergonomiques, chaleureuses, au vouvoiement | `-Tour` vert aux 4 tailles, police 15 px au moins | partiel : textes de l'étape 1 livrés, passe finale à l'étape 7 | `.\scripts\godot.ps1 -Tour` ; ADR 0010 §6 |
 | EX-35 | Tenable sur le poste (RTX 3060 6 Go) | Conception 3 min en médiane, 10 au plus | partiel : budget décidé, mesure sur l'usine à faire | ADR 0008 d.4 ; `.\scripts\check-env.ps1` |
@@ -175,11 +175,11 @@ Détail : docs/architecture.md, docs/kafka.md.
 | EX-37 | Licence du jeu de référence | Reprise sans crédit décidée (autrice dans l'équipe) | partiel : décision prise ; blocages.md et prompt-projet.md à aligner (étape 9) | ADR 0010 §7.5 |
 | EX-38 | Docs et QA du chantier 0010 | Étapes 8 (docs) et 9 (QA) faites | à faire | ADR 0010 §6 |
 
-Décompte au 2026-11-05 : 38 attentes ; fait 9, partiel 20, à faire 4, à trancher 5.
+Décompte au 2026-11-05 (après ADR 0011) : 38 attentes ; fait 9, partiel 22, à faire 5, à trancher 2.
 
 ## 10. Points à trancher
 
-### P1. Code généré par l'IA (attente 1)
+### P1. Code généré par l'IA (attente 1) — tranché le 05/11 : A, B plus tard (ADR 0011 §3)
 
 | | |
 |---|---|
@@ -189,7 +189,7 @@ Décompte au 2026-11-05 : 38 attentes ; fait 9, partiel 20, à faire 4, à tranc
 | Option C | Code exécuté tel quel : refusée (sécurité, justesse invérifiable) |
 | Recommandation | A d'abord (compatible avec l'ADR 0008), B pour les besoins que A ne couvre pas, après un ADR. Appeler « parties de code simples » ces connexions et expressions, jamais du code libre |
 
-### P2. Un lobby, plusieurs équipes (attente 6)
+### P2. Un lobby, plusieurs équipes (attente 6) — tranché le 05/11 : B (ADR 0011 §2)
 
 | | |
 |---|---|

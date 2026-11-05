@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from gmix import __version__
 from gmix.api import ws
 from gmix.api.deps import ensure_producer
-from gmix.api.routes import accounts, catalog, games, lobbies, system
+from gmix.api.routes import accounts, catalog, games, groups, lobbies, system
 from gmix.db import get_engine
 from gmix.game.servers import GameServers
 from gmix.llm.service import LLMService
@@ -57,5 +57,6 @@ app.include_router(system.router)
 app.include_router(accounts.router)
 app.include_router(games.router)
 app.include_router(lobbies.router)
+app.include_router(groups.router)
 app.include_router(catalog.router)
 app.include_router(ws.router)

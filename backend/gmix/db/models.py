@@ -134,6 +134,18 @@ class BusinessGame(Timestamped, Base):
     created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 
 
+class LobbyGroup(Timestamped, Base):
+    """Groupe de travail : rassemble les équipes (une équipe = un lobby = une entreprise), ADR 0011 §2."""
+
+    __tablename__ = "lobby_groups"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    name: Mapped[str] = mapped_column(String(120))
+    join_code: Mapped[str] = mapped_column(String(8), unique=True)
+    trainer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    business_game_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("business_games.id", ondelete="SET NULL"))
+
+
 class Lobby(Timestamped, Base):
     __tablename__ = "lobbies"
 
@@ -142,6 +154,9 @@ class Lobby(Timestamped, Base):
     join_code: Mapped[str] = mapped_column(String(8), unique=True)
     trainer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
     business_game_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("business_games.id", ondelete="SET NULL"))
+    group_id: Mapped[uuid.UUID | None] = mapped_column(  # équipe d'un groupe (ADR 0011) ; NULL = lobby seul
+        ForeignKey("lobby_groups.id", ondelete="CASCADE"), index=True
+    )
     status: Mapped[LobbyStatus] = mapped_column(
         _pg_enum(LobbyStatus, "lobby_status"), server_default=LobbyStatus.DRAFT.value
     )

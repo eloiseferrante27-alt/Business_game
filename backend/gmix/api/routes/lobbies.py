@@ -19,7 +19,17 @@ from gmix.api.auth import CurrentUser, Session, Staff, create_presence_ticket
 from gmix.api.deps import publish
 from gmix.api.routes.games import owned_game
 from gmix.api.ws import WebSocketHub
-from gmix.db.models import GameStatus, Lobby, LobbyMember, LobbyStatus, LobbyTimeline, NpcMemory, User, UserRole
+from gmix.db.models import (
+    BusinessGame,
+    GameStatus,
+    Lobby,
+    LobbyMember,
+    LobbyStatus,
+    LobbyTimeline,
+    NpcMemory,
+    User,
+    UserRole,
+)
 from gmix.game import engine
 from gmix.game.engine import GameRuleError
 from gmix.game.npc import MEMORY_TURNS, agent_reply
@@ -158,6 +168,7 @@ async def _view(
         "status": lobby.status,
         "join_code": lobby.join_code if manager else None,
         "is_manager": manager,
+        "group_id": str(lobby.group_id) if lobby.group_id else None,
         "my_role": member.game_role if member else None,
         "members": members,
         "round": _round(lobby, members, request.app.state.hub),
@@ -189,31 +200,86 @@ async def _broadcast_state(request: Request, lobby: Lobby, user: User, action: d
     return state
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
-async def create_lobby(body: LobbyCreate, actor: Staff, session: Session, request: Request) -> dict[str, Any]:
-    game = await owned_game(session, body.business_game_id, actor)
+async def ready_game(session: Session, game_id: uuid.UUID, actor: User) -> BusinessGame:
+    game = await owned_game(session, game_id, actor)
     if game.status != GameStatus.READY or game.spec is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "Ce business game n'est pas prêt")
+    return game
+
+
+async def new_code(session: Session, column: Any) -> str:
+    """Code d'accès libre dans `column` (Lobby.join_code ou LobbyGroup.join_code)."""
     for _ in range(5):
         code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(6))
-        if not await session.scalar(select(Lobby.id).where(Lobby.join_code == code)):
+        if not await session.scalar(select(column).where(column == code)):
             break
+    return code
+
+
+async def new_lobby(
+    session: Session, game: BusinessGame, actor: User, name: str, advance_mode: str, group_id: uuid.UUID | None = None
+) -> Lobby:
+    """Lobby prêt sur la spec figée du jeu, ajouté à la session (le commit revient à l'appelant)."""
     lobby = Lobby(
-        name=body.name,
-        join_code=code,
+        name=name,
+        join_code=await new_code(session, Lobby.join_code),
         trainer_id=actor.id,
         business_game_id=game.id,
+        group_id=group_id,
         status=LobbyStatus.READY,
         spec=game.spec,
         state=engine.initial_state(game.spec),
-        settings={"advance_mode": body.advance_mode},
+        settings={"advance_mode": advance_mode},
     )
     session.add(lobby)
-    await session.commit()
+    await session.flush()  # le code suivant voit celui-ci
+    return lobby
+
+
+async def audit_created(request: Request, actor: User, lobby: Lobby, game: BusinessGame) -> None:
     audit = {"lobby_id": str(lobby.id), "game_id": str(game.id), "spec_version": game.spec_version}
     await publish(
         request, AUDIT, Envelope(type="lobby.created", source="api", actor=Actor(user_id=actor.id), payload=audit)
     )
+
+
+async def other_team(session: Session, lobby: Lobby, user: User) -> uuid.UUID | None:
+    """Équipe du même groupe que tient déjà `user` (un joueur, une équipe par groupe, ADR 0011).
+    shortcut: deux entrées simultanées du même compte dans deux équipes passent (verrous de lignes différentes) ;
+    verrouiller la ligne lobby_groups si cela arrive en séance."""
+    if lobby.group_id is None:
+        return None
+    return await session.scalar(
+        select(Lobby.id)
+        .join(LobbyMember, LobbyMember.lobby_id == Lobby.id)
+        .where(Lobby.group_id == lobby.group_id, Lobby.id != lobby.id, LobbyMember.user_id == user.id)
+    )
+
+
+async def join(session: Session, lobby: Lobby, user: User, request: Request) -> LobbyMember:
+    """Entrée d'un compte dans un lobby verrouillé (idempotente) ; 404 si fermé, 409 si complet ou autre équipe."""
+    if lobby.status not in (LobbyStatus.READY, LobbyStatus.RUNNING):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Code inconnu ou partie terminée")
+    member = await session.get(LobbyMember, (lobby.id, user.id))
+    if member is None:
+        if await other_team(session, lobby, user):
+            raise HTTPException(status.HTTP_409_CONFLICT, "Vous êtes déjà dans une autre équipe de ce groupe")
+        count = await session.scalar(select(func.count()).where(LobbyMember.lobby_id == lobby.id))
+        if count >= lobby.spec["meta"]["players"]["max"]:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Lobby complet")
+        member = LobbyMember(lobby_id=lobby.id, user_id=user.id)
+        session.add(member)
+        await session.commit()
+        await _broadcast(request, lobby, user, "lobby.members", {"members": await _members(session, lobby.id)})
+    return member
+
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+async def create_lobby(body: LobbyCreate, actor: Staff, session: Session, request: Request) -> dict[str, Any]:
+    game = await ready_game(session, body.business_game_id, actor)
+    lobby = await new_lobby(session, game, actor, body.name, body.advance_mode)
+    await session.commit()
+    await audit_created(request, actor, lobby, game)
     return await _view(session, lobby, actor, None, request)
 
 
@@ -244,17 +310,9 @@ async def list_lobbies(user: CurrentUser, session: Session) -> list[dict[str, An
 async def join_lobby(body: JoinRequest, user: CurrentUser, session: Session, request: Request) -> dict[str, Any]:
     code = body.code.strip().upper()
     lobby = await session.scalar(select(Lobby).where(Lobby.join_code == code).with_for_update())
-    if lobby is None or lobby.status not in (LobbyStatus.READY, LobbyStatus.RUNNING):
+    if lobby is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Code inconnu ou partie terminée")
-    member = await session.get(LobbyMember, (lobby.id, user.id))
-    if member is None:
-        count = await session.scalar(select(func.count()).where(LobbyMember.lobby_id == lobby.id))
-        if count >= lobby.spec["meta"]["players"]["max"]:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Lobby complet")
-        member = LobbyMember(lobby_id=lobby.id, user_id=user.id)
-        session.add(member)
-        await session.commit()
-        await _broadcast(request, lobby, user, "lobby.members", {"members": await _members(session, lobby.id)})
+    member = await join(session, lobby, user, request)
     return await _view(session, lobby, user, member, request)
 
 
