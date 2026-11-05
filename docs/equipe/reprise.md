@@ -1,7 +1,8 @@
 # Reprise de session (après /clear) - 05/11/2026
 
-Ouvrir VS Code sur **ce dossier** (`Business_game-contribution_Romain`), pas sur son parent : sinon `.claude/` (agents,
-réglages, orchestrateur) et CLAUDE.md ne sont pas chargés.
+VS Code s'ouvre sur le dossier parent `G_mix-Generateur-Business_Games` (choix de l'utilisateur). Il porte un CLAUDE.md
+qui importe celui-ci, une jonction `.claude/agents` vers les agents du dépôt et une copie de `.claude/settings.json`
+aux chemins préfixés (hors git) : commandes à lancer en `.\Business_game-contribution_Romain\scripts\...`.
 
 ## État
 

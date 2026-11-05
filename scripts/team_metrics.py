@@ -163,13 +163,19 @@ def read_meta(transcript):
 
 
 def find_project_dir(root):
-    """Dossier des transcripts du projet : le chemin du dépôt dont tout caractère non alphanumérique devient « - »."""
+    """Dossier des transcripts du projet : le chemin du dépôt dont tout caractère non alphanumérique devient « - ».
+    Repli sur le dossier parent : l'utilisateur ouvre VS Code sur l'espace de travail qui contient le dépôt."""
     base = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude") / "projects"
-    slug = re.sub(r"[^A-Za-z0-9]", "-", str(root))
-    if (base / slug).is_dir():
-        return base / slug
-    if base.is_dir():  # la casse de la lettre de lecteur varie (c: / C:)
-        return next((d for d in base.iterdir() if d.is_dir() and d.name.lower() == slug.lower()), None)
+    if not base.is_dir():
+        return None
+    for folder in (Path(root), Path(root).parent):
+        slug = re.sub(r"[^A-Za-z0-9]", "-", str(folder))
+        if (base / slug).is_dir():
+            return base / slug
+        # la casse de la lettre de lecteur varie (c: / C:)
+        found = next((d for d in base.iterdir() if d.is_dir() and d.name.lower() == slug.lower()), None)
+        if found:
+            return found
     return None
 
 
