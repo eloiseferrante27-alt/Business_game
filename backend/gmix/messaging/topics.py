@@ -39,7 +39,8 @@ GENERATION_EVENTS = Topic(
     "gmix.generation.events",
     1,
     7 * DAY_MS,
-    "Progression et résultat des conceptions (worker -> API -> WebSocket du demandeur)",
+    "Progression et résultat des conceptions (émis par le worker, non relayé au WebSocket ; "
+    "suivi client par GET /games/{id}/job)",
 )
 AUDIT = Topic("gmix.audit", 1, 90 * DAY_MS, "Journal d'audit des actions formateur / admin")
 DLQ = Topic("gmix.dlq", 1, 30 * DAY_MS, "Messages en échec (dead letter queue) avec l'erreur")

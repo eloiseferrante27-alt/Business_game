@@ -12,6 +12,7 @@ var lobby: Dictionary = {}
 
 
 func _ready() -> void:
+	UiTokens.use(_palette_choice())
 	get_tree().root.theme = Ui.make_theme()
 	EventBus.lobby_state_changed.connect(_on_state)
 	EventBus.lobby_members_changed.connect(_on_members)
@@ -21,6 +22,15 @@ func _ready() -> void:
 	poll.timeout.connect(_poll_round)
 	add_child(poll)
 	poll.start()
+
+
+## Palette demandée : `--palette=<id>` (arguments utilisateur) ou variable GMIX_PALETTE ; sinon la palette par défaut.
+func _palette_choice() -> String:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--palette="):
+			return arg.trim_prefix("--palette=")
+	var chosen := OS.get_environment("GMIX_PALETTE")
+	return chosen if not chosen.is_empty() else UiTokens.DEFAULT_PALETTE
 
 
 func open(view: Dictionary) -> void:

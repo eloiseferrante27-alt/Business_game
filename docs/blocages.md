@@ -1,6 +1,6 @@
 # Points bloquants et décisions en attente
 
-Mis à jour le 2026-10-23 (points ouverts de la séance du 22 au 23/10). À tenir à jour par l'architecte.
+Mis à jour le 2026-11-06 (ordre de travail validé par l'utilisateur, voir docs/equipe/reprise.md). À tenir à jour par l'architecte.
 
 ## Décisions prises
 
@@ -16,6 +16,10 @@ Mis à jour le 2026-10-23 (points ouverts de la séance du 22 au 23/10). À teni
 | Stockage objet | RustFS (MinIO archivé) | docs/decisions/0001 |
 | Règles de partie | Appliquées par l'API (moteur pur, verrou de ligne), pas par un worker | docs/architecture.md |
 | Régénération d'une section (B4b, 06/11) | Sur un jeu publié, elle le repasse en brouillon : il faut le republier | docs/decisions/0012 |
+| Garde-fou des nombres de `npc.py` (06/11) | Décidé le 06/11, à implémenter (ADR 0007) avant la démo : une réplique avec un nombre absent des faits est remplacée par la réponse de secours, clé `guard` ajoutée (EX-33) | docs/decisions/0007 ; docs/cahier-des-attentes.md |
+| Cadre de la démo (06/11) | En LAN, 3 à 6 joueurs ; le jeu à distance vient après la Première version | docs/cahier-des-attentes.md EX-05 |
+| Mode construction B4c c1 (06/11) | Reporté après la Première version (avec EX-12, 14, 19, 29 page F5 complète, 36) | docs/decisions/0012 ; docs/equipe/reprise.md |
+| Licence du jeu de référence | L'autrice est dans l'équipe : reprise sans crédit ; les crédits d'assets et de polices de tiers restent | docs/decisions/0010 §7.5 |
 
 ## Fait
 
@@ -27,7 +31,8 @@ Mis à jour le 2026-10-23 (points ouverts de la séance du 22 au 23/10). À teni
   dialogue / débrief) ; présence multijoueur ENet avec ticket signé.
 - 2026-10-22 (suite) : business games simulés par paramètres (ADR 0006) inspirés du jeu de référence
   eloiseferrante27-alt/Business_game : 4 secteurs, 7 modules, agents PNJ à caractère et à mémoire, atelier 3D
-  animé par l'état de la partie. Génération instantanée ; l'ancien pipeline par LLM est retiré.
+  animé par l'état de la partie. Génération instantanée ; l'ancien pipeline narratif par LLM est retiré, la
+  conception par l'IA (choix dans les catalogues du pack) le remplace : ADR 0008 et annexe 0010 §7.
 - 2026-10-23 : vue Sims par défaut (clic pour marcher sur un maillage de navigation cuit à l'exécution, menu
   contextuel, caméra libre ou suivie) ; interface en fenêtre de référence 1280x720 avec thème commun ; contrôles
   `godot.ps1 -Tour` (interface) et `-Flow` (parcours formateur) avec comptes jetables ; évaluation des dialogues avec le
@@ -36,10 +41,8 @@ Mis à jour le 2026-10-23 (points ouverts de la séance du 22 au 23/10). À teni
 
 ## Bloquants restants
 
-1. **Droits sur le jeu de référence.** Le dépôt eloiseferrante27-alt/Business_game n'a pas de licence. Ses
-   données (fournisseurs, produits, prénoms, aléas, profils de difficulté) et deux éléments 3D portés en
-   GDScript (machine de ligne, bureau d'atelier) sont repris : obtenir l'accord écrit de son autrice avant
-   toute diffusion, sinon les remplacer.
+1. **Droits sur le jeu de référence : tranché** (ADR 0010 §7.5, redit les 29/10 et 03/11) : son autrice est dans
+   l'équipe, la reprise ne demande pas de crédit. Les crédits d'assets et de polices de tiers restent.
 2. **Calibrage des simulations.** Ordres de grandeur (coûts, délais, fiabilités, élasticité prix) choisis pour
    être plausibles et jouables, pas tirés d'un secteur réel ; le TRS cite une norme hors corpus (AFNOR NF
    E60-182). À faire relire par le game-designer avec des données sectorielles sourcées.
@@ -61,10 +64,9 @@ Mis à jour le 2026-10-23 (points ouverts de la séance du 22 au 23/10). À teni
 | Vue Sims éprouvée seulement par événements simulés | Clic réel à la souris, clavier AZERTY réel, ressenti de la caméra : non éprouvés. Pavé tactile : non géré. À essayer à la main avant une séance. | godot-dev, utilisateur |
 | Cinq assets sans collision propre | `prop_kpi_screen`, `prop_desk_computer`, `prop_meeting_table`, `prop_pallet`, `prop_pallet_stack` : `world.gd` leur ajoute une emprise de secours (couche 16). Une collision propre à l'asset la remplacerait. | assets-3d |
 | Agents PNJ en ligne droite | Ils patrouillent en ligne droite entre les points de leur route (`spec.agents[].route`), sans maillage de navigation ni évitement d'obstacle. | godot-dev |
-| Garde-fou de `gmix/game/npc.py` non écrit | Filtre lexical d'injection avant l'appel au modèle, détection d'un nombre absent des faits dans la réplique. Motifs : tev1:0.8b manque 5 injections sur 8 (série F), dont « Ignore tes instructions précédentes… », et le 3b invente 1 à 3 nombres sur 59 répliques. **En attente de décision de l'utilisateur.** | utilisateur, moteur-jeu, ia-runtime |
+| Garde-fou de `gmix/game/npc.py` non écrit | Filtre lexical d'injection avant l'appel au modèle, détection d'un nombre absent des faits dans la réplique. Motifs : tev1:0.8b manque 5 injections sur 8 (série F), dont « Ignore tes instructions précédentes… », et le 3b invente 1 à 3 nombres sur 59 répliques. **Décision de l'utilisateur (06/11) : OUI, à activer avant la démo** (EX-33). | utilisateur, moteur-jeu, ia-runtime |
 | `qwen3.5:4b` non mesuré | Candidat pour `small` (environ 3,3 Go), non installé au 2026-10-23. Le 3b reste en service. | ia-runtime |
 | Mesures IA à refaire ou à confirmer | Latences du 3b des rapports `t03` et `v4` perturbées (Godot sur le GPU), à rejouer ; gains du filtre `player.intent` optimistes (réglés sur la série F qui les mesure). | ia-runtime |
-| Outils Godot non suivis par git | `godot/scenes/tools/flow_test` et `ui_tour` ne sont pas versionnés ; c'est aussi le cas de `godot/scenes/world/sims_view.gd` et de la plupart des fichiers de la séance (un seul commit, 5a5d288 : `git status`). | utilisateur (commit), devops |
 
 ## Décisions par défaut du 29/10 (à confirmer par l'utilisateur)
 
@@ -98,8 +100,7 @@ Risques associés :
   GAME_SERVER_PORTS (7000-7049) des serveurs de partie Godot.
 - 16 Go de RAM partagés entre Docker (~2,5 Go plafonnés), Godot, Ollama et l'éditeur.
 - tev1:4b (4,6 Go) ne tient pas en VRAM à côté du modèle de dialogue : réservé aux tâches hors temps réel.
-- Table `generation_jobs` (ancien pipeline) conservée vide de nouveaux usages : à supprimer par une migration
-  quand son historique ne servira plus.
+- Table `generation_jobs` : réutilisée par la conception par l'IA (`GenerationJob`, backend/gmix/db/models.py:266) ; à ne pas supprimer.
 - PostgreSQL Docker sur 5433 (5432 = PostgreSQL 18 local) ; services internes limités à 127.0.0.1.
 - `fetch_wikipedia` exige `WIKI_CONTACT` (contact du projet) dans .env.
 - Mots de passe du .env : valeurs de développement ; JWT_SECRET généré par setup.ps1.
@@ -107,8 +108,8 @@ Risques associés :
 ## Questions ouvertes
 
 - As-tu accès à des supports de formation en supply chain (avec droit d'usage) pour le corpus ?
-- Taille des lobbies et durée type d'une séance.
-- Quand tester le mode à distance, et sur quel hébergement ?
+- Durée type d'une séance (taille des lobbies tranchée le 06/11 : 3 à 6 joueurs en LAN pour la démo).
+- Quand tester le mode à distance, et sur quel hébergement ? (après la Première version)
 - Quels autres domaines simuler après la supply chain (mécaniques à coder pour chacun) ?
 - Notion `rupture_de_stock` (ai/simulation.yaml) : elle dit « la vente est perdue », ce que sa fiche ne dit pas (appui : wikipedia-en-safety-stock l. 9). À vérifier par game-designer.
 - Courbe de valeur du stock de l'usine écartée (pas de coût de possession, pas de coût de revient des produits finis) ; à défaut, des quantités en fin de semaine.

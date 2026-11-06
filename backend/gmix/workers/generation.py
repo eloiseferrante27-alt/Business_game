@@ -10,13 +10,14 @@ import logging
 import uuid
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 
 from gmix.db import get_sessionmaker
 from gmix.db.models import BusinessGame, GameStatus, GenerationJob, JobStatus
 from gmix.game.generation import autopilot_check, generate, unsourced
-from gmix.game.spec import GameParams
-from gmix.llm.factory_design import FactoryDesign, design_factory
+from gmix.game.layout import recompile_layout
+from gmix.game.spec import FACTORY_SECTIONS, GameParams, load_pack
+from gmix.llm.factory_design import FactoryDesign, design_factory, design_schema
 from gmix.llm.service import LLMService
 from gmix.messaging.envelope import Envelope
 from gmix.messaging.kafka import EventProducer, consume
@@ -53,6 +54,21 @@ def _usage(d: FactoryDesign) -> dict[str, Any]:
     }}  # fmt: skip
 
 
+def _keep(game: BusinessGame, section: str | None) -> tuple[dict[str, Any], str]:
+    """Clés imposées au modèle et pack. `design` : `fixed` + joueurs ; `regenerate_<s>` : les params hors section,
+    plus les clés de la section que le modèle ne produit pas (ex. `company_name`)."""
+    if section is None:
+        p = game.params or {}
+        return (p.get("fixed") or {}) | {k: p[k] for k in ("players_min", "players_max") if k in p}, p.get(
+            "pack", "usine"
+        )
+    params = (game.spec or {}).get("params") or {}
+    pack_id = params.get("pack", "usine")
+    produced = set(design_schema(load_pack(pack_id))["properties"])
+    redo = FACTORY_SECTIONS[section] & produced
+    return {k: v for k, v in params.items() if k not in redo}, pack_id
+
+
 async def process(event: Envelope, llm: LLMService, producer: Any) -> None:
     """Traite une commande ; ne lève que pour un message illisible (-> DLQ)."""
     try:
@@ -73,7 +89,7 @@ async def process(event: Envelope, llm: LLMService, producer: Any) -> None:
             update(GenerationJob)
             .where(GenerationJob.id == job_id, GenerationJob.status == JobStatus.QUEUED)
             .values(status=JobStatus.RUNNING, stage="brief", progress=5)
-            .returning(GenerationJob.request)
+            .returning(GenerationJob.request, GenerationJob.kind)
         )
         row = claimed.first()
         await session.commit()
@@ -81,20 +97,39 @@ async def process(event: Envelope, llm: LLMService, producer: Any) -> None:
     if row is None or game is None:
         log.info("job %s ignoré (déjà traité ou jeu absent)", job_id)
         return
-    seed = int((row[0] or {}).get("seed", 0))
+    request, job_kind = row[0] or {}, row[1]
+    seed = int(request.get("seed", 0))
+    section = (request.get("sections") or [None])[0] if job_kind.startswith("regenerate_") else None
     try:
         await progress("concept", 10)
-        design = await design_factory(llm, game.brief, seed=seed)
+        old = game.spec or {}
+        keep, pack_id = _keep(game, section)
+        design = await design_factory(llm, game.brief, seed=seed, pack_id=pack_id, keep=keep, note=request.get("note"))
         await progress("simulation", 40)
-        spec = generate(GameParams(**design.params))
-        await progress("checks", 90)
-        review = {"autopilot": autopilot_check(spec), "unsourced": unsourced(spec), "fallback": design.fallback,
-                  "reasons": design.reasons, "unmet": design.unmet, "attempts": design.attempts}  # fmt: skip
+        dropped: list[dict[str, Any]] = []
+        if section and design.fallback:  # repli : la spec ne change pas
+            spec = old
+            review = {"fallback": True, "reasons": design.reasons, "section": section}
+        else:
+            spec = generate(GameParams(**design.params))
+            if section and old.get("layout_edits") and spec.get("departments"):
+                spec, dropped = recompile_layout(spec, load_pack(spec["meta"]["pack"]), old["layout_edits"])
+                gone = {r["index"] for r in dropped}
+                spec["layout_edits"] = [e for i, e in enumerate(old["layout_edits"]) if i not in gone]
+            await progress("checks", 90)
+            review = {"autopilot": autopilot_check(spec), "unsourced": unsourced(spec), "fallback": design.fallback,
+                      "reasons": design.reasons, "unmet": design.unmet, "attempts": design.attempts}  # fmt: skip
+            if section:
+                review |= {"section": section, "dropped": dropped}
         async with get_sessionmaker()() as session:
             game = await session.get(BusinessGame, game_id)
-            game.spec, game.title, game.status = spec, spec["meta"]["title"][:200], GameStatus.DRAFT
-            game.params, game.review = spec["params"], review
-            game.spec_version = (game.spec_version or 0) + 1
+            if section:  # `brief` jamais touché ; `review` fusionnée (ADR 0012 §1)
+                review = (game.review or {}) | review
+            if not (section and design.fallback):
+                game.spec, game.title = spec, spec["meta"]["title"][:200]
+                game.params = spec["params"]
+                game.spec_version = (game.spec_version or 0) + 1
+            game.status, game.review = GameStatus.DRAFT, review
             await session.commit()
         await _set_job(job_id, status=JobStatus.SUCCEEDED, stage="done", progress=100, usage=_usage(design))
     except Exception as exc:
@@ -114,7 +149,10 @@ async def recover(producer: Any) -> None:
     async with get_sessionmaker()() as session:
         stuck = (await session.execute(
             select(GenerationJob.id, GenerationJob.business_game_id, GenerationJob.requested_by)
-            .where(GenerationJob.status == JobStatus.RUNNING, GenerationJob.kind == "design")
+            .where(
+                GenerationJob.status == JobStatus.RUNNING,
+                or_(GenerationJob.kind == "design", GenerationJob.kind.like("regenerate\\_%")),
+            )
         )).all()  # fmt: skip
     for job_id, game_id, user_id in stuck:
         event = Envelope(type="generation.requested", source=SOURCE, correlation_id=game_id, client_id=str(user_id),

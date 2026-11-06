@@ -19,7 +19,15 @@ from gmix.game import generation
 from gmix.game.engine import GameRuleError
 from gmix.game.generation import autopilot_check, generate
 from gmix.game.layout import check_placement, pack_coverage, recompile_layout
-from gmix.game.spec import DesignRequest, GameParams, LayoutEdit, SimSpec, load_pack
+from gmix.game.spec import (
+    FACTORY_SECTIONS,
+    DesignRequest,
+    GameParams,
+    LayoutEdit,
+    RegenerateRequest,
+    SimSpec,
+    load_pack,
+)
 from gmix.messaging.envelope import Actor, Envelope
 from gmix.messaging.topics import AUDIT, GENERATION_COMMANDS
 from gmix.settings import get_settings
@@ -154,9 +162,6 @@ async def list_games(actor: Staff, session: Session) -> list[GameSummary]:
     ]
 
 
-DESIGN_SECTIONS = ["concept", "cast", "journey"]
-
-
 @router.post("/designs", status_code=status.HTTP_202_ACCEPTED)
 async def create_design(
     body: DesignRequest, actor: Staff, session: Session, request: Request, force: bool = False
@@ -185,7 +190,7 @@ async def create_design(
     )  # fmt: skip
     session.add(game)
     await session.flush()
-    plan = {"sections": DESIGN_SECTIONS, "seed": seed, "note": None}
+    plan = {"sections": list(FACTORY_SECTIONS), "seed": seed, "note": None}
     job = GenerationJob(business_game_id=game.id, kind="design", requested_by=actor.id, request=plan)
     session.add(job)
     await session.commit()
@@ -278,14 +283,16 @@ async def _store(
 ) -> None:
     meta = spec["meta"]
     modules = ", ".join(m["title"].lower() for m in spec["modules"])
+    old_review = game.review or {}
     game.spec, game.title, game.status = spec, meta["title"][:200], status
-    game.brief = f"{meta['theme_label']} · {meta['difficulty_label']} · {meta['weeks']} semaines · {modules}"
+    if "attempts" not in old_review:  # le brief d'un jeu conçu par l'IA est celui du formateur (ADR 0012 §1)
+        game.brief = f"{meta['theme_label']} · {meta['difficulty_label']} · {meta['weeks']} semaines · {modules}"
     game.params = spec["params"]
     game.spec_version = (game.spec_version or 0) + 1  # None sur un objet pas encore inséré
     # `unsourced` vient de moteur-jeu (étape 4b) : absent, la revue ne le porte pas encore
     unsourced = getattr(generation, "unsourced", lambda _spec: [])
-    game.review = {"autopilot": autopilot_check(spec), "unsourced": unsourced(spec),
-                   "edited_by": str(actor.id)} | (review_extra or {})  # fmt: skip
+    game.review = old_review | {"autopilot": autopilot_check(spec), "unsourced": unsourced(spec),
+                                "edited_by": str(actor.id)} | (review_extra or {})  # fmt: skip
     await session.commit()
     payload = {"game_id": str(game.id), "spec_version": game.spec_version, "seed": spec["seed"]}
     actor_info = Actor(user_id=actor.id, role=actor.role.value)
@@ -376,3 +383,50 @@ async def publish_game(game_id: uuid.UUID, actor: Staff, session: Session, reque
         raise _plan_error(errors, "Plan non conforme aux règles du pack", status.HTTP_409_CONFLICT)
     await _store(session, request, game, spec, actor, "game.published")
     return await get_game(game_id, actor, session)
+
+
+@router.post("/{game_id}/design/regenerate", status_code=status.HTTP_202_ACCEPTED)
+async def regenerate_design(
+    game_id: uuid.UUID, body: RegenerateRequest, actor: Staff, session: Session, request: Request
+) -> dict[str, str]:
+    """Régénère une section d'un jeu conçu par l'IA (ADR 0012 §1). Le jeu passe en `generating`, puis le worker le
+    repasse en `draft` : il faut le republier. Suivi par `GET /{id}` (statut) et `GET /{id}/job` (progression)."""
+    game = await _editable(session, game_id, actor)
+    if "attempts" not in (game.review or {}):
+        raise HTTPException(status.HTTP_409_CONFLICT, "Ce jeu n'a pas été conçu par l'IA : modifiez ses paramètres")
+    active = await session.scalar(
+        select(GenerationJob.id)
+        .where(
+            (GenerationJob.requested_by == actor.id) | (GenerationJob.business_game_id == game.id),
+            GenerationJob.status.in_([JobStatus.QUEUED, JobStatus.RUNNING]),
+        )
+        .limit(1)
+    )
+    if active:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Une conception est déjà en cours")
+    seed = body.seed if body.seed is not None else secrets.randbelow(2**31)
+    plan = {"sections": [body.section], "seed": seed, "note": body.note}
+    previous = game.status
+    job = GenerationJob(
+        business_game_id=game.id, kind=f"regenerate_{body.section}", requested_by=actor.id, request=plan
+    )
+    session.add(job)
+    game.status = GameStatus.GENERATING
+    await session.commit()
+    envelope = Envelope(
+        type="generation.requested", source="api", correlation_id=game.id, client_id=str(actor.id),
+        actor=Actor(user_id=actor.id, role=actor.role.value),
+        payload={"job_id": str(job.id), "game_id": str(game.id), **plan},
+    )  # fmt: skip
+    try:
+        await publish(request, GENERATION_COMMANDS, envelope, required=True)
+    except HTTPException:  # la demande ne part pas : le jeu reprend son état
+        await session.execute(delete(GenerationJob).where(GenerationJob.id == job.id))
+        game.status = previous
+        await session.commit()
+        raise
+    audit = {"game_id": str(game.id), "job_id": str(job.id), "seed": seed, "section": body.section}
+    await publish(
+        request, AUDIT, Envelope(type="game.design_requested", source="api", actor=envelope.actor, payload=audit)
+    )
+    return {"job_id": str(job.id)}

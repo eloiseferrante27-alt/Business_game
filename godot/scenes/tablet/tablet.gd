@@ -19,7 +19,6 @@ signal failed(message: String)
 signal alert_action(action: Dictionary)
 
 const SLIDE_S := 0.28
-const BEZEL := Color("#150e0b")  # coque de la tablette : plus sombre que l'écran
 const RAIL_WIDTH := 224
 const SCREEN_MARGIN := 24  # écart entre la tablette et le bord de la fenêtre
 ## Outils que la tablette ne sait pas encore exécuter : affichés mais inactifs, avec la raison.
@@ -69,7 +68,7 @@ func _ready() -> void:
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var shell := PanelContainer.new()
 	var bezel := StyleBoxFlat.new()
-	bezel.bg_color = BEZEL
+	bezel.bg_color = UiTokens.BEZEL
 	bezel.set_corner_radius_all(30)
 	bezel.border_color = UiTokens.EDGE
 	bezel.set_border_width_all(3)

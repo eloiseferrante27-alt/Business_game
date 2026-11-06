@@ -22,6 +22,7 @@ var _status: Label
 var _tabs: TabContainer
 var _code_field: LineEdit
 var _games: VBoxContainer
+var _games_load := 0  # génération du chargement de « Mes jeux » (abandon des chargements périmés)
 var _lobbies: VBoxContainer
 var _users: VBoxContainer
 var _options: Dictionary = {}  # GET /api/v1/games/options
@@ -50,6 +51,11 @@ var _design: VBoxContainer  # colonne du mode « Concevoir avec l'IA »
 var _brief: TextEdit
 var _design_button: Button
 var _design_state: VBoxContainer  # avancement puis résultat de la conception
+var _design_fixed: VBoxContainer  # contraintes imposables à l'IA (F1) : remplies quand les options du pack arrivent
+var _locks: Dictionary = {}  # clé de DesignRequest.fixed -> [CheckBox « Imposer », Callable de lecture]
+var _design_players_min: SpinBox
+var _design_players_max: SpinBox
+var _design_started_ms := 0
 var _design_game := ""  # jeu en cours de conception (suivi par GET /games/{id}/job)
 var _new_username: LineEdit
 var _new_name: LineEdit
@@ -359,6 +365,7 @@ func _build_design_panel() -> void:
 	_brief.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_design.add_child(_brief)
 	_design.add_child(Ui.label("Exemple : %s" % DESIGN_EXAMPLE, 16, Ui.MUTED, true))
+	_design_fixed = Ui.vbox(_design, 8)
 	var row := Ui.flow(_design)
 	_design_button = Ui.button("Concevoir l'usine", _design_start, true, "play")
 	row.add_child(_design_button)
@@ -366,12 +373,75 @@ func _build_design_panel() -> void:
 	_design_state = Ui.vbox(_design, 8)
 
 
+## F1 : ce que le formateur impose à l'IA (`fixed`) ; une valeur non cochée est laissée au modèle. Les joueurs partent toujours.
+func _build_fixed_form() -> void:
+	Ui.clear(_design_fixed)
+	_locks = {}
+	var found: Array = (_options.get("packs", []) as Array).filter(func(entry: Dictionary) -> bool: return entry["id"] == "usine")
+	if found.is_empty():
+		return
+	var pack: Dictionary = found[0]
+	var limits: Dictionary = pack["limits"]
+	_design_fixed.add_child(Ui.label("Imposer à l'IA (facultatif) : cochez « Imposer » pour que le scénario respecte votre choix ; sinon l'IA choisit d'après votre brief.", 16, Ui.MUTED, true))
+	var theme := _select(pack["themes"], "label")
+	_lock_row(_design_fixed, "Secteur", "theme", theme, func() -> Variant: return pack["themes"][theme.selected]["id"])
+	var weeks := _spin(limits["weeks"][0], limits["weeks"][1], limits["weeks"][2], 1)
+	_lock_row(_design_fixed, "Durée (semaines)", "weeks", weeks, func() -> Variant: return int(weeks.value))
+	var level := _select(pack["difficulties"], "label")
+	level.selected = 1 if pack["difficulties"].size() > 1 else 0
+	_lock_row(_design_fixed, "Niveau", "difficulty", level, func() -> Variant: return pack["difficulties"][level.selected]["id"])
+	var players := HBoxContainer.new()
+	_design_players_min = _spin(1, 60, 2, 1)
+	_design_players_max = _spin(1, 60, 6, 1)
+	players.add_child(_design_players_min)
+	players.add_child(Ui.label(" à "))
+	players.add_child(_design_players_max)
+	_form_row(_design_fixed, "Joueurs", players, false)
+	var more := VBoxContainer.new()
+	more.add_theme_constant_override("separation", 8)
+	more.visible = false
+	_design_fixed.add_child(Ui.button("Options avancées : aléas, produits, nom de l'entreprise", func() -> void: more.visible = not more.visible))
+	_design_fixed.add_child(more)
+	var events := _select(pack["events"], "label")
+	events.selected = 1 if pack["events"].size() > 1 else 0
+	_lock_row(more, "Aléas", "events", events, func() -> Variant: return pack["events"][events.selected]["id"])
+	if limits["products"][1] > limits["products"][0]:
+		var products := _spin(limits["products"][0], limits["products"][1], limits["products"][2], 1)
+		_lock_row(more, "Produits", "products", products, func() -> Variant: return int(products.value))
+	var company := Ui.field("nom de l'entreprise")
+	company.max_length = 40
+	_lock_row(more, "Nom de l'entreprise", "company_name", company, func() -> Variant: return company.text.strip_edges())
+
+
+## Rangée « légende, champ, Imposer » ; la valeur partira dans `fixed` si la case est cochée.
+func _lock_row(parent: Node, caption: String, key: String, control: Control, getter: Callable) -> void:
+	var check := CheckBox.new()
+	check.text = "Imposer"
+	check.name = "Lock_%s" % key
+	_form_row(parent, caption, control, true)
+	parent.get_child(parent.get_child_count() - 1).add_child(check)  # la rangée que _form_row vient d'ajouter
+	_locks[key] = [check, getter]
+
+
 func _design_start() -> void:
 	if _brief.text.strip_edges().length() < 20:
 		_status.text = "Votre brief est un peu court : décrivez l'usine en une ou deux phrases (20 caractères au moins)."
 		return
+	var fixed := {}
+	for key: String in _locks:
+		var value: Variant = (_locks[key][1] as Callable).call()
+		if (_locks[key][0] as CheckBox).button_pressed and not str(value).is_empty():
+			fixed[key] = value
+	var body := {"pack": "usine", "brief": _brief.text.strip_edges(), "fixed": fixed}
+	if _design_players_min != null:
+		if _design_players_min.value > _design_players_max.value:
+			_status.text = "Le nombre minimal de joueurs dépasse le maximum."
+			return
+		body["players_min"] = int(_design_players_min.value)
+		body["players_max"] = int(_design_players_max.value)
 	_design_button.disabled = true
-	var res: Dictionary = await Api.post_json("/api/v1/games/designs", {"pack": "usine", "brief": _brief.text.strip_edges()})
+	_design_started_ms = Time.get_ticks_msec()
+	var res: Dictionary = await Api.post_json("/api/v1/games/designs", body)
 	if not res["ok"]:
 		_design_button.disabled = false
 		_status.text = res["error"]  # 409 : une conception est déjà en cours ; 422 : pack non couvert
@@ -441,7 +511,8 @@ func _design_show(job: Dictionary, game: Dictionary = {}) -> void:
 	var current := -1
 	if status == "running":
 		current = maxi(DESIGN_STAGES.map(func(stage: Array) -> String: return stage[0]).find(str(job.get("stage", ""))), 0)
-	state.add_child(Ui.label("Conception en cours", 22, Ui.ACCENT))
+	var seconds := (Time.get_ticks_msec() - _design_started_ms) / 1000 if _design_started_ms > 0 else 0
+	state.add_child(Ui.label("Conception en cours (%d %%) · %s" % [int(job.get("progress", 0)), GmixDraftScreen.elapsed(seconds)], 22, Ui.ACCENT, true))
 	var bar := ProgressBar.new()
 	bar.max_value = 100
 	bar.value = float(job.get("progress", 0))
@@ -474,6 +545,7 @@ func _load_options() -> void:
 		return
 	_options = res["data"]
 	_build_generation_form()
+	_build_fixed_form()
 
 
 func _load_games() -> void:
@@ -481,6 +553,8 @@ func _load_games() -> void:
 	if not res["ok"]:
 		_status.text = res["error"]
 		return
+	_games_load += 1
+	var ticket := _games_load
 	Ui.clear(_games)
 	if res["data"].is_empty():
 		Ui.empty_state(_games, "Aucun jeu pour l'instant : créez votre premier business game, il sera prêt en quelques secondes.", "Créer mon premier jeu", func() -> void: _tabs.current_tab = 0, "plus")
@@ -489,7 +563,14 @@ func _load_games() -> void:
 		var row := Ui.vbox(_games, 6)
 		var status: String = game["status"]
 		var color := Ui.OK if status == "ready" else (Ui.ERROR if status == "failed" else Ui.WARN)
-		row.add_child(Ui.label("%s  [%s]" % [game["title"], GAME_STATUS.get(status, status)], 0, color, true))
+		var progress := ""
+		if status == "generating":  # F2 : avancement du job dans la liste
+			var job: Dictionary = await Api.get_json("/api/v1/games/%s/job" % game["id"])
+			if ticket != _games_load or not is_inside_tree():
+				return  # un chargement plus récent a reconstruit la liste
+			if job["ok"]:
+				progress = " (%d %%)" % int(job["data"].get("progress", 0))
+		row.add_child(Ui.label("%s  [%s%s]" % [game["title"], GAME_STATUS.get(status, status), progress], 0, color, true))
 		var buttons := Ui.flow(row)
 		buttons.add_child(Ui.button("Relire", func() -> void: _show_game(str(game["id"]))))
 		if status == "ready":
@@ -654,6 +735,10 @@ func _show_game(game_id: String) -> void:
 ## Revue F3 : le jeu en lecture ; un brouillon se publie depuis cette fenêtre.
 func _open_review(game: Dictionary) -> void:
 	var game_id := str(game["id"])
+	if game.get("review") is Dictionary and (game["review"] as Dictionary).has("attempts"):  # conçu par l'IA : écran de brouillon
+		GmixDraftScreen.current_id = game_id
+		navigate.emit("draft")
+		return
 	var actions := {}
 	if game.get("spec") is Dictionary:
 		actions["Exporter la spec"] = func() -> void: _export_spec(game)

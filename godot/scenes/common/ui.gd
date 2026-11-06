@@ -7,16 +7,16 @@ extends RefCounted
 ## dépasse la zone visible. Couleurs, rayons, espacements et polices : jetons de ui_tokens.gd (UiTokens).
 
 # Alias historiques des jetons de ui_tokens.gd (seul endroit où l'on règle la direction artistique).
-const OK := UiTokens.OK
-const WARN := UiTokens.WARN
-const ERROR := UiTokens.ERROR
-const MUTED := UiTokens.MUTED
-const ACCENT := UiTokens.LIME
-const TEXT := UiTokens.INK
-const BACKDROP := UiTokens.BACKDROP  # fond des écrans avant-jeu
-const PANEL := UiTokens.PANEL
-const FIELD := UiTokens.FIELD
-const EDGE := UiTokens.EDGE
+static var OK := UiTokens.OK
+static var WARN := UiTokens.WARN
+static var ERROR := UiTokens.ERROR
+static var MUTED := UiTokens.MUTED
+static var ACCENT := UiTokens.LIME
+static var TEXT := UiTokens.INK
+static var BACKDROP := UiTokens.BACKDROP  # fond des écrans avant-jeu
+static var PANEL := UiTokens.PANEL
+static var FIELD := UiTokens.FIELD
+static var EDGE := UiTokens.EDGE
 const BODY_FONT := UiTokens.BODY_SIZE
 const MIN_FONT := UiTokens.MIN_SIZE
 const DIALOG_MAX := Vector2i(1000, 600)  # taille souhaitée d'une fenêtre de lecture, réduite à 85 % de la zone visible
@@ -136,6 +136,13 @@ static func _style_fields(theme: Theme) -> void:
 	theme.set_color("font_placeholder_color", "LineEdit", UiTokens.PLACEHOLDER)
 	theme.set_color("caret_color", "LineEdit", UiTokens.LIME)
 	theme.set_color("selection_color", "LineEdit", Color(UiTokens.LIME, 0.35))
+	theme.set_stylebox("normal", "TextEdit", _box(FIELD, radius, EDGE, 1, pad.x, pad.y))
+	theme.set_stylebox("focus", "TextEdit", _box(FIELD, radius, UiTokens.LIME, 2, pad.x, pad.y))
+	theme.set_stylebox("read_only", "TextEdit", _box(PANEL, radius, EDGE, 1, pad.x, pad.y))
+	theme.set_color("font_color", "TextEdit", TEXT)
+	theme.set_color("font_placeholder_color", "TextEdit", UiTokens.PLACEHOLDER)
+	theme.set_color("caret_color", "TextEdit", UiTokens.LIME)
+	theme.set_color("selection_color", "TextEdit", Color(UiTokens.LIME, 0.35))
 
 
 static func _style_tabs(theme: Theme) -> void:

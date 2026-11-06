@@ -5,19 +5,21 @@
   .\scripts\godot.ps1 -Check   vérification headless : import + chargement de tous les scripts et scènes (code 0/1)
   .\scripts\godot.ps1 -Smoke   liaison headless avec le backend (API + worker system_ping démarrés)
   .\scripts\godot.ps1 -Tour [-Snapshot]  contrôle de lisibilité des écrans avant-jeu et des panneaux du HUD (code 0/1)
-  .\scripts\godot.ps1 -Flow [-NoLlm]     parcours formateur de bout en bout : génération, lobby, monde, semaines, débrief
+  .\scripts\godot.ps1 -Flow [-NoLlm] [-Design]  parcours formateur de bout en bout : génération, lobby, monde, semaines, débrief
       -Full      sortie complète (toute la sortie Godot, étapes) au lieu du bilan compact ; le journal complet est
                  toujours écrit dans %TEMP%\gmix_logs\ (son chemin est affiché)
       -Snapshot  captures PNG dans %TEMP%\gmix_imgs\ui_tour (fenêtre Godot, GPU requis ; sortie non capturée)
       -NoLlm     sans dialogues avec les agents, donc sans appel à Ollama
       -Pack usine  parcours sur un autre pack de jeu que celui par défaut (atelier) ; avec -Flow seulement
+      -Design    parcours D seul (--only=D) : conception par l'IA puis régénération d'une section ; avec -Flow seulement.
+                 Plusieurs appels au modèle (environ 5 s chacun) : délai global du parcours 25 min (watchdog)
       -Tour et -Flow : API locale démarrée si elle ne répond pas (et arrêtée ensuite), comptes jetables créés puis
       supprimés en base, même en cas d'échec. Le code de sortie est celui de Godot (0 = OK).
   -Api http://192.168.1.20:8000   avec -Run ou -Smoke : se connecter à un autre serveur (réseau local, distance)
 #>
 param(
     [switch]$Run, [switch]$Check, [switch]$Smoke, [switch]$Tour, [switch]$Flow, [switch]$Snapshot, [switch]$NoLlm,
-    [switch]$Full, [string]$Api = '', [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$Pack = ''
+    [switch]$Full, [switch]$Design, [string]$Api = '', [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$Pack = ''
 )
 . "$PSScriptRoot\_common.ps1"
 $console = Get-GodotExe -Console
@@ -51,6 +53,30 @@ function Show-UiReport($Run, [string]$Label, [int]$Code, [string]$Journal) {
     Write-Host "  Journal complet : $Journal"
 }
 
+## -Design (ADR 0012 §4) : un seul worker generation, à jour. Périmé = démarré avant la dernière modification
+## de tout backend\gmix\**\*.py, ai\packs, ai\prompts ou ai\models.yaml ; il est alors arrêté par arbre (taskkill /T) puis relancé.
+function Ensure-GenerationWorker {
+    $procs = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'python.exe' -and [string]$_.CommandLine -match 'gmix\.workers\.generation' })
+    $sources = @(Get-ChildItem -Path (Join-Path $BackendDir 'gmix') -Recurse -File -Filter *.py) +
+        @(Get-ChildItem -Path (Join-Path $RepoRoot 'ai\packs'), (Join-Path $RepoRoot 'ai\prompts') -Recurse -File) +
+        @(Get-Item -Path (Join-Path $RepoRoot 'ai\models.yaml'))
+    $latest = ($sources | Measure-Object -Property LastWriteTime -Maximum).Maximum
+    if ($procs.Count -gt 0) {
+        $started = ($procs | Sort-Object CreationDate | Select-Object -First 1).CreationDate
+        if ($started -ge $latest) { Write-Ok "worker generation à jour (démarré à $($started.ToString('HH:mm:ss')))"; return }
+        Write-Step "worker generation périmé (démarré à $($started.ToString('HH:mm:ss')), code modifié à $($latest.ToString('HH:mm:ss'))) : relance"
+        foreach ($p in $procs) { & taskkill.exe /PID $p.ProcessId /T /F *> $null }
+    } else { Write-Step 'worker generation absent : démarrage' }
+    $log = New-LogPath 'worker-generation'
+    $null = Start-Process -FilePath $VenvPython -ArgumentList @('-u', '-m', 'gmix.workers.generation') -WorkingDirectory $BackendDir `
+        -WindowStyle Hidden -RedirectStandardOutput $log -RedirectStandardError ($log + '.err') -PassThru
+    Start-Sleep -Seconds 5
+    if (@(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'python.exe' -and [string]$_.CommandLine -match 'gmix\.workers\.generation' }).Count -eq 0) {
+        throw "worker generation arrêté juste après son lancement : voir $log et $log.err"
+    }
+    Write-Ok "worker generation lancé à $(Get-Date -Format 'HH:mm:ss') ; journal : $log"
+}
+
 ## -Tour et -Flow : contrôles du client contre l'API locale et la base. Les comptes jetables viennent de
 ## gmix.tools.ui_accounts ; leurs jetons ne vont qu'aux variables d'environnement de Godot (jamais affichés ni écrits).
 function Invoke-UiCheck {
@@ -73,6 +99,7 @@ function Invoke-UiCheck {
             for ($i = 0; $i -lt 120 -and -not $apiProcess.HasExited -and -not (Test-ApiUp $url); $i++) { Start-Sleep -Milliseconds 500 }
             if (-not (Test-ApiUp $url)) { throw "API non joignable sur $url (port occupé par un processus orphelin ? Get-NetTCPConnection -LocalPort 8000)" }
         }
+        if ($Design) { Ensure-GenerationWorker }
         $scenario = 'tour'
         if ($Flow) { $scenario = 'flow' }
         Write-StepFull 'Comptes jetables'
@@ -87,6 +114,7 @@ function Invoke-UiCheck {
             $godotArgs = @('--headless', '--path', $GodotDir, 'res://scenes/tools/flow_test/flow_test.tscn', '--', "--api=$url")
             if ($NoLlm) { $godotArgs += '--no-llm' }
             if ($Pack) { $godotArgs += "--pack=$Pack" }
+            if ($Design) { $godotArgs += '--only=D' }
         } elseif ($Snapshot) {
             $shots = Join-Path $env:TEMP 'gmix_imgs\ui_tour'
             New-Item -ItemType Directory -Force -Path $shots | Out-Null
@@ -121,6 +149,7 @@ function Invoke-UiCheck {
     exit $code
 }
 
+if ($Design -and -not $Flow) { throw '-Design se lance avec -Flow' }
 if ($Tour -or $Flow) { Invoke-UiCheck }
 if ($Check) {
     $journal = New-LogPath 'godot-check'

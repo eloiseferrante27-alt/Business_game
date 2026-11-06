@@ -108,6 +108,23 @@ des pannes et des attentes qui n'ont pas eu lieu) ; formules écrites dans le YA
   plus sûr sans fausses alertes devient disponible.
 - Garde-fou des nombres dans les répliques des agents (docs/blocages.md) : plus de chiffres et d'unités dans
   les faits (min, h, OF), donc plus de risque d'invention par le modèle 3b.
+  **Tranché le 06/11 (décision de l'utilisateur) : écrit et activé avant la démo, toujours actif (aucune option).**
+  Le pré-filtre lexical d'injection existe déjà (`npc.looks_like_injection`). Contrat :
+  - moteur-jeu, `game/npc.py` : `numbers(text) -> set[str]`, publique, même normalisation que
+    `tools/eval_dialogue.numbers` (« 20 000 » = « 20000 », « 3,5 » = « 3.5 », repères `[Sn]` ignorés). Dans
+    `agent_reply`, après `short_reply` : `invented = sorted(numbers(reply) - numbers(allowed))`, où `allowed` est le
+    texte rendu de `npc.dialogue` (faits, notions, corpus, semaine, message du joueur), sans les répliques passées
+    de la mémoire.
+  - Si `invented` n'est pas vide : la réplique devient `fallback_reply(agent, view)`, `sources = []`,
+    `fallback = true`, `remember` inchangé (la réplique gardée est celle du moteur), et
+    `log.warning("agent %s : nombres hors faits %s", agent_id, invented)`, sans le message du joueur.
+  - Le résultat porte toujours `guard: list[str]` (`[]` sinon). La route le laisse passer : réponse HTTP et charge
+    utile `npc.exchange` (aucun topic ni type nouveau ; docs/kafka.md : documentaliste). Seules les répliques du
+    modèle sont contrôlées.
+  - Tests (moteur-jeu) : nombre absent des faits -> repli et `guard` ; « 20000 » contre « 20 000 » des faits et
+    numéro de semaine -> réplique gardée.
+  - ia-runtime, ensuite : `eval_dialogue` importe `numbers` de `gmix.game.npc` (sa copie est supprimée) et rapporte
+    le taux de répliques remplacées par modèle.
 
 ## Décisions de l'utilisateur (2026-10-28)
 

@@ -170,6 +170,7 @@ func _tour() -> void:
 	home.call("_ask_lobby_name",{"id": _data["game_a"], "title": _data["game_a_title"]})
 	await _look("11-nom-du-lobby")
 	await _close_dialogs(home)
+	await _draft_screen()
 
 	await _open_lobby(_data["lobby_wait"])
 	await _look("12-salle-formateur-en-attente")
@@ -256,6 +257,25 @@ func _review_screen(home: Control) -> void:
 	home.call("_open_review", detail)
 	await _look("10b-revue-brouillon")
 	await _close_dialogs(home)
+
+
+## F3 (écran de brouillon) et sa progression de régénération : textes longs injectés dans le jeu du parcours.
+func _draft_screen() -> void:
+	GmixDraftScreen.current_id = _data["game_a"]
+	await _show("draft")
+	var draft := _screen()
+	await _wait(func() -> bool: return not (draft.get("_game") as Dictionary).is_empty(), 15.0)
+	var detail: Dictionary = (draft.get("_game") as Dictionary).duplicate(true)
+	detail["status"] = "draft"
+	detail["review"] = {"attempts": 1, "dropped": [{"index": 0, "reason": LONG_MESSAGE}, {"index": 3, "reason": LONG_PROMPT}]}
+	(detail["spec"]["meta"] as Dictionary)["pitch"] = LONG_MESSAGE
+	draft.set("_game", detail)
+	draft.call("_show_game")
+	(draft.get("_status") as Label).text = GmixDraftScreen.FALLBACK_TEXT + " " + LONG_MESSAGE
+	await _look("20-brouillon-f3")
+	draft.call("_show_progress", {"stage": "simulation", "progress": 40}, 75)
+	await _look("21-brouillon-regeneration-en-cours")
+	await _show("home")
 
 
 func _pick_pack(home: Control, index: int) -> void:

@@ -5,9 +5,8 @@ extends RefCounted
 ## Débrief comparé : mêmes courbes, une série par équipe. `entries` : [{name, report}] (une seule entrée hors groupe).
 ## Tout texte de l'API passe par GameText.esc avant un RichTextLabel ; les Label n'interprètent pas le BBCode.
 
-const COLORS := [UiTokens.LIME, UiTokens.INFO, UiTokens.WARN, UiTokens.OK]
 const VERDICTS := {"atteint": "atteint", "partiel": "partiel", "non_atteint": "non atteint", "sans_objet": "sans objet"}
-const VERDICT_COLORS := {"atteint": UiTokens.OK, "partiel": UiTokens.WARN, "non_atteint": UiTokens.ERROR, "sans_objet": UiTokens.MUTED}
+static var VERDICT_COLORS := {"atteint": UiTokens.OK, "partiel": UiTokens.WARN, "non_atteint": UiTokens.ERROR, "sans_objet": UiTokens.MUTED}
 const CAUSES := [["decision", "Vos décisions"], ["auto", "Pilote automatique"], ["alea", "Ce que le hasard a imposé"]]
 
 
@@ -87,7 +86,7 @@ static func _criterion(box: Control, criterion: Dictionary, entries: Array) -> v
 			line += " (%s)" % VERDICTS.get(str(mine.get("verdict", "sans_objet")), "")
 		legend.append(line)
 		if values is Array and not (values as Array).is_empty():
-			chart.series.append({"color": COLORS[i % COLORS.size()], "values": values, "target": criterion["target"], "partial": criterion.get("partial")})
+			chart.series.append({"color": GmixPanelView.CHART_COLORS[i % GmixPanelView.CHART_COLORS.size()], "values": values, "target": criterion["target"], "partial": criterion.get("partial")})
 			chart.weeks = range(1, (values as Array).size() + 1)
 		else:
 			missing = true
@@ -98,7 +97,7 @@ static func _criterion(box: Control, criterion: Dictionary, entries: Array) -> v
 		box.add_child(chart)
 	var flow := Ui.flow(box, 16)
 	for i in legend.size():
-		flow.add_child(Ui.label("━ %s" % legend[i], 0, COLORS[i % COLORS.size()]))
+		flow.add_child(Ui.label("━ %s" % legend[i], 0, GmixPanelView.CHART_COLORS[i % GmixPanelView.CHART_COLORS.size()]))
 	var op := "≥" if criterion["op"] == ">=" else "≤"
 	var marks := "cible %s %s (pointillés)" % [op, GameText.kpi_value(unit, criterion["target"])]
 	if criterion.get("partial") != null:

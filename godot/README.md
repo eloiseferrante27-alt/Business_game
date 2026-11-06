@@ -2,7 +2,7 @@
 
 Éditeur : `.\scripts\godot.ps1` · vérification headless : `.\scripts\godot.ps1 -Check` ·
 liaison avec le backend : `.\scripts\smoke.ps1` (compte jetable) · jeu : `.\scripts\godot.ps1 -Run` ·
-contrôles du client : `.\scripts\godot.ps1 -Tour [-Snapshot]` et `.\scripts\godot.ps1 -Flow [-NoLlm] [-Pack <slug>]`
+contrôles du client : `.\scripts\godot.ps1 -Tour [-Snapshot]` et `.\scripts\godot.ps1 -Flow [-NoLlm] [-Pack <slug>] [-Design]`
 (voir « Contrôles du client »).
 
 ## Parcours
@@ -122,7 +122,7 @@ base locale), `-Tour` et `-Flow` ne se combinent pas.
 | Outil | Lancement | Contrôle |
 |---|---|---|
 | `ui_tour` | `.\scripts\godot.ps1 -Tour [-Snapshot]` | lisibilité des écrans avant-jeu (connexion, diagnostic, accueils, salle du lobby, fenêtres) et des panneaux du HUD à 4 tailles de fenêtre (1280x720, 1366x768, 1920x1080, 1024x600) : dépassements, polices sous 15 px, textes tronqués, erreurs de script. `-Snapshot` (version à fenêtre, GPU requis, avec `-Tour` seulement) écrit les PNG dans `%TEMP%\gmix_imgs\ui_tour`. Crée deux business games et douze lobbies, supprimés ensuite. Aucun appel à Ollama. |
-| `flow_test` | `.\scripts\godot.ps1 -Flow [-NoLlm]` | parcours A, formateur de bout en bout (génération, relecture, import, lobby, lancement, monde, vue Sims, postes, dialogues avec chaque agent et mémoire, semaines, débrief en courbes ; A.5b : pause, reprise et aléa par la barre « prêt » ; A.5d : droits de la tablette par département, `_check_tablet_roles`). `-NoLlm` (`--no-llm`) saute les dialogues, donc tout appel à Ollama. `-Pack <slug>` (avec `-Flow` seulement, ex. `-Pack usine`) joue le parcours sur un autre pack que l'atelier. La présence ENet est remplacée par une doublure inerte. **Seul le parcours A existe** : B (joueurs) et V sont annoncés (`--only=A,B,V`) mais non écrits. |
+| `flow_test` | `.\scripts\godot.ps1 -Flow [-NoLlm] [-Design]` | parcours A, formateur de bout en bout (génération, relecture, import, lobby, lancement, monde, vue Sims, postes, dialogues avec chaque agent et mémoire, semaines, débrief en courbes ; A.5b : pause, reprise et aléa par la barre « prêt » ; A.5d : droits de la tablette par département, `_check_tablet_roles`). `-NoLlm` (`--no-llm`) saute les dialogues, donc tout appel à Ollama. `-Pack <slug>` (avec `-Flow` seulement, ex. `-Pack usine`) joue le parcours sur un autre pack que l'atelier. La présence ENet est remplacée par une doublure inerte. `-Design` (avec `-Flow` seulement) joue le parcours D (`--only=D`) : conception par l'IA (F1, F2), écran de brouillon, régénération d'une carte, publication ; le worker `generation` est relancé s'il est absent ou plus ancien que backend\gmix\**\*.py, ai\packs, ai\prompts ou ai\models.yaml. **Parcours existants : A et D** : B (joueurs) et V sont annoncés (`--only=A,B,V`) mais non écrits. |
 | `world_preview` | exécutable Godot à fenêtre, `res://scenes/tools/world_preview/world_preview.tscn -- --api=… --lobby=<id> --snapshot=<dossier>` (jeton dans `GMIX_TOKEN`) | captures de l'atelier, de la vue Sims, de la troisième personne et fréquence d'images |
 | `asset_gallery` | `.\scripts\assets.ps1 -Gallery <dossier>` | galerie de tous les assets par catégorie |
 
@@ -152,7 +152,9 @@ grandes crée des dépassements à 1024x600 (revérifier le tour après chaque c
 ### Direction artistique (référence : la tablette du Business_game, ADR 0010)
 
 - Palette chaude limitée (fond, surface, accent, succès, alerte), définie en un seul endroit, `Ui.make_theme` ;
-  aucune couleur codée en dur dans les écrans. Contraste de texte d'au moins 4,5:1 (WCAG AA), à calculer.
+  aucune couleur codée en dur dans les écrans. Palette par défaut : cacao sombre. Trois palettes claires (`chaud`,
+  `sauge`, `ardoise`) se choisissent par `GMIX_PALETTE=<id>` ou `--palette=<id>` (`godot/autoload/session.gd`,
+  `godot/scenes/common/ui_tokens.gd`) ; le choix de l'utilisateur est en attente. Contraste de texte d'au moins 4,5:1 (WCAG AA), à calculer.
 - Coins arrondis ; marges et espacements sur une échelle fixe (4, 8, 16, 24) ; hiérarchie typographique : titre,
   sous-titre, corps (le corps reste à 18 px, jamais sous 15 px).
 - États vides accueillants : une phrase qui explique et un bouton vers l'action suivante. Accueil personnalisé
@@ -162,6 +164,17 @@ grandes crée des dépassements à 1024x600 (revérifier le tour après chaque c
   le dépôt ; rien à télécharger à l'exécution. Pas d'IA externe pour générer des visuels.
 - Procédure : `-Tour -Snapshot` « avant » ; thème d'abord, puis écran par écran ; captures « après » regardées à
   1280x720 et 1024x600 et comparées à « avant » ; `-Tour` à 0 défaut et `-Flow -NoLlm` vert.
+
+### Conception par l'IA et brouillon (F1, F2)
+
+- F1, onglet « Concevoir avec l'IA » : Secteur, Durée, Niveau, chacun avec une case « Imposer » ; Aléas, Produits et Nom de
+  l'entreprise sous « Options avancées ». Les champs imposés partent dans `fixed` ; joueurs min et max partent toujours.
+- F2 : « Conception en cours (n %) · temps écoulé » ; « (n %) » dans « Mes jeux ».
+- Écran `godot/scenes/draft/draft_screen.gd` (« Relire » d'un jeu conçu par l'IA) : 3 cartes à régénérer (entreprise,
+  objectifs et aléas, personnages) avec consigne facultative (300 caractères au plus) ; carte « Produits, fournisseurs et
+  rôles » en lecture seule ; « Relecture complète » et « Publier ». Repli : « Le modèle n'a pas pu proposer mieux, la
+  version précédente est conservée ». Retouches retirées (`review.dropped`) listées. Route : `POST /api/v1/games/{id}/design/regenerate`
+  (docs/roles.md) ; elle repasse toujours le jeu en brouillon.
 
 ### Vue Sims et troisième personne
 

@@ -11,12 +11,25 @@ import json
 import statistics
 from datetime import date
 
+from gmix.game.spec import FACTORY_SECTIONS, default_params
 from gmix.llm.factory_design import FactoryDesign, design_factory
 from gmix.llm.service import LLMService
 from gmix.settings import get_settings
 
 
-def met(expect: dict, d: FactoryDesign) -> bool:
+def regen_args(case: dict) -> dict:
+    """Cas de régénération : keep = paramètres par défaut du pack hors clés de la section (ADR 0012 §1)."""
+    regen = case.get("regen")
+    if not regen:
+        return {}
+    base = default_params("usine") | {"difficulty": "expert", "theme": "automobile"}
+    return {
+        "keep": {k: v for k, v in base.items() if k not in FACTORY_SECTIONS[regen["section"]]},
+        "note": regen["note"],
+    }
+
+
+def met(expect: dict, d: FactoryDesign, keep: dict | None = None) -> bool:
     p = d.params
     checks = [
         set(expect.get("modules_include", [])) <= set(p["modules"]),
@@ -27,6 +40,7 @@ def met(expect: dict, d: FactoryDesign) -> bool:
         bool(d.unmet) or not expect.get("unmet_nonempty"),
         d.fallback == expect["fallback"] if "fallback" in expect else True,
         d.attempts == 0 if expect.get("no_model_call") else True,
+        all(p[k] == v for k, v in (keep or {}).items()) if expect.get("keep_intact") else True,
     ]
     return all(checks)
 
@@ -45,8 +59,9 @@ async def main() -> None:
         )  # chauffe : le chargement du modèle n'entre pas dans les latences
         for case in cases:
             for run in range(args.runs):
-                d = await design_factory(llm, case["brief"], seed=run)
-                rows.append((case, d, met(case["expect"], d)))
+                extra = regen_args(case)
+                d = await design_factory(llm, case["brief"], seed=run, **extra)
+                rows.append((case, d, met(case["expect"], d, extra.get("keep"))))
     finally:
         await llm.aclose()
     n = len(rows)

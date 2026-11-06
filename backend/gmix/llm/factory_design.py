@@ -7,6 +7,7 @@ sur `default_params` marqué `fallback`. Aucune exception ne sort : un worker pu
 """
 
 import hashlib
+import json
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -44,12 +45,24 @@ def _lines(items: dict[str, Any], desc: str = "description") -> str:
                      for k, v in items.items())  # fmt: skip
 
 
-def _variables(pack: dict[str, Any], brief: str) -> dict[str, str]:
+def _kept_lines(keep: dict[str, Any]) -> str:
+    """Choix imposés au modèle, « clé : valeur » (sans graine ni pack, qui ne sont pas des choix)."""
+    return (
+        "\n".join(f"- {k} : {json.dumps(v, ensure_ascii=False)}" for k, v in keep.items() if k not in ("seed", "pack"))
+        or "aucun"
+    )
+
+
+def _variables(
+    pack: dict[str, Any], brief: str, keep: dict[str, Any] | None = None, note: str | None = None
+) -> dict[str, str]:
     sites = _network_sites(pack)
     tunables = "\n".join(f"- {k} : {v['label']}" for k, v in pack["tunables"].items())
     events = "\n".join(f"- {k} : {v['title']} — {v['description']}" for k, v in pack["events"].items())
     return {
         "brief": brief.replace("<<<", "").replace(">>>", ""),
+        "kept": _kept_lines(keep or {}).replace("<<<", "").replace(">>>", ""),
+        "note": (note or "aucune").replace("<<<", "").replace(">>>", ""),
         "themes": _lines(pack["themes"]),
         "modules": _lines(pack["modules"]),
         "extra_agents": _lines(
@@ -69,8 +82,8 @@ def _network_sites(pack: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in pack.get("network", {}).get("sites", {}).items() if len(v["distances"]) > 1}
 
 
-def design_schema(pack: dict[str, Any]) -> dict[str, Any]:
-    """Schéma JSON du format contraint, construit depuis le pack (aucune valeur en dur)."""
+def design_schema(pack: dict[str, Any], keep: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Schéma JSON du format contraint, construit depuis le pack (aucune valeur en dur), sans les clés gardées."""
 
     def enum(values: Any) -> dict[str, Any]:
         return {"type": "string", "enum": list(values)}
@@ -107,43 +120,65 @@ def design_schema(pack: dict[str, Any]) -> dict[str, Any]:
             props[f"option_{p['id']}"] = {"type": "integer", "minimum": p["min"], "maximum": p["max"]}
     if sites := _network_sites(pack):
         props["network"] = obj({k: enum(v["distances"]) for k, v in sites.items()})
-    return obj(props)
+    keep = keep or {}
+    drop = {k for k in keep if k in props} | (
+        {p for p in props if p.startswith("option_")} if "options" in keep else set()
+    )
+    return obj({k: v for k, v in props.items() if k not in drop})
 
 
-def _params_from(pack_id: str, pack: dict[str, Any], data: dict[str, Any], seed: int) -> GameParams:
+def _params_from(
+    pack_id: str, pack: dict[str, Any], data: dict[str, Any], seed: int, keep: dict[str, Any]
+) -> GameParams:
     base = default_params(pack_id)
     options = {**base["options"], **{k[7:]: v for k, v in data.items() if k.startswith("option_")}}
-    difficulty = data.get("difficulty")
+    difficulty = data.get("difficulty", keep.get("difficulty"))
     tunings = {k: v for k, v in (data.get("tunings") or {}).items() if v != difficulty}  # égal au profil = sans effet
     chosen = {k: data[k] for k in ("theme", "modules", "extra_agents", "agent_tone", "difficulty", "weeks", "events",
                                    "event_plan", "network") if k in data}  # fmt: skip
-    return GameParams.model_validate({**base, **chosen, "options": options, "tunings": tunings, "seed": seed})
+    return GameParams.model_validate(
+        {**base, **chosen, "options": options, "tunings": tunings, "seed": seed, **keep}
+    )  # keep l'emporte
 
 
-def _errors(pack_id: str, pack: dict[str, Any], data: dict[str, Any], seed: int) -> tuple[GameParams | None, list[str]]:
+def _errors(
+    pack_id: str, pack: dict[str, Any], data: dict[str, Any], seed: int, keep: dict[str, Any]
+) -> tuple[GameParams | None, list[str]]:
     errors = [f"unmet : pas de chiffre ni de lien ({u[:30]}…)" for u in data.get("unmet", []) if forbidden_in_text(u)]
     try:
-        params = _params_from(pack_id, pack, data, seed)
+        params = _params_from(pack_id, pack, data, seed, keep)
     except ValidationError as exc:
         return None, errors + [f"{'.'.join(map(str, e['loc'])) or 'params'} : {e['msg']}" for e in exc.errors()]
     return (None if errors else params), errors
 
 
-async def design_factory(llm: LLMService, brief: str, *, seed: int = 0, pack_id: str = "usine") -> FactoryDesign:
+async def design_factory(
+    llm: LLMService,
+    brief: str,
+    *,
+    seed: int = 0,
+    pack_id: str = "usine",
+    keep: dict[str, Any] | None = None,
+    note: str | None = None,
+) -> FactoryDesign:
     """Paramètres d'usine depuis le brief d'un formateur, toujours valides (repli `fallback=True` sinon).
+
+    `keep` : clés de `GameParams` imposées (hors schéma, identiques en sortie, repli compris) ;
+    `note` : consigne libre du formateur pour une régénération (ignorée si elle ressemble à une injection).
 
     Appelable par un worker : `FactoryDesign.params` s'envoie tel quel à `GameParams(**params)`.
     """
     started = time.monotonic()
     pack = load_pack(pack_id)
+    keep = dict(keep or {})
     out = FactoryDesign(
         params={}, fallback=True, brief_sha256=hashlib.sha256(" ".join(brief.split()).encode()).hexdigest()
     )
 
     def finish(params: GameParams | None) -> FactoryDesign:
-        out.params = (params or GameParams.model_validate({**default_params(pack_id), "seed": seed})).model_dump(
-            mode="json"
-        )
+        out.params = (
+            params or GameParams.model_validate({**default_params(pack_id), "seed": seed, **keep})
+        ).model_dump(mode="json")
         out.fallback = params is None
         out.duration_ms = int((time.monotonic() - started) * 1000)
         return out
@@ -151,10 +186,13 @@ async def design_factory(llm: LLMService, brief: str, *, seed: int = 0, pack_id:
     if looks_like_injection(brief):
         out.reasons.append("brief écarté : tentative d'injection détectée, paramètres par défaut")
         return finish(None)
+    if note and looks_like_injection(note):
+        out.reasons.append("consigne écartée : tentative d'injection détectée")
+        note = None
     prompt = load_prompt(TASK)
     out.prompt_version = prompt.version
-    schema = design_schema(pack)
-    base = prompt.render(**_variables(pack, brief))
+    schema = design_schema(pack, keep)
+    base = prompt.render(**_variables(pack, brief, keep, note))
     messages = base
     for attempt in range(MAX_REPAIRS + 1):
         out.attempts = attempt + 1
@@ -172,7 +210,7 @@ async def design_factory(llm: LLMService, brief: str, *, seed: int = 0, pack_id:
         if result.data is None:
             errors = [f"JSON {result.error}"]
         else:
-            params, errors = _errors(pack_id, pack, result.data, seed)
+            params, errors = _errors(pack_id, pack, result.data, seed, keep)
             if not errors and params is not None:
                 if result.data.get("on_topic") is False:
                     out.reasons.append("brief hors sujet (usine, chaîne logistique) : paramètres par défaut")

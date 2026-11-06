@@ -1,4 +1,4 @@
-# Cahier des attentes de G-mix
+﻿# Cahier des attentes de G-mix
 
 Référence unique de ce qui est attendu du produit. Rédigé le 2026-11-05 à partir de docs/prompt-projet.md, des ADR
 0004 à 0011 et de docs/blocages.md. Il ne remplace pas les ADR : il les rassemble et donne à chaque attente un
@@ -73,7 +73,7 @@ modification repasse par la validation (`SimSpec`, `check_placement`, essai en p
 Le formateur voit en direct : semaine courante, indicateurs, alertes, état « prêt » par département, joueurs
 connectés, vote sur un absent, journal des causes. Il peut forcer l'avance, mettre en pause, déclencher un aléa,
 observer en 3D. Le client expose déjà un onglet « Supervision » de la tablette selon le pack ; la page de pilotage
-complète est l'étape 7 de l'ADR 0010.
+complète (F5) vient après la Première version (décision du 06/11, EX-29) ; la barre de pilotage couvre l'essentiel (B1).
 
 ## 4. Parcours du joueur
 
@@ -140,63 +140,53 @@ Détail : docs/architecture.md, docs/kafka.md.
 | EX-02 | Domaine supply chain prioritaire | Pack `usine` chargé par `load_pack`, premier du menu | fait | ai/packs/usine.yaml ; ADR 0007 |
 | EX-03 | Comptes locaux | Connexion par identifiant et mot de passe, rôles | fait | ADR 0004 ; backend/gmix/api/routes/accounts.py |
 | EX-04 | Rôles joueur, formateur, admin | Matrice testée pour les 3 rôles | partiel : droits par département testés à l'étape 5, matrice docs/roles.md à aligner (étape 8) | docs/roles.md ; ADR 0010 annexe §5 |
-| EX-05 | Parties en réseau local et à distance | Salle de jeu en LAN ; à distance testée sur un hébergement | partiel : LAN prévu, distance non testée, hébergement à choisir | ADR 0005 ; docs/blocages.md 5 |
+| EX-05 | Parties en réseau local et à distance | Salle de jeu en LAN ; à distance testée sur un hébergement | partiel : démo en LAN, 3 à 6 joueurs (répétition en salle prévue, ordre 2) ; à distance après la Première version, hébergement à choisir | ADR 0005 ; docs/blocages.md 5 |
 | EX-06 | Tout local, aucun LLM externe | Appels via tâches de `ai/models.yaml` vers Ollama | fait | docs/ai-runtime.md ; ai/models.yaml |
 | EX-07 | Génération paramétrée instantanée sans IA | `POST /api/v1/games` répond en moins d'une seconde | fait (route présente ; budget mesuré non revérifié) | ADR 0006 ; backend/gmix/api/routes/games.py |
-| EX-08 | Conception par l'IA (concept, personnages, parcours) | `POST /games/designs` 202, job suivi par `GET /games/{id}/job`, médiane 3 min | partiel : API et worker livrés (étapes 5 et 6), écran F2 et `-Flow -Design` à l'étape 7 | ADR 0008 ; ADR 0010 §3 ; backend/gmix/workers/generation.py |
+| EX-08 | Conception par l'IA (concept, personnages, parcours) | `POST /games/designs` 202, job suivi par `GET /games/{id}/job`, médiane 3 min | livré en version courte (06/11) : API et worker (étapes 5 et 6), régénération de section, écran de brouillon, `-Flow -Design` (B4b ; ADR 0012) ; mode construction (B4c c1) reporté | ADR 0008 ; ADR 0010 §3 ; backend/gmix/workers/generation.py |
 | EX-09 | L'IA conçoit seulement l'usine ; atelier = repli sans IA | 422 hors usine ; « Générer sans IA » reste | partiel : 422 prévu (annexe §7), repli présent côté accueil | ADR 0010 §7.3 |
 | EX-10 | Brief libre de 20 à 2000 caractères | Brief trop court refusé avec message lisible | fait | backend/gmix/api/routes/games.py ; godot/scenes/main/home_screen.gd |
-| EX-11 | Paramètres et brief ensemble | Un même formulaire envoie paramètres et brief | partiel : brief et formulaire séparés dans home_screen.gd | ADR 0010 §4 F1 |
-| EX-12 | Documents du formateur alimentent la génération (RAG) | Un document déposé est ingéré et cité dans le jeu conçu | à faire : aucune route de dépôt par jeu | knowledge/ ; point P4 |
+| EX-11 | Paramètres et brief ensemble | Un même formulaire envoie paramètres et brief | partiel : onglet « Concevoir avec l'IA » (Secteur, Durée, Niveau avec « Imposer » ; options avancées) envoie paramètres imposés (`fixed`) et brief ensemble ; le formulaire manuel reste séparé dans home_screen.gd | ADR 0010 §4 F1 |
+| EX-12 | Documents du formateur alimentent la génération (RAG) | Un document déposé est ingéré et cité dans le jeu conçu | à faire, après la Première version : aucune route de dépôt par jeu | knowledge/ ; point P4 |
 | EX-13 | Parties de code simples pour les connexions | Connexions produites, validées, jamais exécutées telles quelles | à faire : forme déclarative retenue (P1 A) | ADR 0011 §3 |
-| EX-14 | Mode de saisie des décisions choisi par le formateur | Un paramètre par jeu ou module ; client le respecte | à faire : seuls `choice` et `int` existent | spec.py `ActionField` ; section 3.1 |
-| EX-15 | Monde posé sur grilles, déterministe | Même spec, même monde ; `check_placement` sans erreur | partiel : moteur et tests présents, `test.ps1 -Fast` non relancé le 2026-11-05 | ADR 0009 ; backend/gmix/game/layout.py |
+| EX-14 | Mode de saisie des décisions choisi par le formateur | Un paramètre par jeu ou module ; client le respecte | à faire, après la Première version : seuls `choice` et `int` existent | spec.py `ActionField` ; section 3.1 |
+| EX-15 | Monde posé sur grilles, déterministe | Même spec, même monde ; `check_placement` sans erreur | partiel : moteur et tests présents, `test.ps1 -Fast` 772 passés le 2026-11-06 (reprise.md) ; `check_placement` du pack usine non rejoué à part | ADR 0009 ; backend/gmix/game/layout.py |
 | EX-16 | Placement fondé sur le métier, règles sourcées | Chaque règle a une provenance ; violation refusée | partiel : règles `calibre` sans source, règles `protected_path` de la voie PL manquantes | ADR 0010 annexe §12 ; docs/blocages.md |
 | EX-17 | Assets prédéfinis, pack proposé si couvert à 100 % | `pack_coverage("usine")["ratio"] == 1.0` | partiel : à relancer, assets en cours de modification | ADR 0009 d.7 ; ai/assets.yaml |
-| EX-18 | Mode créateur : ajuster assets, modules, activités | Éditeur utilisable dans le client avant publication | partiel : routes `/layout` et `/params` existent, aucun écran client trouvé | ADR 0009 d.8 ; section 3.2 |
-| EX-19 | L'IA aide et fait les connexions dans le mode créateur | Une modification déclenche une proposition validée | à trancher | point P3 |
+| EX-18 | Mode créateur : ajuster assets, modules, activités | Éditeur utilisable dans le client avant publication | partiel, écran après la Première version (B4c c1 reporté le 06/11) : routes `/layout` et `/params` existent, aucun écran client trouvé | ADR 0009 d.8 ; section 3.2 |
+| EX-19 | L'IA aide et fait les connexions dans le mode créateur | Une modification déclenche une proposition validée | à trancher, après la Première version | point P3 |
 | EX-20 | Publication, pas de lobby sur un brouillon | `POST /games/{id}/publish` ; lobby refusé sur brouillon | fait côté API ; bouton « Publier » présent | backend/gmix/api/routes/games.py ; home_screen.gd |
 | EX-21 | Lobby par groupe de travail avec code | Création, code copiable, rejoindre par code | partiel (B2, 06/11) : code en grand + « Copier » dans l'écran `group` ; le bouton « Copier » n'est pas contrôlé sans affichage | ADR 0010 §4 F4 ; lobby_screen.gd |
 | EX-22 | Un lobby regroupe plusieurs équipes | Équipes dans un lobby, une entreprise chacune | partiel (B2, 06/11) : API `/api/v1/groups` testée ; écran `group` (cartes d'équipes, « Ouvrir », « Rejoindre », une équipe par groupe) contrôlé par `-Tour` ; l'entrée d'un joueur dans une équipe n'est testée que par l'API dans `-Flow` (étape A.5c) | ADR 0011 §2 ; backend/gmix/api/routes/groups.py |
-| EX-23 | Une entreprise par session, un département par joueur | Un rôle par joueur, rôles pris visibles | partiel : choix de rôle présent, cartes de rôles à l'étape 7 | ADR 0010 §7.1 |
+| EX-23 | Une entreprise par session, un département par joueur | Un rôle par joueur, rôles pris visibles | partiel : choix de rôle présent, cartes de rôles non faites (ADR 0010 §6, F4) | ADR 0010 §7.1 |
 | EX-24 | Avance quand tous sont prêts ; forcer ; pause | Routes `/ready`, `/pause`, `/advance` | fait : barre « prêt » client (prêt, pause et reprise, forçage sans absents), `-Flow -NoLlm` A.5b, 2026-11-05 | godot/scenes/common/round_bar.gd ; ADR 0010 annexe §1 |
 | EX-25 | Joueur absent : vote ignorer ou attendre | Majorité stricte, égalité = attendre, 409 sans vote ouvert | fait (clic de vote non testé automatiquement : un seul joueur dans le flux) | godot/scenes/common/round_bar.gd ; ADR 0010 §7.6 |
 | EX-26 | Module libre agi par le formateur : pilote arrêté pour la semaine | Test moteur `held_roles` | fait côté moteur | ADR 0010 annexe §11 ; backend/gmix/game/engine.py |
 | EX-27 | Alertes et critères de réussite avec verdict partiel | `state.alerts[]`, `criteria`, verdict atteint, partiel ou non | partiel : alertes affichées dans la tablette (bouton « Faire ») et « Alertes (n) » au HUD ; affichage des critères et du verdict à faire | godot/scenes/tablet/tablet.gd ; ADR 0010 annexe §2 et §3 |
 | EX-28 | Aléas prévus et déclenchés par le formateur | Route `/event` | fait : aléa déclenché depuis la barre du formateur (`/event`), `-Flow -NoLlm` A.5b, 2026-11-05 | godot/scenes/common/round_bar.gd ; lobbies.py |
-| EX-29 | Tableau de bord du formateur | Page de pilotage de la section 3.3 | partiel : barre de pilotage et onglet Supervision, la page F5 complète n'existe pas | round_bar.gd ; tablet.gd ; ADR 0010 §4 F5 |
-| EX-30 | Pages des départements dans la tablette | Une page par département, lecture seule hors du sien | fait (B3 puis B4a, 06/11) : une page par département dans la tablette, lecture seule hors du sien, alertes par département ; clic au sol dans une zone `dept:<id>` d'un autre département = ouverture de sa page (dans sa zone : marche seulement) ; `-Tour` pas rejoué après le dernier correctif de `world.gd` | ADR 0010 §6 étape 7 |
+| EX-29 | Tableau de bord du formateur | Page de pilotage de la section 3.3 | partiel, page F5 complète après la Première version : barre de pilotage et onglet Supervision | round_bar.gd ; tablet.gd ; ADR 0010 §4 F5 |
+| EX-30 | Pages des départements dans la tablette | Une page par département, lecture seule hors du sien | fait (B3 puis B4a, 06/11) : une page par département dans la tablette, lecture seule hors du sien, alertes par département ; clic au sol dans une zone `dept:<id>` d'un autre département = ouverture de sa page (dans sa zone : marche seulement) ; `-Tour` pas rejoué après le dernier correctif de `world.gd` | ADR 0010 §6 ; ADR 0012 |
 | EX-31 | Débrief joueur et formateur | `GET /lobbies/{id}/debrief`, écran J3 avec courbes et causes | fait (B4a, 06/11) : écran J3 `GmixDebrief` avec une courbe par critère (`criteria[].series`, cible et seuil en pointillés, aléas en filets), causes, leçons reliées aux fiches, notions, valeurs non sourcées | ADR 0010 §4 J3 ; ADR 0012 |
 | EX-32 | Comparaison entre équipes ou sessions d'un jeu | Débrief comparatif | fait (B2 puis B4a, 06/11) : « Débrief comparé » affiche les équipes côte à côte (1 à 3 colonnes) avec une série par équipe dans les courbes ; joueur : seulement quand toutes les équipes ont fini (409), formateur et admin à tout moment | ADR 0011 §2 |
-| EX-33 | PNJ qui disent les faits calculés et se souviennent | Dialogue sur `briefings`, 6 derniers échanges | fait (garde-fou des nombres de `npc.py` en attente de décision) | ADR 0006 ; docs/blocages.md |
-| EX-34 | Interfaces ergonomiques, chaleureuses, au vouvoiement | `-Tour` vert aux 4 tailles, police 15 px au moins | partiel : textes de l'étape 1 livrés, passe finale à l'étape 7 | `.\scripts\godot.ps1 -Tour` ; ADR 0010 §6 |
-| EX-35 | Tenable sur le poste (RTX 3060 6 Go) | Conception 3 min en médiane, 10 au plus | partiel : budget décidé, mesure sur l'usine à faire | ADR 0008 d.4 ; `.\scripts\check-env.ps1` |
-| EX-36 | Capacité d'une séance réelle (une vingtaine de joueurs) | Dialogues simultanés tenus | à trancher : GPU insuffisant, taille des lobbies inconnue | docs/blocages.md 4 |
-| EX-37 | Licence du jeu de référence | Reprise sans crédit décidée (autrice dans l'équipe) | partiel : décision prise ; blocages.md et prompt-projet.md à aligner (étape 9) | ADR 0010 §7.5 |
+| EX-33 | PNJ qui disent les faits calculés et se souviennent | Dialogue sur `briefings`, 6 derniers échanges | partiel : dialogue et mémoire faits ; garde-fou des nombres de `npc.py` décidé le 06/11, à implémenter avant la démo (réplique avec un nombre absent des faits remplacée par la réponse de secours, clé `guard`) | ADR 0006 ; ADR 0007 |
+| EX-34 | Interfaces ergonomiques, chaleureuses, au vouvoiement | `-Tour` vert aux 4 tailles, police 15 px au moins | partiel : textes de l'étape 1 livrés, 3 palettes claires disponibles (choix en attente), `-Tour` 236 écrans 0 défaut le 06/11, passe finale `-Tour` à rejouer (ordre 6, ADR 0012 c2) | `.\scripts\godot.ps1 -Tour` ; ADR 0010 §6 |
+| EX-35 | Tenable sur le poste (RTX 3060 6 Go) | Conception 3 min en médiane, 10 au plus | fait : conception mesurée, médiane 10,4 s le 05/11 et 4,7 s le 06/11 sans Godot (ai/evals/results/factory.design-2026-11-06.md), sous le budget de 3 min | ADR 0008 d.4 ; `.\scripts\check-env.ps1` |
+| EX-36 | Capacité d'une séance réelle (une vingtaine de joueurs) | Dialogues simultanés tenus | à trancher, après la Première version : GPU insuffisant pour une vingtaine ; la démo vise 3 à 6 joueurs | docs/blocages.md 4 |
+| EX-37 | Licence du jeu de référence | Reprise sans crédit décidée (autrice dans l'équipe) | fait : décision prise ; blocages.md et prompt-projet.md alignés le 06/11 | ADR 0010 §7.5 |
 | EX-38 | Docs et QA du chantier 0010 | Étapes 8 (docs) et 9 (QA) faites | à faire | ADR 0010 §6 |
 
-Décompte au 2026-11-05 (après ADR 0011) : 38 attentes ; fait 9, partiel 22, à faire 5, à trancher 2.
+Décompte au 2026-11-06 (recompté sur le tableau ci-dessus) : 38 attentes ; fait 15, partiel 17, à faire 4, à trancher 2.
+
+Après la Première version (décision du 06/11) : mode construction B4c c1 (EX-18), EX-05 à distance, EX-12, 14, 19, 29 (page F5 complète) et 36.
 
 ## 10. Points à trancher
 
-### P1. Code généré par l'IA (attente 1) — tranché le 05/11 : A, B plus tard (ADR 0011 §3)
+### P1 et P2. Tranchés le 05/11 (ADR 0011)
 
-| | |
-|---|---|
-| Décision en jeu | ADR 0006 (simulation par paramètres, sans modèle), ADR 0008 (l'IA ne produit ni chiffre ni lien), sécurité (aucun code arbitraire exécuté sur le serveur ou chez les joueurs), exigence n° 1 |
-| Option A | Connexions **déclaratives** : l'IA choisit des liens dans des énumérations du pack (activité -> département -> KPI -> asset) ; `SimSpec` les valide |
-| Option B | **Expressions** dans un langage restreint (formules sur indicateurs, sans boucle ni appel système), évaluées par le moteur, bornées et testées |
-| Option C | Code exécuté tel quel : refusée (sécurité, justesse invérifiable) |
-| Recommandation | A d'abord (compatible avec l'ADR 0008), B pour les besoins que A ne couvre pas, après un ADR. Appeler « parties de code simples » ces connexions et expressions, jamais du code libre |
-
-### P2. Un lobby, plusieurs équipes (attente 6) — tranché le 05/11 : B (ADR 0011 §2)
-
-| | |
-|---|---|
-| Décision en jeu | ADR 0010 §7.1 : une entreprise partagée par session, un département par joueur ; comparaison par plusieurs lobbies du même jeu |
-| Option A | Statu quo : un lobby = une équipe ; le groupe de travail est une étiquette, la comparaison passe par plusieurs lobbies |
-| Option B | Un lobby contient N équipes ; **une équipe = une entreprise** ; le débrief compare les équipes ; l'avance de semaine reste par équipe ou commune |
-| Recommandation | B, car elle suit la demande (tout le groupe dans un lobby) sans casser « une entreprise par équipe ». Coûts : table d'équipes, état par équipe, avance et votes par équipe ; amender l'ADR 0010 §7.1 |
+| Point | Décision | Trace |
+|---|---|---|
+| P1 Code généré par l'IA | A : connexions déclaratives ; B (expressions) plus tard ; C refusée | ADR 0011 §3 |
+| P2 Un lobby, plusieurs équipes | B : un lobby contient N équipes, une équipe = une entreprise | ADR 0011 §2 |
 
 ### P3. IA hors de l'usine dans le mode créateur (attente 4)
 

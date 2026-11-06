@@ -7,7 +7,7 @@ extends RefCounted
 
 const ABSENT := "Donnée absente."
 const CARD_WIDTH := 200  # largeur d'un indicateur : plusieurs par ligne, la rangée passe à la ligne
-const CHART_COLORS := [UiTokens.LIME, UiTokens.INFO, UiTokens.WARN, UiTokens.OK]
+static var CHART_COLORS: Array = [UiTokens.LIME, UiTokens.INFO, UiTokens.WARN, UiTokens.OK]
 
 
 ## Panneaux de `spec.panels` d'un emplacement et d'un public (`formateur` ou `joueur` ; `tous` convient aux deux).

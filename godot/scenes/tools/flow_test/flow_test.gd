@@ -3,7 +3,7 @@ extends Node
 ## -> débrief, en pilotant les vrais écrans (main.gd, home_screen, lobby_screen, world + HUD) comme le ferait un
 ## utilisateur : cases à cocher, listes, boutons, boîtes de dialogue. Chaque étape vérifie l'interface ET l'API.
 ##   Godot_console.exe --headless --path godot res://scenes/tools/flow_test/flow_test.tscn -- --api=http://127.0.0.1:8000
-##       [--only=A,B,V] [--no-llm : saute les dialogues avec les agents (A.8), donc tout appel à Ollama]
+##       [--only=A,B,V,D : D = conception par l'IA, brouillon F3, régénération ; hors défaut] [--no-llm : saute les dialogues avec les agents (A.8), donc tout appel à Ollama]
 ## Jetons de comptes jetables dans l'environnement : GMIX_FLOW_TRAINER_TOKEN, GMIX_FLOW_PLAYER_TOKEN,
 ## GMIX_FLOW_PLAYER2_TOKEN (scripts\godot.ps1 -Flow les crée et les supprime). Code de sortie 0 si tout passe.
 ## La présence ENet (autoload Presence) n'est pas l'objet : elle est remplacée par une doublure inerte.
@@ -13,6 +13,7 @@ const WORLD := "res://scenes/world/world.tscn"
 const HOME_SCRIPT := "res://scenes/main/home_screen.gd"
 const LOBBY_SCRIPT := "res://scenes/lobby/lobby_screen.gd"
 const GROUP_SCRIPT := "res://scenes/group/group_screen.gd"
+const DRAFT_SCRIPT := "res://scenes/draft/draft_screen.gd"
 const WAIT_S := 20.0  # attente par défaut d'une condition (réseau local, Kafka)
 const WS_WAIT_S := 45.0  # relais Kafka -> WebSocket
 const TALK_WAIT_S := 120.0  # réponse d'un agent : le modèle de dialogue peut devoir se charger
@@ -131,6 +132,8 @@ func _run() -> void:
 	_check(not _player.is_empty() and not _player2.is_empty() or not ("B" in _only), "jetons joueurs fournis")
 	if _failures.is_empty() and "A" in _only:
 		await _trainer_journey()
+	if _failures.is_empty() and "D" in _only:
+		await _design_journey()
 	_finish("")
 
 
@@ -382,6 +385,133 @@ func _check_group(lobby: Control, game: Dictionary) -> Control:
 	var back := await _wait_screen(LOBBY_SCRIPT)
 	_check(back != null and Session.lobby.get("id") == lobby_id, "le lobby du parcours est rouvert")
 	return back
+
+
+# --- parcours D : conception, brouillon F3, régénération ---------------------------------------------------------
+
+
+## Clés de GameParams que régénère la section « personnages » (spec.py FACTORY_SECTIONS) : les autres restent celles du jeu.
+const SECTION_KEYS := ["agent_tone", "extra_agents"]
+const NOT_DESIGNED := "Ce jeu n'a pas été conçu par l'IA"
+const DESIGN_BRIEF := "Une usine de fabrication de vélos électriques avec un atelier d'assemblage, un entrepôt de composants et un quai d'expédition, pour apprendre à tenir le taux de service."
+
+
+func _design_journey() -> void:
+	var no_llm := _arguments().has("no-llm")
+	_begin("D.1", "F1 : champs imposables du mode « Concevoir avec l'IA »")
+	if not await _sign_in(_trainer):
+		return
+	var home := await _wait_screen(HOME_SCRIPT)
+	if not _check(home != null and await _check_home_form(home), "l'accueil formateur s'affiche"):
+		return
+	var games := home.get("_games") as Control
+	await home.call("_load_games")
+	await _frames(3)  # Ui.clear libère en différé : compter après coup
+	var rows := games.get_child_count()
+	home.call("_load_games")  # deux chargements qui se chevauchent : pas de doublon dans « Mes jeux »
+	await home.call("_load_games")
+	await _frames(3)
+	_check(games.get_child_count() == rows, "« Mes jeux » : aucun doublon après deux chargements simultanés", "%d lignes au lieu de %d" % [games.get_child_count(), rows])
+	await _select_pack(home, "usine")
+	var mode := home.get("_mode_select") as OptionButton
+	_pick(mode, 1)
+	await _frames(2)
+	var locks: Dictionary = home.get("_locks")
+	for key in ["theme", "weeks", "difficulty", "events", "company_name"]:
+		_check(locks.has(key) and not (locks[key][0] as CheckBox).button_pressed, "« %s » : case « Imposer » décochée au départ" % key)
+	var refused := await _raw(_trainer, HTTPClient.METHOD_POST, "/api/v1/games/designs", {"pack": "usine", "brief": DESIGN_BRIEF, "fixed": {"modules": "x"}})
+	_check(refused["status"] == 422, "une contrainte invalide est refusée (422)", str(refused["error"]))
+	var game_id := ""
+	if no_llm:
+		_begin("D.2", "Brouillon obtenu par POST /games puis PUT /params (sans modèle)")
+		_pick(mode, 0)
+		await _frames(2)
+		var made := await _generate(home, USINE_PARAMS)
+		if made.is_empty():
+			return
+		game_id = str(made["id"])
+		var saved := await _raw(_trainer, HTTPClient.METHOD_PUT, "/api/v1/games/%s/params" % game_id, made["spec"]["params"])
+		_check(saved["ok"] and saved["data"]["status"] == "draft", "PUT /params : le jeu est un brouillon", str(saved["error"]))
+	else:
+		_begin("D.2", "F1 avec champs imposés, conception réelle et progression")
+		var pack: Dictionary = (home.get("_options")["packs"] as Array).filter(func(entry: Dictionary) -> bool: return entry["id"] == "usine")[0]
+		var weeks := clampi(6, int(pack["limits"]["weeks"][0]), int(pack["limits"]["weeks"][1]))
+		var level_id := str(pack["difficulties"][0]["id"])
+		(locks["weeks"][0] as CheckBox).button_pressed = true
+		for node in (locks["weeks"][0] as CheckBox).get_parent().find_children("*", "SpinBox", true, false):
+			(node as SpinBox).value = weeks
+		(locks["difficulty"][0] as CheckBox).button_pressed = true
+		_pick((locks["difficulty"][0] as CheckBox).get_parent().find_children("*", "OptionButton", true, false)[0] as OptionButton, 0)
+		(home.get("_design_players_min") as SpinBox).value = 3
+		(home.get("_design_players_max") as SpinBox).value = 4
+		(home.get("_brief") as TextEdit).text = DESIGN_BRIEF
+		if not _click(home.get("_design_button") as Button, "bouton « Concevoir l'usine »"):
+			return
+		var seen: Array[bool] = [false]
+		var done: Variant = await _until(func() -> bool:
+			seen[0] = seen[0] or "".join(_texts(home.get("_design_state") as Control)).contains(" %) · ")
+			return not (home.get("_design_button") as Button).disabled, 600.0)
+		_check(done != null, "la conception se termine")
+		_check(seen[0], "la progression affiche pourcentage et temps écoulé")
+		game_id = str(home.get("_design_game"))
+		var drafted := await _raw(_trainer, HTTPClient.METHOD_GET, "/api/v1/games/%s" % game_id)
+		if not _check(drafted["ok"] and drafted["data"]["status"] == "draft", "le jeu conçu est un brouillon"):
+			return
+		var params: Dictionary = drafted["data"]["spec"]["params"]
+		_check(int(params["weeks"]) == weeks and params["difficulty"] == level_id, "les paramètres imposés sont respectés", "durée %s, niveau %s" % [params["weeks"], params["difficulty"]])
+		_check(int(params["players_min"]) == 3 and int(params["players_max"]) == 4, "les joueurs demandés sont respectés")
+	var before: Dictionary = (await _raw(_trainer, HTTPClient.METHOD_GET, "/api/v1/games/%s" % game_id))["data"]["spec"]["params"]
+
+	_begin("D.3", "F3 : écran de brouillon, une carte par section")
+	GmixDraftScreen.current_id = game_id
+	home.emit_signal("navigate", "draft")
+	var draft := await _wait_screen(DRAFT_SCRIPT)
+	if not _check(draft != null, "l'écran de brouillon s'affiche"):
+		return
+	await _until(func() -> bool: return not (draft.get("_game") as Dictionary).is_empty())
+	for card in ["entreprise", "objectifs", "personnages", "parametres"]:
+		_check(draft.find_child("Card_%s" % card, true, false) != null, "carte « %s »" % card)
+	for section in ["entreprise", "objectifs", "personnages"]:
+		_check(_button_named(draft, "Regenerate_%s" % section) != null, "bouton « Régénérer » de la section %s" % section)
+	_check((draft.get("_title") as Label).text.begins_with("Brouillon"), "titre « Brouillon : … »")
+	var unknown := await _raw(_trainer, HTTPClient.METHOD_POST, "/api/v1/games/00000000-0000-4000-8000-000000000000/design/regenerate", {"section": "personnages"})
+	_check(unknown["status"] == 404, "régénérer un jeu inconnu : 404", str(unknown["error"]))
+	if not _player.is_empty():
+		var forbidden := await _raw(_player, HTTPClient.METHOD_POST, "/api/v1/games/%s/design/regenerate" % game_id, {"section": "personnages"})
+		_check(forbidden["status"] == 403, "régénérer en joueur : 403", str(forbidden["error"]))
+
+	_begin("D.4", "Régénérer la section « personnages » (%s)" % ("jeu non conçu par l'IA : 409" if no_llm else "réel, avec le modèle"))
+	var status := draft.get("_status") as Label
+	(draft.find_child("Note_personnages", true, false) as LineEdit).text = "Des personnages plus directs."
+	if not _click(_button_named(draft, "Regenerate_personnages"), "bouton « Régénérer » (personnages)"):
+		return
+	await _until(func() -> bool: return not status.text.is_empty() and not bool(draft.get("_busy")), 20.0 if no_llm else 600.0)
+	if no_llm:
+		_check(status.text.contains(NOT_DESIGNED), "le 409 est expliqué à l'écran", status.text)
+	else:
+		_check(status.text == GmixDraftScreen.FALLBACK_TEXT or status.text.contains("régénérée"), "le résultat est annoncé (repli accepté)", status.text)
+		var after := await _raw(_trainer, HTTPClient.METHOD_GET, "/api/v1/games/%s" % game_id)
+		var changed: Array[String] = []
+		for key: String in before:
+			if not (key in SECTION_KEYS) and JSON.stringify(before[key]) != JSON.stringify(after["data"]["spec"]["params"].get(key)):
+				changed.append(key)
+		_check(changed.is_empty(), "les clés hors section ne changent pas", ", ".join(changed))
+		_check(after["data"]["status"] == "draft", "le jeu est revenu en brouillon")
+
+	_begin("D.5", "Publication depuis l'écran de brouillon")
+	var publish := _button_named(draft, "PublishButton")
+	_check(publish != null and not publish.disabled, "« Publier » actif sur un brouillon")
+	if publish != null:
+		_click(publish, "bouton « Publier »")
+		await _until(func() -> bool: return status.text.begins_with("Jeu publié"), WAIT_S)
+		var published := await _raw(_trainer, HTTPClient.METHOD_GET, "/api/v1/games/%s" % game_id)
+		_check(published["data"]["status"] == "ready", "le jeu est publié (prêt)")
+	_click(_button_named(draft, "BackButton"), "bouton « Retour à l'accueil »")
+	_check(await _wait_screen(HOME_SCRIPT) != null, "retour à l'accueil")
+
+
+func _button_named(root: Node, node_name: String) -> Button:
+	return root.find_child(node_name, true, false) as Button
 
 
 # --- accueil et génération -------------------------------------------------------------------------------------

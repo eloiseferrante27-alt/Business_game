@@ -42,7 +42,7 @@ Si un chantier ne sert aucun de ces dix attendus, le remettre en question avant 
 | # | Attendu | Comment on le vérifie |
 |---|---|---|
 | 1 | **Domaines proposés selon les assets.** Un domaine est proposé si un pack est chargé, sourcé et couvert à 100 % ; sinon grisé avec la raison. Un nouveau domaine = données | ADR 0009 décision 7 ; critère 0009-9 (`pack_coverage("usine")["ratio"] == 1.0`, 422 pour un pack non proposé) |
-| 2 | **L'IA conçoit** concept, cast et journey à partir du brief et des paramètres, en choisissant dans les catalogues du pack | ADR 0008 annexe §9 critères 3 et 5 ; `gmix.tools.eval_design --series C` atteint les seuils du §8 |
+| 2 | **L'IA conçoit** concept, cast et journey (3 appels : cible ; v0 = un seul appel `factory.design`) à partir du brief et des paramètres, en choisissant dans les catalogues du pack | ADR 0008 annexe §9 critères 3 et 5 ; `gmix.tools.eval_design --series C` atteint les seuils du §8 |
 | 3 | **Un monde sur grilles**, posé par un placeur déterministe : carte, site, bloc | ADR 0009 décision 1 ; critères 0009-1, 0009-2 |
 | 4 | **Placement fondé sur le métier** : règles d'implantation du domaine, chacune avec sa provenance | ADR 0009 décision 6 ; critère 0009-8 (`check_placement` ne trouve rien ; un plan qui viole une règle est refusé, 6 types) |
 | 5 | **Réseau logistique** : fournisseurs externalisés, routes, camions rejoués, délais dérivés de la distance | ADR 0009 décisions 3 et 4 ; critères 0009-3, 0009-4, 0009-5 |
@@ -61,7 +61,7 @@ Si un chantier ne sert aucun de ces dix attendus, le remettre en question avant 
  modules + paramètres (GameParams) + brief libre (20 à 2000 caractères)
         |
         v
- conception par l'IA : concept -> cast -> journey      (3 appels, un job à la fois)
+ conception par l'IA : concept -> cast -> journey      (3 appels : cible ; v0 = un seul appel `factory.design`)
    choix dans les catalogues du pack ; aucun nombre, aucune coordonnée, aucun lien
         |
         v
@@ -113,8 +113,8 @@ Détail : ADR 0008 décisions 2 et 4, annexe §3 ; ADR 0009 décisions 1 à 6 ; 
 | Textes de 7 à 11 px du jeu de référence | 15 px au moins (ADR 0008 d.5) |
 | LLM externe | Décision de l'utilisateur du 2026-10-29 |
 
-Avertissements à ne jamais retirer sans preuve (docs/blocages.md) : le jeu de référence n'a pas de licence (accord
-de son autrice avant toute diffusion) ; le calibrage des simulations est à faire relire par `game-designer` ; le
+Avertissements à ne jamais retirer sans preuve (docs/blocages.md) : licence du jeu de référence tranchée (l'autrice
+est dans l'équipe, reprise sans crédit, ADR 0010 §7.5 ; les crédits d'assets et de polices de tiers restent) ; le calibrage des simulations est à faire relire par `game-designer` ; le
 corpus est provisoire et les domaines sans corpus sont « non sourcés ».
 
 ## 5. Le monde
@@ -153,7 +153,7 @@ décision 8 (`layout_edits`, `apply_edits`, critère 0009-10), y renvoyer plutô
 | Notions | Chaque notion du pack porte une citation ; une notion hors du pack est interdite à l'IA (ADR 0008 d.1) |
 | Agents | Un agent parlant par module ou département ; le moteur calcule ses faits ; le modèle les dit en une ou deux phrases avec le caractère de l'agent (docs/game-design.md) |
 | Mémoire | Les six derniers échanges du lobby avec l'agent ; mémoire partagée entre joueurs, risque d'injection persistante accepté (ADR 0007 d.12) |
-| Garde-fous | Pré-filtre lexical, tours douteux jamais mémorisés ; garde-fou des nombres de `npc.py` en attente de décision (docs/blocages.md) |
+| Garde-fous | Pré-filtre lexical, tours douteux jamais mémorisés ; garde-fou des nombres de `npc.py` décidé le 06/11, à implémenter (ADR 0007) : réplique avec un nombre absent des faits remplacée par la réponse de secours, clé `guard` |
 | Débrief | Indicateurs calculés, aléas survenus, notions et sources, valeurs et règles non sourcées |
 
 ## 8. Contraintes techniques et budgets
@@ -219,7 +219,7 @@ mission). Jamais « max » par défaut.
 
 ## 11. Où en est-on
 
-État courant : docs/equipe/reprise.md. Plan d'exécution : ADR 0008 annexe §10 et §10.1.
+État courant : docs/equipe/reprise.md. Plan d'exécution : ADR 0012 et reprise.md (ADR 0008 annexe §10 : remplacé).
 
 ## 12. Prompt de session
 

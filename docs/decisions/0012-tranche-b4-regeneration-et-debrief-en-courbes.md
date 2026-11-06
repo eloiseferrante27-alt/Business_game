@@ -1,6 +1,6 @@
 # 0012 : tranche B4, régénération par section de l'usine, débrief J3 en courbes, découpage B4a/B4b/B4c
 
-Date : 2026-11-06. Statut : **proposé**. Complète l'[ADR 0010](0010-refonte-alignee-business-game.md) §4 (F2, F3, J3)
+Date : 2026-11-06. Statut : **accepté** (décisions de l'utilisateur du 06/11, en fin de document). Complète l'[ADR 0010](0010-refonte-alignee-business-game.md) §4 (F2, F3, J3)
 et §6 étape 7, l'[annexe 0010](0010-annexe-contrats.md) §3, §4, §7 et §12, l'[ADR 0011](0011-groupes-d-equipes-et-connexions.md) §2.
 Exigences : EX-08, EX-30 (reste), EX-31, EX-32 (courbes), EX-34.
 
@@ -42,7 +42,7 @@ semaine isolée tracée contre une cible de moyenne serait fausse (exigence n° 
 
 | Section F3 | Clés régénérées | Bouton |
 |---|---|---|
-| Entreprise | `theme`, `company_name` | Régénérer |
+| Entreprise | `theme` (`company_name` est gardé : le modèle ne le produit pas, voir Worker) | Régénérer |
 | Produits, fournisseurs, rôles | aucune (modules, produits, options, réseau) | Paramètres (`PUT /params`) |
 | Objectifs et aléas | `difficulty`, `tunings`, `events`, `event_plan` | Régénérer |
 | Personnages | `agent_tone`, `extra_agents` | Régénérer |
@@ -72,8 +72,10 @@ semaine isolée tracée contre une cible de moyenne serait fausse (exigence n° 
 **Worker** (pipeline-kafka) :
 - Job `design` : `keep = params.fixed | {players_min, players_max}`, lu dans `game.params`, qui est le
   `DesignRequest` rangé par `POST /designs`.
-- Job `regenerate_<s>` : `keep` = les `spec.params` du jeu sans `FACTORY_SECTIONS[s]` (avec `seed`, donc la graine du
-  jeu ne change pas). Le modèle reçoit la graine du job.
+- Job `regenerate_<s>` : `keep` = les `spec.params` du jeu sans les clés de `FACTORY_SECTIONS[s]` **que le schéma de
+  `design_schema` produit** (avec `seed`, donc la graine du jeu ne change pas). Une clé de la section absente du
+  schéma reste gardée : `company_name` ne change pas quand on régénère « Entreprise » (code du worker, `_keep`, fait
+  foi). Le modèle reçoit la graine du job.
 - Régénération réussie : `generate`, puis rejeu de `spec.layout_edits` par `recompile_layout`, comme dans
   `update_params`. Les retouches qui ne tiennent plus vont dans `review.dropped`. `review` reçoit `section`.
 - Régénération en repli (`fallback`) : **la spec ne change pas**, `review.fallback = true` avec ses raisons, le job
@@ -129,7 +131,8 @@ Parcours D de `flow_test.gd` :
 - **Découpage**, une tranche par session :
   - **B4a**, J3, courbes et clic : EX-30, EX-31, EX-32 ;
   - **B4b**, F1/F2/F3 et `-Design` : EX-08 ;
-  - **B4c**, mode construction (ADR 0009 points 8, 9 et 12) et passe finale `-Tour` : EX-34.
+  - **B4c**, mode construction (ADR 0009 points 8, 9 et 12) et passe finale `-Tour` : EX-34. (06/11) Le mode
+    construction (c1) passe après la Première version ; seule la passe `-Tour` (c2) reste avant.
 - **B4c dépasse probablement une session**, à cause de la grille, du fantôme, de la palette, du rétablissement et du
   menu, dans `world.gd` (1 209 lignes). Si c'est le cas : B4c1 pour la grille, le fantôme, le déplacement et le refus
   422 ; B4c2 pour la palette, le retrait, le rétablissement et le menu.
@@ -155,11 +158,24 @@ Parcours D de `flow_test.gd` :
 | b1 | ia-runtime | `llm/factory_design.py`, `ai/prompts/factory.design.md`, tests, `tools/eval_factory_design.py` si besoin | §1 IA : les clés gardées ne changent jamais (test), schéma réduit, consigne bornée ; `test.ps1 -Fast` ; `python -m gmix.tools.eval_factory_design` sans régression | — ; en parallèle de b2 et b3 |
 | b2 | backend-api | `api/routes/games.py`, tests d'API | §1 API : route, 409, 503, `_store` corrigé, matrice des 3 rôles testée ; `test.ps1 -Fast` | — ; en parallèle |
 | b3 | pipeline-kafka | `workers/generation.py`, tests du worker | §1 worker : `keep`, repli sans changement, retouches rejouées ; `test.ps1 -Integration` | tests verts après b1 |
-| b4 | godot-dev | `scenes/main/home_screen.gd` (F1 vers `fixed`, temps écoulé, « en conception (n %) »), `scenes/draft/` (F3, nouveau), `main/main.gd`, `tools/flow_test` (parcours D), `tools/ui_tour` | F3 avec ses quatre sections, Régénérer avec consigne, Paramètres, Publier ; `-Check`, `-Tour` | après b2 ; en parallèle de b5 |
+| b4 | godot-dev | `scenes/main/home_screen.gd` (F1 vers `fixed` ; temps écoulé et « n % » reportés, décision 3), `scenes/draft/` (F3, nouveau), `main/main.gd`, `tools/flow_test` (parcours D), `tools/ui_tour` | F3 avec ses quatre sections, Régénérer avec consigne, Paramètres, Publier ; `-Check`, `-Tour` | après b2 ; en parallèle de b5 |
 | b5 | devops | `scripts/godot.ps1` | §4 ; `godot.ps1 -Flow -Design -NoLlm` vert après b4 | en parallèle de b4 |
 | b6 | qa-reviewer, puis documentaliste | tests ; `docs/kafka.md` (`sections` de l'usine, `regenerate_*`), cahier EX-08, reprise.md | `test.ps1 -Integration`, `smoke.ps1`, `-Flow -Design` avec et sans `-NoLlm` | fin de B4b |
-| c1 | godot-dev | `world/world.gd`, `world/sims_view.gd`, `world/hud.gd` (menu en mode construction), `scenes/draft/` (bouton), `tools/*` | ADR 0009 critère 12 : `-Tour` aux 4 tailles, parcours D (déplacer, retirer, annuler, rétablir, refus affiché, publication), 45 images/s | après B4b |
+| c1 | godot-dev | `world/world.gd`, `world/sims_view.gd`, `world/hud.gd` (menu en mode construction), `scenes/draft/` (bouton), `tools/*` | ADR 0009 critère 12 : `-Tour` aux 4 tailles, parcours D (déplacer, retirer, annuler, rétablir, refus affiché, publication), 45 images/s | **reporté après la Première version** (décision 2 ci-dessous) |
 | c2 | qa-reviewer, puis documentaliste | tests, passe `-Tour` finale (EX-34), docs | `test.ps1 -Integration`, `-Tour`, `-Flow -Design` | fin |
 
 Parallèles : a1, a2 et a3 n'ont aucun fichier commun, de même que b1, b2 et b3, puis b4 et b5. `flow_test.gd` et
 `ui_tour.gd` n'ont qu'un seul agent par tranche (godot-dev).
+
+## Décisions de l'utilisateur (06/11)
+
+1. **La régénération repasse le jeu en brouillon** : régénérer une section d'un jeu publié (`ready`) le remet en
+   `draft`, à republier (déjà écrit au §1, Worker : « le jeu repasse en `draft` »). Le 409 d'un lobby `running` reste.
+2. **c1 (mode construction) est reporté après la Première version.** B4c se réduit à la passe finale `-Tour` (c2,
+   EX-34). L'aperçu 3D de F3 part avec c1 : F3 reste en cartes pour la Première version.
+3. **B4b en version courte** : le temps écoulé et le « en conception (n %) » de F2 dans la liste des jeux sont
+   reportés. b4 livre F1 vers `fixed`, F3 et la progression déjà affichée par `home_screen.gd`.
+4. **Ordre jusqu'à la Première version** : B4b court ; répétition en salle en LAN ; exigence n° 1 (10 jeux conçus,
+   relus et signés : ADR 0010 §6 étape 8) ; garde-fou des nombres de `npc.py`, activé avant la démo (contrat : ADR
+   0007, « Ce qui reste ouvert ») ; dette de l'annexe 0010 §12 ; passe `-Tour` (c2) ; Première version.
+5. **Démo en LAN, 3 à 6 joueurs** (ADR 0005 : serveur de partie par lobby). La répétition en salle le vérifie.

@@ -125,15 +125,15 @@ département ; les autres pages sont en lecture seule.
 ## 6. Étapes (plan pour l'orchestrateur)
 | # | Agent | Fichiers | Critère de fin | Ordre |
 |---|---|---|---|---|
-| 0 | moteur-jeu | backend/gmix/game/ | `POST /games` génère une usine ; `test.ps1 -Fast` vert | en cours |
-| 1 | godot-dev (**première livraison visible**) | godot/scenes/main, lobby, tablet, world/hud.gd, tools | F1, F4, F5, J1 et J2 sur l'API actuelle, avec le rail tiré de `spec.modules` ; textes traduits ; erreurs lisibles ; `-Tour` (4 tailles) et `-Flow` verts ; captures avant/après | lancée le 04/11, en parallèle de 0 |
+| 0 | moteur-jeu | backend/gmix/game/ | `POST /games` génère une usine ; `test.ps1 -Fast` vert | fait |
+| 1 | godot-dev (**première livraison visible**) | godot/scenes/main, lobby, tablet, world/hud.gd, tools | F1, F4, F5, J1 et J2 sur l'API actuelle, avec le rail tiré de `spec.modules` ; textes traduits ; erreurs lisibles ; `-Tour` (4 tailles) et `-Flow` verts ; captures avant/après | fait (lancée le 04/11) |
 | 2 | game-designer | ai/packs/usine.yaml ; noms d'entreprise par secteur | pack aligné, ≥ 2 offres par article, provenance de chaque valeur, `load_pack` passe | après 0 |
 | 3 | architecte | [annexe 0010](0010-annexe-contrats.md) (fait le 05/11 ; ajouts à spec.py délégués à l'étape 4, topics.py inchangé) | contrat : mode d'avancée et « prêt », `state.alerts[]`, critères, causes au journal, droits par réglage | après 0 |
-| 4 | moteur-jeu | engine, factory, design.py et leurs tests | alertes, critères, verdict partiel, causes ; étape 5 de l'annexe 0008 | après 2 et 3 |
-| 5 | backend-api | api/routes, db, alembic | « prêt » et avance de la semaine, aléa déclenché par le formateur, `/games/designs`, droits testés pour les 3 rôles | en parallèle de 4 |
-| 6 | ia-runtime, puis pipeline-kafka | ai/models.yaml, prompts, evals ; workers/generation.py | étapes 4, 8 et 11 de l'annexe 0008 sur l'usine ; médiane de 3 min | en parallèle de 4 et 5 |
-| 7 | godot-dev | main (F2, F3), tablet (pages des départements), J3, mode construction | `-Flow -Design` vert avec et sans `-NoLlm` ; `-Tour` vert | après 5 et 6 |
-| 8 | game-designer | relecture | 10 jeux conçus, relus et signés | après 7 |
+| 4 | moteur-jeu | engine, factory, design.py et leurs tests | alertes, critères, verdict partiel, causes ; étape 5 de l'annexe 0008 | fait (05/11) ; écarts à corriger : annexe §12 |
+| 5 | backend-api | api/routes, db, alembic | « prêt » et avance de la semaine, aléa déclenché par le formateur, `/games/designs`, droits testés pour les 3 rôles | fait (05/11) ; écarts à corriger : annexe §12 |
+| 6 | ia-runtime, puis pipeline-kafka | ai/models.yaml, prompts, evals ; workers/generation.py | étapes 4, 8 et 11 de l'annexe 0008 sur l'usine ; médiane de 3 min | fait en v0 (05/11) ; écarts à corriger : annexe §12 |
+| 7 | godot-dev | main (F2, F3), tablet (pages des départements), J3, mode construction | `-Flow -Design` vert avec et sans `-NoLlm` ; `-Tour` vert | en cours : B1 à B4a faits (06/11), puis B4b ; mode construction après la Première version (ADR 0012, décisions du 06/11) |
+| 8 | game-designer | relecture | 10 jeux conçus, relus et signés | après B4b et la répétition en LAN (ADR 0012, décision 4) |
 | 9 | documentaliste | docs/, blocages.md, prompt-projet.md | docs à jour, mention de licence revue | après 8 |
 | 10 | qa-reviewer | tests manquants | `test.ps1 -Integration`, `smoke.ps1`, `-Flow -Design` verts | fin |
 
@@ -144,7 +144,9 @@ mentionne encore l'accord de l'autrice, à aligner sur la décision 5 du §7 (é
 ## 7. Décisions de l'utilisateur (04/11)
 
 1. **Une entreprise partagée par session**, un département par joueur. Pour comparer des équipes, on lance plusieurs
-   lobbies du même jeu, que le débrief compare.
+   lobbies du même jeu, que le débrief compare. **Amendé par l'[ADR 0011](0011-groupes-d-equipes-et-connexions.md)
+   §2** (05/11) : une entreprise par équipe ; un groupe réunit plusieurs équipes d'un même jeu, et son débrief les
+   compare.
 2. **La semaine avance automatiquement** quand tous les joueurs sont « prêts » ; le formateur peut forcer l'avance ou
    mettre en pause (contrat à l'étape 3, API à l'étape 5).
 3. **L'IA ne conçoit que l'usine de type Business_game.** Le pack atelier est gelé, gardé comme repli « Générer sans IA ».
