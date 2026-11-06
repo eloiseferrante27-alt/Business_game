@@ -51,7 +51,7 @@ Commercial licensing requests must be directed to:
 
 **Romain LE MOAL**
 
-Email: <rlm1@netcourrier.com>
+GitHub: <https://github.com/Romain-LM-Dev>
 
 ## 5. Attribution and Copyright
 
