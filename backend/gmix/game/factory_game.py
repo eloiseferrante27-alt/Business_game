@@ -562,30 +562,52 @@ def _lessons(spec: dict[str, Any], state: dict[str, Any]) -> list[str]:
     lessons = []
     starved = sum(h["stockouts"] for h in history)
     if starved:
+        weeks = sum(1 for h in history if h["stockouts"])
+        reorder = _reorder_point(spec, factory.Plant(spec), _standard_offer(spec))
         lessons.append(
-            f"{starved} jour(s)-ligne arrêtés faute de matière : commander au point de commande (consommation "
-            "pendant le délai du fournisseur, plus revue et stock de sécurité) les aurait évités."
+            f"{starved} jour(s)-ligne arrêté(s) faute de matière, sur {weeks} semaine(s). Repère : recommandez quand "
+            "stock et palettes commandées passent sous le point de commande (consommation pendant le délai + stock "
+            f"de sécurité) ; le pilote automatique de ce jeu le place à {reorder} palettes."
         )
     otif = engine._mean(history, "otif")
     if otif is not None and otif < targets["otif"]:
         late = sum(h["delays"] for h in history)
+        both = sum(1 for h in history if h["delays"] and h["stockouts"])
+        shared = f" ; {both} des semaines concernées ont aussi eu des lignes arrêtées faute de matière" if both else ""
         lessons.append(
-            f"OTIF moyen de {otif} % pour un objectif de {targets['otif']:.0f} % : {late} commande(s) en retard. "
-            "Lancer les ordres de fabrication assez tôt pour que le stock de produits finis couvre la demande."
+            f"OTIF moyen de {otif} % pour un objectif de {targets['otif']:.0f} % : {late} commande(s) client en "
+            f"retard{shared}. Une commande ne compte que si elle part complète au plus tard le jour promis."
         )
     trs = engine._mean(history, "trs")
     if trs is not None and trs < targets["trs"]:
+        good = engine._mean(history, "good_share")
+        wear = any(m["weibull_shape"] > 1 for m in factory.Plant(spec).machines)
         lessons.append(
-            f"TRS moyen de {trs} % pour un objectif de {targets['trs']:.0f} % : pannes, pauses et rebuts réduisent la "
-            "production du goulot ; protéger le goulot et faire du préventif la préserve."
+            f"TRS moyen de {trs} % pour un objectif de {targets['trs']:.0f} %"
+            + (f", avec {good} % de produits bons" if good is not None else "")
+            + ". Le TRS d'une ligne se mesure sur son goulot : pannes, pauses, ralentissements et rebuts le font "
+            "baisser."
+            + (
+                " Ici, le risque de panne croît avec l'âge de la machine et un préventif le remet à zéro."
+                if wear
+                else ""
+            )
         )
     if state["cash"] < targets["cash_final"]:
+        previous = [spec["economy"]["initial_cash"]] + [h["cash"] for h in history[:-1]]
+        down = sum(1 for h, before in zip(history, previous, strict=True) if h["cash"] < before)
         lessons.append(
-            f"Trésorerie finale de {money(state['cash'])} sous l'objectif de {money(targets['cash_final'])} : matière "
-            "commandée en trop, pannes ou ventes manquées ont pesé."
+            f"Trésorerie finale de {money(state['cash'])}, sous l'objectif de {money(targets['cash_final'])} ; elle "
+            f"a baissé sur {down} semaine(s). Ici, chaque produit expédié est encaissé ; la matière reçue, les "
+            "opérateurs, les réparations et le préventif sont payés."
         )
     if not lessons:
-        lessons.append("Objectifs atteints : la matière, la fabrication et les livraisons sont restées alignées.")
+        lessons.append(
+            "Objectifs atteints : aucune ligne arrêtée faute de matière, "
+            + (f"OTIF moyen de {otif} %, " if otif is not None else "")
+            + (f"TRS moyen de {trs} %, " if trs is not None else "")
+            + f"trésorerie finale de {money(state['cash'])}."
+        )
     return lessons
 
 

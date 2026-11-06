@@ -15,6 +15,7 @@ Mis à jour le 2026-10-23 (points ouverts de la séance du 22 au 23/10). À teni
 | Modèles | Dialogue des agents sur qwen2.5:3b ; tev1:0.8b pour filtrer les messages des joueurs | ai/models.yaml |
 | Stockage objet | RustFS (MinIO archivé) | docs/decisions/0001 |
 | Règles de partie | Appliquées par l'API (moteur pur, verrou de ligne), pas par un worker | docs/architecture.md |
+| Régénération d'une section (B4b, 06/11) | Sur un jeu publié, elle le repasse en brouillon : il faut le republier | docs/decisions/0012 |
 
 ## Fait
 
@@ -109,3 +110,6 @@ Risques associés :
 - Taille des lobbies et durée type d'une séance.
 - Quand tester le mode à distance, et sur quel hébergement ?
 - Quels autres domaines simuler après la supply chain (mécaniques à coder pour chacun) ?
+- Notion `rupture_de_stock` (ai/simulation.yaml) : elle dit « la vente est perdue », ce que sa fiche ne dit pas (appui : wikipedia-en-safety-stock l. 9). À vérifier par game-designer.
+- Courbe de valeur du stock de l'usine écartée (pas de coût de possession, pas de coût de revient des produits finis) ; à défaut, des quantités en fin de semaine.
+- Le moteur pourrait calculer `history[].starved`, `.down`, `.costs`, `.failures` pour des courbes de causes (non fait).

@@ -903,6 +903,25 @@ class DesignRequest(BaseModel):
         return self
 
 
+# F3 de l'usine (ADR 0012 §1, livraison v0 en un appel factory.design) : clés de GameParams que régénère chaque
+# section ; toutes les autres, graine du jeu comprise, restent celles du jeu
+FactorySection = Literal["entreprise", "objectifs", "personnages"]
+FACTORY_SECTIONS: dict[str, frozenset[str]] = {
+    "entreprise": frozenset({"theme", "company_name"}),
+    "objectifs": frozenset({"difficulty", "tunings", "events", "event_plan"}),
+    "personnages": frozenset({"agent_tone", "extra_agents"}),
+}
+assert all(keys <= set(GameParams.model_fields) for keys in FACTORY_SECTIONS.values())
+
+
+class RegenerateRequest(BaseModel):
+    """Corps de POST /games/{id}/design/regenerate (ADR 0012 §1)."""
+
+    section: FactorySection
+    note: str | None = Field(default=None, min_length=1, max_length=300)  # consigne du formateur, texte libre
+    seed: int | None = Field(default=None, ge=0, le=2**31 - 1)  # graine du modèle ; celle du jeu ne change pas
+
+
 class DesignEdit(BaseModel):
     """Corps de PUT /games/{id}/design ; un champ absent reste inchangé."""
 

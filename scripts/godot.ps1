@@ -10,13 +10,14 @@
                  toujours écrit dans %TEMP%\gmix_logs\ (son chemin est affiché)
       -Snapshot  captures PNG dans %TEMP%\gmix_imgs\ui_tour (fenêtre Godot, GPU requis ; sortie non capturée)
       -NoLlm     sans dialogues avec les agents, donc sans appel à Ollama
+      -Pack usine  parcours sur un autre pack de jeu que celui par défaut (atelier) ; avec -Flow seulement
       -Tour et -Flow : API locale démarrée si elle ne répond pas (et arrêtée ensuite), comptes jetables créés puis
       supprimés en base, même en cas d'échec. Le code de sortie est celui de Godot (0 = OK).
   -Api http://192.168.1.20:8000   avec -Run ou -Smoke : se connecter à un autre serveur (réseau local, distance)
 #>
 param(
     [switch]$Run, [switch]$Check, [switch]$Smoke, [switch]$Tour, [switch]$Flow, [switch]$Snapshot, [switch]$NoLlm,
-    [switch]$Full, [string]$Api = ''
+    [switch]$Full, [string]$Api = '', [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$Pack = ''
 )
 . "$PSScriptRoot\_common.ps1"
 $console = Get-GodotExe -Console
@@ -56,6 +57,7 @@ function Invoke-UiCheck {
     if ($Tour -and $Flow) { throw '-Tour et -Flow : choisir un seul contrôle' }
     if ($Flow -and $Snapshot) { throw '-Snapshot se lance avec -Tour' }
     if ($Api) { throw '-Tour et -Flow écrivent dans la base locale : pas de -Api' }
+    if ($Pack -and -not $Flow) { throw '-Pack se lance avec -Flow' }
     $url = Get-ApiUrl
     $label = 'Tour'
     if ($Flow) { $label = 'Flow' }
@@ -84,6 +86,7 @@ function Invoke-UiCheck {
             $godot = $console
             $godotArgs = @('--headless', '--path', $GodotDir, 'res://scenes/tools/flow_test/flow_test.tscn', '--', "--api=$url")
             if ($NoLlm) { $godotArgs += '--no-llm' }
+            if ($Pack) { $godotArgs += "--pack=$Pack" }
         } elseif ($Snapshot) {
             $shots = Join-Path $env:TEMP 'gmix_imgs\ui_tour'
             New-Item -ItemType Directory -Force -Path $shots | Out-Null

@@ -55,7 +55,7 @@ var _dialogue_log: RichTextLabel
 var _dialogue_input: LineEdit
 var _dialogue_send: Button
 var _dashboard: RichTextLabel
-var _debrief_text: RichTextLabel
+var _debrief_box: VBoxContainer
 var _menu_debrief: Button
 var _last_event := ""
 var _last_status := ""
@@ -156,6 +156,14 @@ func toggle_tablet() -> void:
 		return
 	close_context_menu()
 	_tablet.toggle()
+
+
+## Clic sur une zone de département (ADR 0012 §3) : la tablette s'ouvre sur sa page ; l'API tranche les droits.
+func open_tablet(tab: String) -> void:
+	if _overlay.visible:
+		return
+	close_context_menu()
+	_tablet.open(tab)
 
 
 func set_prompt(text: String) -> void:
@@ -482,7 +490,8 @@ func _show_debrief() -> void:
 	if not res["ok"]:
 		notice(res["error"], Ui.ERROR)
 		return
-	_debrief_text.text = GameText.debrief_bbcode(res["data"])
+	var group_id: Variant = Session.lobby.get("group_id")
+	GmixDebrief.fill(_debrief_box, [{"name": "", "report": res["data"]}], str(group_id) if group_id != null else "")
 	_open("debrief")
 
 
@@ -648,8 +657,7 @@ func _build_menu() -> void:
 
 func _build_debrief() -> void:
 	var box := _modal("debrief", "Débrief", Vector2(1100, 760))
-	_debrief_text = Ui.rich(200)
-	box.add_child(_debrief_text)
+	_debrief_box = Ui.scroll_list(box, 200)
 
 
 func _passthrough(control: Control) -> Control:

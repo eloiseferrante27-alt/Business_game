@@ -219,8 +219,9 @@ static func _flow(box: VBoxContainer, data: Variant) -> void:
 
 ## Courbes par semaine (une série par colonne) avec la cible en pointillés ; échelle ajustée aux valeurs.
 class LineChart extends Control:
-	var series: Array = []  # [{color, values, target}]
+	var series: Array = []  # [{color, values, target, partial (facultatif : seuil partiel)}]
 	var weeks: Array = []
+	var marks: Array = []  # semaines d'aléa : filet vertical (le texte « S3 : titre » est dans la légende)
 
 	func _draw() -> void:
 		var left := 52.0
@@ -233,9 +234,10 @@ class LineChart extends Control:
 				if v != null:
 					low = minf(low, float(v))
 					high = maxf(high, float(v))
-			if one["target"] != null:
-				low = minf(low, float(one["target"]))
-				high = maxf(high, float(one["target"]))
+			for bound: Variant in [one["target"], one.get("partial")]:
+				if bound != null:
+					low = minf(low, float(bound))
+					high = maxf(high, float(bound))
 		if low == INF:
 			return
 		if is_equal_approx(low, high):
@@ -256,8 +258,16 @@ class LineChart extends Control:
 			var x := area.position.x + step * (i + 0.5)
 			if i % every == 0:
 				draw_string(font, Vector2(x - 12.0, size.y - 4.0), "S%d" % int(weeks[i]), HORIZONTAL_ALIGNMENT_LEFT, 40.0, px, Ui.MUTED)
+		for mark: Variant in marks:
+			var at := weeks.find(int(mark))
+			if at >= 0:
+				var mx := area.position.x + step * (at + 0.5)
+				draw_line(Vector2(mx, area.position.y), Vector2(mx, area.end.y), Color(Ui.WARN, 0.5), 2.0)
 		for one: Dictionary in series:
 			var color: Color = one["color"]
+			if one.get("partial") != null:
+				var py := _y(float(one["partial"]), area, low, high)
+				draw_dashed_line(Vector2(area.position.x, py), Vector2(area.end.x, py), Color(color, 0.35), 2.0, 3.0)
 			if one["target"] != null:
 				var ty := _y(float(one["target"]), area, low, high)
 				draw_dashed_line(Vector2(area.position.x, ty), Vector2(area.end.x, ty), Color(color, 0.7), 2.0, 8.0)

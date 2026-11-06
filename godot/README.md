@@ -2,7 +2,7 @@
 
 Éditeur : `.\scripts\godot.ps1` · vérification headless : `.\scripts\godot.ps1 -Check` ·
 liaison avec le backend : `.\scripts\smoke.ps1` (compte jetable) · jeu : `.\scripts\godot.ps1 -Run` ·
-contrôles du client : `.\scripts\godot.ps1 -Tour [-Snapshot]` et `.\scripts\godot.ps1 -Flow [-NoLlm]`
+contrôles du client : `.\scripts\godot.ps1 -Tour [-Snapshot]` et `.\scripts\godot.ps1 -Flow [-NoLlm] [-Pack <slug>]`
 (voir « Contrôles du client »).
 
 ## Parcours
@@ -16,6 +16,12 @@ remplacer par un fichier JSON, créer le lobby, donner le code, lancer, simuler 
 modules, débrief ; créer les comptes joueurs. Groupe d'équipes (ADR 0011) : « Nombre d'équipes » de 2 à 12 dans
 « Lancer une session » crée un groupe (écran `group`, code, cartes d'équipes, débrief comparé) ; le joueur saisit le
 code dans le même champ (groupe d'abord, sinon lobby) et choisit son équipe.
+
+Débrief (écran J3, `scenes/debrief/debrief.gd`, `GmixDebrief`) : une courbe par critère (`debrief.criteria[].series`,
+valeur semaine par semaine), cible et seuil partiel en pointillés, filets sur les semaines d'aléa ; puis causes
+(`log[].kind`), leçons, notions et « Valeurs non sourcées ». Même écran depuis le lobby, le HUD et le groupe (une
+série par équipe dans le débrief comparé). Dans le monde, un clic au sol dans une zone `dept:<id>` autre que celle du
+joueur ouvre la page `dept:<id>` de la tablette ; dans sa propre zone, il ne fait que marcher.
 
 ## Arborescence
 
@@ -116,7 +122,7 @@ base locale), `-Tour` et `-Flow` ne se combinent pas.
 | Outil | Lancement | Contrôle |
 |---|---|---|
 | `ui_tour` | `.\scripts\godot.ps1 -Tour [-Snapshot]` | lisibilité des écrans avant-jeu (connexion, diagnostic, accueils, salle du lobby, fenêtres) et des panneaux du HUD à 4 tailles de fenêtre (1280x720, 1366x768, 1920x1080, 1024x600) : dépassements, polices sous 15 px, textes tronqués, erreurs de script. `-Snapshot` (version à fenêtre, GPU requis, avec `-Tour` seulement) écrit les PNG dans `%TEMP%\gmix_imgs\ui_tour`. Crée deux business games et douze lobbies, supprimés ensuite. Aucun appel à Ollama. |
-| `flow_test` | `.\scripts\godot.ps1 -Flow [-NoLlm]` | parcours A, formateur de bout en bout (génération, relecture, import, lobby, lancement, monde, vue Sims, postes, dialogues avec chaque agent et mémoire, semaines, débrief ; A.5b : pause, reprise et aléa par la barre « prêt » ; A.5d : droits de la tablette par département, `_check_tablet_roles`). `-NoLlm` (`--no-llm`) saute les dialogues, donc tout appel à Ollama. La présence ENet est remplacée par une doublure inerte. **Seul le parcours A existe** : B (joueurs) et V sont annoncés (`--only=A,B,V`) mais non écrits. |
+| `flow_test` | `.\scripts\godot.ps1 -Flow [-NoLlm]` | parcours A, formateur de bout en bout (génération, relecture, import, lobby, lancement, monde, vue Sims, postes, dialogues avec chaque agent et mémoire, semaines, débrief en courbes ; A.5b : pause, reprise et aléa par la barre « prêt » ; A.5d : droits de la tablette par département, `_check_tablet_roles`). `-NoLlm` (`--no-llm`) saute les dialogues, donc tout appel à Ollama. `-Pack <slug>` (avec `-Flow` seulement, ex. `-Pack usine`) joue le parcours sur un autre pack que l'atelier. La présence ENet est remplacée par une doublure inerte. **Seul le parcours A existe** : B (joueurs) et V sont annoncés (`--only=A,B,V`) mais non écrits. |
 | `world_preview` | exécutable Godot à fenêtre, `res://scenes/tools/world_preview/world_preview.tscn -- --api=… --lobby=<id> --snapshot=<dossier>` (jeton dans `GMIX_TOKEN`) | captures de l'atelier, de la vue Sims, de la troisième personne et fréquence d'images |
 | `asset_gallery` | `.\scripts\assets.ps1 -Gallery <dossier>` | galerie de tous les assets par catégorie |
 

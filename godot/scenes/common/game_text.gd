@@ -311,7 +311,8 @@ static func dashboard_bbcode(spec: Dictionary, state: Dictionary) -> String:
 	return "\n".join(out)
 
 
-static func debrief_bbcode(report: Dictionary) -> String:
+## `with_log` faux : le journal est déjà affiché en colonnes de causes (GmixDebrief).
+static func debrief_bbcode(report: Dictionary, with_log := true) -> String:
 	var out := PackedStringArray(["[font_size=24][b]Objectifs[/b][/font_size]"])
 	for kpi: Dictionary in report.get("kpis", []):
 		var met: Variant = kpi.get("met")
@@ -332,7 +333,10 @@ static func debrief_bbcode(report: Dictionary) -> String:
 		out.append("\n[font_size=24][b]Notions et sources[/b][/font_size]")
 		for notion: Dictionary in notions:
 			out.append("[b]%s[/b] : %s\n    [color=%s]%s[/color]" % [esc(notion["title"]), esc(notion["text"]), GREY, esc(notion["citation"])])
-	var log: Array = report.get("log", [])
+	var unsourced: Array = report.get("unsourced", [])
+	if not unsourced.is_empty():
+		out.append("\n[color=%s]Valeurs non sourcées : %d[/color]" % [ORANGE, unsourced.size()])
+	var log: Array = report.get("log", []) if with_log else []
 	if not log.is_empty():
 		out.append("\n[font_size=24][b]Décisions de l'équipe[/b][/font_size]")
 		for entry: Dictionary in log:

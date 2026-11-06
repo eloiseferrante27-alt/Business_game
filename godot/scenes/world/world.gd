@@ -612,6 +612,19 @@ func _on_ground_clicked(point: Vector3) -> void:
 		return
 	_stop_order()
 	_walk(point, 0.3)
+	var zone := _zone_at(point)
+	# Dans sa propre zone, un clic ne fait que marcher (grandes zones de l'usine).
+	if not zone.is_empty() and zone != _zone_at(_player.global_position):
+		_hud.open_tablet("dept:" + zone)
+
+
+## Département dont la zone au sol contient ce point (`spec.departments[].area`), vide sinon ; un département sans page
+## de tablette (pack sans panneaux) rouvre simplement le premier onglet.
+func _zone_at(point: Vector3) -> String:
+	for department: Dictionary in Session.spec().get("departments", []):
+		if GmixFactoryState.area_rect(department["area"]).has_point(Vector2(point.x, point.z)):
+			return str(department["id"])
+	return ""
 
 
 func _on_object_clicked(target: Dictionary, screen: Vector2) -> void:

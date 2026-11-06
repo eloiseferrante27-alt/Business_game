@@ -114,12 +114,4 @@ func _enter(lobby_id: String, joining: bool) -> void:
 
 
 func _debrief() -> void:
-	var res: Dictionary = await Api.get_json("/api/v1/groups/%s/debrief" % _group.get("id", current_id))
-	if not res["ok"]:
-		_status.text = "Le débrief comparé s'ouvre quand toutes les équipes ont fini leur partie." if res["status"] == 409 else res["error"]
-		return
-	var teams: Array = res["data"]["teams"]
-	var cells := ""
-	for team: Dictionary in teams:
-		cells += "[cell][b]%s[/b]\n%s[/cell]" % [GameText.esc(str(team["name"])), GameText.debrief_bbcode(team["debrief"])]
-	Ui.show_text(self, "Débrief comparé : %s" % res["data"]["name"], "[table=%d]%s[/table]" % [clampi(teams.size(), 1, 3), cells])
+	_status.text = await GmixDebrief.show_group(self, str(_group.get("id", current_id)))

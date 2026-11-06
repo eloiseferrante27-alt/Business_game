@@ -183,6 +183,7 @@ func _tour() -> void:
 	await _screen().call("_debrief")
 	await _look("16-debrief")
 	await _close_dialogs(_screen())
+	await _debrief_fixtures()
 	await _group_tour()
 	await _become("admin")
 	await _open_lobby(_data["lobby_run"])
@@ -484,6 +485,32 @@ func _prepare() -> bool:
 	_data["group"] = group["id"]
 	_data["group_code"] = group["join_code"]
 	return await _call("POST", "/api/v1/lobbies/%s/advance" % _data["lobby_run"]) != null
+
+
+## Débrief J3 sur données locales (conformes à ADR 0012 §2, `series[-1] == final`) : un équipe, puis deux équipes comparées ;
+## ne dépend pas de la version du serveur.
+func _debrief_fixtures() -> void:
+	var log := [
+		{"week": 1, "kind": "decision", "name": "Alice", "by": "joueur", "summary": "Commande de 200 unités"},
+		{"week": 2, "kind": "auto", "name": null, "by": "pilote", "summary": "Réapprovisionnement automatique"},
+		{"week": 3, "kind": "alea", "name": null, "by": "hasard", "summary": "Panne de la ligne L2"},
+	]
+	var report := {
+		"kpis": [], "history": [], "lessons": ["Exemple de leçon."], "notions": [], "unsourced": [{}, {}], "log": log,
+		"events": [{"week": 3, "title": "Panne L2"}],
+		"criteria": [
+			{"id": "otif", "label": "OTIF moyen", "unit": "%", "op": ">=", "target": 95.0, "partial": 85.0, "final": 90.0, "verdict": "partiel", "worst_week": 3, "event": "Panne L2", "series": [96.0, 94.0, 88.0, 89.0, 90.0]},
+			{"id": "cash", "label": "Trésorerie finale", "unit": "€", "op": ">=", "target": 1000.0, "partial": null, "final": 1500.0, "verdict": "atteint", "worst_week": 2, "event": null, "series": [900.0, 800.0, 1100.0, 1300.0, 1500.0]},
+		],
+	}
+	var other: Dictionary = report.duplicate(true)
+	(other["criteria"][0] as Dictionary).merge({"final": 97.0, "verdict": "atteint", "series": [97.0, 96.0, 97.0, 98.0, 97.0]}, true)
+	GmixDebrief.show_window(_screen(), "Débrief", [{"name": "", "report": report}], "g1")
+	await _look("16b-debrief-courbes")
+	await _close_dialogs(_screen())
+	GmixDebrief.show_window(_screen(), "Débrief comparé : Groupe A", [{"name": "Équipe 1", "report": report}, {"name": "Équipe 2", "report": other}])
+	await _look("16c-debrief-compare-courbes")
+	await _close_dialogs(_screen())
 
 
 ## Écran groupe : vue formateur, débrief refusé (équipes pas finies), puis choix d'équipe du joueur.

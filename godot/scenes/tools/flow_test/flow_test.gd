@@ -264,6 +264,7 @@ func _trainer_journey() -> void:
 	if world == null:
 		return
 	await _check_world(world)
+	await _check_zone_click(world)
 	if _pack == "usine":
 		print("  fin du parcours usine : vue Sims, postes, semaines et rejeu sont l'objet de la mission suivante")
 		return
@@ -357,8 +358,18 @@ func _check_group(lobby: Control, game: Dictionary) -> Control:
 	_click(screen.find_child("GroupDebriefButton", true, false) as Button, "bouton de débrief comparé")
 	var report: Variant = await _until(func() -> Variant: return _dialog(screen))
 	if _check(report != null, "le débrief comparé s'ouvre pour le formateur"):
-		var shown := _parsed(report as Node)
+		var shown := _all_text(report as Node)
 		_check(shown.contains(str(group["teams"][0]["name"])) and shown.contains(str(group["teams"][1]["name"])), "le débrief nomme les deux équipes", shown.left(120))
+		_check(shown.contains("Courbes comparées"), "débrief comparé : titre « Courbes comparées »")
+		var charts := (report as Node).find_children("*", "Control", true, false).filter(func(node: Node) -> bool: return node is GmixPanelView.LineChart)
+		# équipes non jouées ici : séries vides, donc « Courbe indisponible » et aucune courbe, mais chaque critère est nommé
+		var compared := await _raw(_trainer, HTTPClient.METHOD_GET, "/api/v1/groups/%s/debrief" % group["id"])
+		var criteria: Array = compared["data"]["teams"][0]["debrief"]["criteria"] if compared["ok"] else []
+		_check(not criteria.is_empty(), "débrief comparé : l'API renvoie des critères", str(compared["error"]))
+		var plotted := criteria.filter(func(c: Dictionary) -> bool: return not (c.get("series", []) as Array).is_empty()).size()
+		_check(charts.size() == plotted, "débrief comparé : une courbe par critère avec série (%d)" % plotted, str(charts.size()))
+		for c: Dictionary in criteria:
+			_check(shown.contains(str(c["label"])), "débrief comparé : critère « %s »" % c["label"])
 		_close_dialog(report as AcceptDialog)
 		await _frames(2)
 	_check(not (screen.get("_status") as Label).text.begins_with("HTTP"), "pas d'erreur brute affichée", (screen.get("_status") as Label).text)
@@ -676,7 +687,7 @@ func _lobby_waiting_then_start(lobby: Control, game: Dictionary) -> bool:
 	_check((lobby.get("_start_button") as Button).visible, "bouton « Lancer la partie » visible")
 	_check(not (lobby.get("_advance_button") as Button).visible, "« Simuler la semaine » masqué avant le lancement")
 	_check((lobby.get("_debrief_button") as Button).visible, "débrief ouvert au formateur")
-	_check((lobby.get("_enter_button") as Button).text == "Observer l'atelier 3D", "le formateur observe l'atelier")
+	_check((lobby.get("_enter_button") as Button).text == "Observer %s 3D" % GameText.world_noun(spec), "le formateur observe l'atelier")
 	_check(not (lobby.get("_role_box") as Control).visible, "pas de choix de rôle pour le formateur")
 	_check(_texts(lobby.get("_members") as Node).any(func(t: String) -> bool: return t.contains("Personne pour l'instant")), "aucun participant au départ")
 
@@ -799,6 +810,59 @@ func _enter_world(lobby: Control) -> Node:
 
 func _hud_of(world: Node) -> GmixHud:
 	return world.get("_hud") as GmixHud
+
+
+## Clic sur une zone de département (ADR 0012 §3) : la tablette s'ouvre sur la page `dept:<id>`.
+func _check_zone_click(world: Node) -> void:
+	var departments: Array = Session.spec().get("departments", [])
+	if departments.is_empty():
+		print("  clic de zone ignoré : ce pack n'a pas de départements")
+		return
+	var hud := _hud_of(world)
+	var rect := GmixFactoryState.area_rect(departments[0]["area"])
+	world.call("_on_ground_clicked", Vector3(rect.get_center().x, 0.0, rect.get_center().y))
+	await _frames(3)
+	var tablet := hud.get("_tablet") as GmixTablet
+	_check(hud.is_tablet_open(), "clic sur la zone « %s » : la tablette s'ouvre" % departments[0]["label"])
+	_check(str(tablet.get("_tab")) == "dept:" + str(departments[0]["id"]), "clic sur la zone : page dept:%s" % departments[0]["id"], str(tablet.get("_tab")))
+	tablet.close()
+	await _frames(3)
+	# Joueur dans la zone : un second clic dans la même zone ne rouvre pas la tablette.
+	var player := world.get("_player") as Node3D
+	player.global_position = Vector3(rect.get_center().x, player.global_position.y, rect.get_center().y)
+	world.call("_on_ground_clicked", Vector3(rect.get_center().x, 0.0, rect.get_center().y))
+	await _frames(3)
+	_check(not hud.is_tablet_open(), "second clic dans la même zone : la tablette ne se rouvre pas")
+
+
+## Débrief J3 : verdicts et courbes par critère (`criteria[].series`), causes en trois colonnes. Sans `series` (backend
+## plus ancien) : trace sans courbe, sans échec.
+func _check_debrief_view(root: Node, report: Dictionary) -> void:
+	var text := _all_text(root)
+	var sections: Array = ["Objectifs", "À retenir", "Notions et sources"]
+	if not (report.get("log", []) as Array).is_empty():
+		sections.append_array(["Causes", "Vos décisions", "Pilote automatique", "Ce que le hasard a imposé"])
+	for section: String in sections:
+		_check(text.contains(section), "débrief : « %s »" % section)
+	var criteria: Array = report.get("criteria", [])
+	var charts := root.find_children("*", "Control", true, false).filter(func(node: Node) -> bool: return node is GmixPanelView.LineChart)
+	var with_series := criteria.filter(func(c: Dictionary) -> bool: return c.get("series") is Array and not (c["series"] as Array).is_empty())
+	if with_series.size() < criteria.size():
+		print("  NOTE : %d critère(s) sans `series` dans l'API : débrief sans courbe pour eux" % (criteria.size() - with_series.size()))
+	_check(charts.size() == with_series.size(), "débrief : une courbe par critère avec série (%d)" % with_series.size(), str(charts.size()))
+	for c: Dictionary in with_series:
+		_check(c.get("final") == null or is_equal_approx(float((c["series"] as Array)[-1]), float(c["final"])), "débrief : series[-1] == final (%s)" % c["id"])
+	for c: Dictionary in criteria:
+		_check(text.contains(str(c["label"])), "débrief : critère « %s »" % c["label"])
+	_check(_bbcode_leak(text, str(Session.spec()["meta"]["company"])).is_empty(), "débrief : aucune balise visible", _bbcode_leak(text, ""))
+
+
+func _all_text(root: Node) -> String:
+	var out := PackedStringArray([_parsed(root)])
+	for node in root.find_children("*", "Label", true, false):
+		out.append((node as Label).text)
+	return "
+".join(out)
 
 
 func _check_world(world: Node) -> void:
@@ -1102,10 +1166,8 @@ func _interact_and_panels(world: Node) -> void:
 		var debrief := (hud.get("_panels") as Dictionary)["debrief"] as Control
 		var shown: Variant = await _until(func() -> bool: return debrief.visible)
 		_check(shown != null, "le débrief s'ouvre")
-		var report := _parsed(hud.get("_debrief_text") as Node)
-		for section in ["Objectifs", "À retenir", "Décisions de l'équipe", "Notions et sources"]:
-			_check(report.contains(section), "débrief : « %s »" % section)
-		_check(_bbcode_leak(report, str(Session.spec()["meta"]["company"])).is_empty(), "débrief : aucune balise visible", _bbcode_leak(report, ""))
+		var api_report := await _raw(_trainer, HTTPClient.METHOD_GET, "%s/debrief" % _lobby_url())
+		_check_debrief_view(hud.get("_debrief_box") as Node, api_report["data"] if api_report["ok"] else {})
 	_click(_button(hud.get("_panels")["debrief"] as Node, "Fermer"), "débrief > Fermer")
 	await _frames(2)
 	_check(not hud.is_modal(), "Fermer referme le débrief")
@@ -1196,9 +1258,10 @@ func _play_to_the_end(lobby: Control) -> void:
 	var window: Variant = await _until(func() -> Variant: return _dialog(lobby))
 	if not _check(window != null, "la fenêtre du débrief s'ouvre"):
 		return
-	var text := _parsed(window as Node)
-	for section in ["Objectifs", "À retenir", "Semaines jouées", "Notions et sources", "Décisions de l'équipe"]:
-		_check(text.contains(section), "débrief : « %s »" % section)
+	var text := _all_text(window as Node)
+	var api_report := await _raw(_trainer, HTTPClient.METHOD_GET, "%s/debrief" % _lobby_url())
+	_check_debrief_view(window as Node, api_report["data"] if api_report["ok"] else {})
+	_check(text.contains("Semaines jouées"), "débrief : « Semaines jouées »")
 	for week in range(1, weeks + 1):
 		_check(text.contains("S%d : OTIF" % week), "débrief : ligne de la semaine %d" % week)
 	_check(text.contains("atteint"), "débrief : objectifs atteints ou non")

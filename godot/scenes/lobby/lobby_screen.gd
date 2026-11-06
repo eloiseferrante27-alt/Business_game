@@ -189,4 +189,5 @@ func _debrief() -> void:
 	if not res["ok"]:
 		_status.text = res["error"]
 		return
-	Ui.show_text(self, "Débrief", GameText.debrief_bbcode(res["data"]))
+	var group_id: Variant = Session.lobby.get("group_id")
+	GmixDebrief.show_window(self, "Débrief", [{"name": "", "report": res["data"]}], str(group_id) if group_id != null else "")

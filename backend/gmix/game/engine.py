@@ -355,10 +355,21 @@ def criteria_verdicts(spec: dict[str, Any], history: list[dict[str, Any]], final
         out.append({
             "id": c["id"], "label": c["label"], "unit": item["unit"] if item else "", "op": c["op"],
             "target": c["target"], "partial": c.get("partial"), "final": final, "verdict": verdict,
+            "series": _series(spec, history, c["id"]),
             "worst_week": worst["week"] if worst else None,
             "event": titles.get(worst["event"], worst["event"]) if worst and worst.get("event") else None,
         })  # fmt: skip
     return out
+
+
+def _series(spec: dict[str, Any], history: list[dict[str, Any]], key: str) -> list[float | None]:
+    """Valeur du critère après chaque semaine, même formule que `final` sur les semaines 1 à w (annexe 0012 §2) :
+    moyenne cumulée (otif, trs, good_share), somme cumulée (ruptures de l'usine), valeur de la semaine sinon."""
+    if key in ("otif", "trs", "good_share"):
+        return [_mean(history[: w + 1], key) for w in range(len(history))]
+    if key == "stockouts" and spec.get("factory"):
+        return [sum(h["stockouts"] for h in history[: w + 1]) for w in range(len(history))]
+    return [h.get(key) for h in history]
 
 
 # --- alertes (annexe 0010 §2) --------------------------------------------------------------------------------------
@@ -803,40 +814,55 @@ def _lessons(spec: dict[str, Any], state: dict[str, Any]) -> list[str]:
     history = state["history"]
     if not history:
         return ["La partie n'a pas été jouée."]
-    targets = spec["targets"]
+    targets, eco = spec["targets"], spec["economy"]
     lessons = []
     rupture_weeks = sum(1 for h in history if h["stockouts"])
     lost = sum(h["lost"] for h in history)
     if rupture_weeks:
         lessons.append(
-            f"Ruptures sur {rupture_weeks} semaine(s) et {lost} ventes perdues : une commande passée au point de "
-            "commande (consommation pendant le délai + stock de sécurité) les aurait évitées."
+            f"Ruptures sur {rupture_weeks} semaine(s), {lost} vente(s) perdue(s) : dans ce jeu, la demande non servie "
+            "ne se reporte pas. Une ligne produit au plus le minimum de son plan, de sa capacité et des composants en "
+            "stock ; repère pour vos commandes : recommandez quand stock et commandes en cours passent sous le point "
+            "de commande (consommation pendant le délai + stock de sécurité)."
         )
     else:
-        lessons.append("Aucune rupture : les stocks ont toujours couvert la demande des magasins.")
-    if (_mean(history, "trs") or 0) < targets["trs"]:
+        lessons.append("Aucune rupture : chaque semaine, chaque produit a servi toute sa demande.")
+    trs = _mean(history, "trs")
+    if trs is not None and trs < targets["trs"]:
+        drift = eco["trs_drift"]
         lessons.append(
-            f"TRS moyen de {_mean(history, 'trs')} % pour un objectif de {targets['trs']:.0f} % : l'usure et les "
-            "pannes ont réduit la capacité réelle des lignes ; l'entretien préventif la préserve."
+            f"TRS moyen de {trs} % pour un objectif de {targets['trs']:.0f} %. Dans ce jeu, la capacité d'une ligne "
+            f"suit son TRS ; sans entretien, il perd {-drift['aucune']:g} point(s) par semaine (préventif : "
+            f"{drift['preventive']:+g}, renforcé : {drift['renforcee']:+g}), et sous {WEAR_TRS} % la ligne risque "
+            "la panne."
         )
     returns = sum(h["returns"] for h in history)
     if returns:
         lessons.append(
-            f"{returns} produits défectueux sont partis chez le client : le contrôle avant expédition les arrête."
+            f"{returns} produit(s) défectueux livré(s) puis retourné(s) : ils ne sont pas payés et sortent de "
+            "l'OTIF. Le contrôle avant expédition arrête 0, 50 ou 100 % des défauts selon son niveau, contre un coût "
+            "par unité contrôlée."
         )
     delays = sum(h["delays"] for h in history)
     if delays:
         lessons.append(
-            f"{delays} livraison(s) fournisseur en retard : un fournisseur plus fiable ou une commande plus tôt "
-            "sécurise l'approvisionnement."
+            f"{delays} report(s) d'une semaine sur des livraisons de composants : chaque commande arrive à la date "
+            "prévue avec une probabilité égale à la fiabilité de l'offre choisie, moins l'effet d'un aléa. Repère : "
+            "des délais aléatoires demandent de commander plus tôt et de garder plus de stock de sécurité."
         )
     if state["cash"] < targets["cash_final"]:
+        negative = sum(1 for h in history if (h.get("margin") or 0) < 0)
         lessons.append(
-            f"Trésorerie finale de {money(state['cash'])} sous l'objectif de {money(targets['cash_final'])} : stock "
-            "immobilisé, dépenses ou ventes perdues ont pesé."
+            f"Trésorerie finale de {money(state['cash'])}, sous l'objectif de {money(targets['cash_final'])} ; la "
+            f"marge de la semaine a été négative {negative} fois. Chaque semaine, le jeu facture aussi la possession "
+            "du stock, en part de sa valeur."
         )
     if all(h["otif"] >= targets["otif"] for h in history):
-        lessons.append("OTIF au-dessus de l'objectif chaque semaine : la chaîne a livré à l'heure et complet.")
+        low = min(h["otif"] for h in history)
+        lessons.append(
+            f"OTIF d'au moins {targets['otif']:.0f} % chaque semaine (plus bas : {low:g} %) : la part livrée à "
+            "l'heure et complète est restée au niveau visé."
+        )
     return lessons
 
 

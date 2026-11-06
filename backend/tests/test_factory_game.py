@@ -51,6 +51,18 @@ def act(spec: dict[str, Any], state: dict[str, Any], module: str, action: str, *
     return engine.act(spec, state, module, action, values, actor=ACTOR, manager=True, occupied_roles=set())
 
 
+@pytest.mark.parametrize("seed", [1, 5, 9])
+def test_debrief_series_ends_on_final_and_accumulates(seed: int) -> None:
+    spec = spec_of(seed=seed)
+    state = play(spec, autopilot=True)
+    crit = {c["id"]: c for c in engine.debrief(spec, state)["criteria"]}
+    for c in crit.values():
+        assert len(c["series"]) == len(state["history"]) and c["series"][-1] == c["final"]
+    stock = [h["stockouts"] for h in state["history"]]
+    assert crit["stockouts"]["series"] == [sum(stock[: w + 1]) for w in range(len(stock))]
+    assert crit["cash"]["series"] == [h["cash"] for h in state["history"]]
+
+
 @pytest.fixture
 def running() -> tuple[dict[str, Any], dict[str, Any]]:
     spec = spec_of()
@@ -375,3 +387,40 @@ def test_trs_low_alert_comes_from_the_pack() -> None:
     low = next(a for a in alerts if a["id"] == "trs_low:l1")
     assert low["level"] == "warning" and low["module_id"] == "production" and low["action"] is None
     assert "50" in low["text"] and "73" in low["text"]
+
+
+def test_factory_lessons_state_computed_facts_only() -> None:
+    spec = spec_of()
+    state = play(spec, autopilot=True)
+    n = len(state["history"])
+    state["history"] = [
+        {**h, "stockouts": 2, "delays": 1, "otif": 10.0, "trs": 10.0, "good_share": 90.0, "cash": 1000 - i}
+        for i, h in enumerate(state["history"])
+    ]
+    state["cash"] = 0
+    out = engine.debrief(spec, state)["lessons"]
+    text = " ".join(out)
+    assert f"{2 * n} jour(s)-ligne arrêté(s) faute de matière, sur {n} semaine(s)" in text and "palettes" in text
+    assert f"{n} commande(s) client en retard ; {n} des semaines concernées" in text
+    assert "avec 90.0 % de produits bons" in text and "risque de panne croît avec l'âge" in text
+    assert "elle a baissé sur" in text and "aurait" not in text and "None" not in text
+
+
+def test_factory_lessons_all_targets_met_names_the_figures() -> None:
+    spec = spec_of()
+    state = play(spec, autopilot=True)
+    met = {"stockouts": 0, "otif": 100.0, "trs": 100.0, "good_share": None}
+    state["history"] = [{**h, **met} for h in state["history"]]
+    state["cash"] = spec["targets"]["cash_final"]
+    (line,) = engine.debrief(spec, state)["lessons"]
+    assert line.startswith("Objectifs atteints : aucune ligne arrêtée faute de matière, OTIF moyen de 100.0 %")
+
+
+def test_factory_lessons_all_targets_met_omits_missing_figures() -> None:
+    spec = spec_of()
+    state = play(spec, autopilot=True)
+    met = {"stockouts": 0, "otif": None, "trs": None, "good_share": None}
+    state["history"] = [{**h, **met} for h in state["history"]]
+    state["cash"] = spec["targets"]["cash_final"]
+    (line,) = engine.debrief(spec, state)["lessons"]
+    assert line.startswith("Objectifs atteints") and "None" not in line and "OTIF" not in line and "TRS" not in line

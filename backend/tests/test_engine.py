@@ -165,6 +165,18 @@ def test_criteria_verdict_partial_with_worst_week_and_event(sim_spec) -> None:
     assert engine.criteria_verdicts(spec, [], [{**finals[0], "final": None}])[0]["verdict"] == "sans_objet"
 
 
+def test_debrief_series_ends_on_final(sim_spec) -> None:
+    state = _running(sim_spec)
+    while state["status"] == "running":
+        state = engine.advance(sim_spec, state, autopilot_all=True)
+    crit = {c["id"]: c for c in engine.debrief(sim_spec, state)["criteria"]}
+    otif = [h["otif"] for h in state["history"]]
+    assert crit["otif"]["series"][1] == round(sum(otif[:2]) / 2, 1)  # moyenne cumulée
+    assert crit["cash"]["series"] == [h["cash"] for h in state["history"]]  # valeur de la semaine
+    for c in crit.values():
+        assert len(c["series"]) == len(state["history"]) and c["series"][-1] == c["final"]
+
+
 def test_generated_spec_carries_criteria_and_autopilot_is_playable(sim_spec) -> None:
     from gmix.game.generation import autopilot_check, unsourced
 
@@ -306,3 +318,24 @@ def test_full_game_ends_with_a_sourced_debrief(sim_spec) -> None:
     assert [k["id"] for k in report["kpis"]] == ["otif", "trs", "stockouts", "cash"]
     assert all(k["met"] is not None for k in report["kpis"])
     assert report["lessons"] and report["notions"] and all(n["citation"] for n in report["notions"])
+
+
+def _lessons_for(spec, **history_patch):
+    state = engine.advance(spec, _running(spec))
+    state["history"] = [{**h, **history_patch} for h in state["history"]]
+    return engine._lessons(spec, state)
+
+
+def test_lessons_state_computed_facts_only(sim_spec) -> None:
+    out = " ".join(_lessons_for(sim_spec, stockouts=1, lost=4, returns=2, delays=3, trs=10.0, margin=-1.0, otif=0.0))
+    assert "1 semaine(s), 4 vente(s) perdue(s)" in out and "ne se reporte pas" in out
+    assert "TRS moyen de 10.0 %" in out and "None" not in out and "point(s) par semaine" in out
+    assert "2 produit(s) défectueux livré(s) puis retourné(s)" in out and "0, 50 ou 100 %" in out
+    assert "3 report(s) d'une semaine" in out
+    assert "négative 1 fois" in out and "possession du stock" in out
+    assert "aurait" not in out and "sécurise" not in out
+
+
+def test_lessons_no_trs_lesson_without_measure_and_otif_floor(sim_spec) -> None:
+    out = " ".join(_lessons_for(sim_spec, stockouts=0, lost=0, trs=None, otif=100.0))
+    assert "Aucune rupture : chaque semaine" in out and "TRS" not in out and "plus bas : 100 %" in out
