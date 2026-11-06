@@ -13,7 +13,9 @@ le rôle -> salle du lobby -> monde 3D. Joueur : rejoindre avec le code, choisir
 de bord), lire le débrief. Formateur : générer un business game par paramètres ou importer une spec JSON, le relire
 (partie de référence en pilote automatique, modules, agents, aléas, notions et sources), l'exporter ou le
 remplacer par un fichier JSON, créer le lobby, donner le code, lancer, simuler les semaines, agir sur tous les
-modules, débrief ; créer les comptes joueurs.
+modules, débrief ; créer les comptes joueurs. Groupe d'équipes (ADR 0011) : « Nombre d'équipes » de 2 à 12 dans
+« Lancer une session » crée un groupe (écran `group`, code, cartes d'équipes, débrief comparé) ; le joueur saisit le
+code dans le même champ (groupe d'abord, sinon lobby) et choisit son équipe.
 
 ## Arborescence
 
@@ -23,6 +25,7 @@ modules, débrief ; créer les comptes joueurs.
 | `config/client.cfg` | adresses par défaut, surchargées par `user://client.cfg` (le serveur choisi à la connexion y est gardé) |
 | `scenes/main/` | scène principale : coquille, connexion, accueil joueur / formateur / admin |
 | `scenes/lobby/` | salle du lobby : rôle, participants, pilotage de la partie |
+| `scenes/group/` | écran du groupe d'équipes : `group_screen.gd` (`GmixGroupScreen`) |
 | `scenes/world/` | monde 3D construit depuis `spec.world` (plan généré par `gmix.game.generation`) : `world.gd` (`GmixWorld`), `sims_view.gd` (`GmixSimsView`), `player.gd`, `npc.gd`, `remote_avatar.gd`, `hud.gd` |
 | `scenes/common/` | Ui (thème et constructeurs d'interface), GameText (KPI, phase, débrief, spec en BBCode) |
 | `scenes/boot/` | écran de diagnostic (`-- --smoke` en headless) |
@@ -80,7 +83,7 @@ Vue Sims par défaut, troisième personne avec `toggle_view`. `GmixWorld` (`worl
 | `interact` | E | parle à l'agent ou ouvre le poste le plus proche, dans les deux vues |
 | `toggle_menu` | Échap | menu (ferme d'abord le menu contextuel) |
 | `toggle_view` | V | bascule vue Sims et troisième personne |
-| `toggle_tablet` | T | tablette (`scenes/tablet/`, avec la barre « prêt » `common/round_bar.gd` et les alertes `state.alerts[]`) : panneaux et outils de la spec (`spec.panels`, `spec.tools`) en calque qui monte du bas ; Échap, clic hors cadre ou T la rangent |
+| `toggle_tablet` | T | tablette (`scenes/tablet/`, avec la barre « prêt » `common/round_bar.gd` et les alertes `state.alerts[]`) : panneaux et outils de la spec (`spec.panels`, `spec.tools`), puis une page `dept:<id>` par département (`spec.departments`) ou une page par module sans départements ; lecture seule hors de son rôle (`Session.my_role()`, `Session.module_block()`) ; en calque qui monte du bas ; Échap, clic hors cadre ou T la rangent |
 | `camera_follow` | C | rattache la caméra Sims au joueur |
 | `camera_rotate_left/right` | flèche gauche, flèche droite | tourne la caméra Sims |
 | `camera_zoom_in` | molette vers l'avant, flèche haut, Page haut | rapproche la caméra Sims |
@@ -113,7 +116,7 @@ base locale), `-Tour` et `-Flow` ne se combinent pas.
 | Outil | Lancement | Contrôle |
 |---|---|---|
 | `ui_tour` | `.\scripts\godot.ps1 -Tour [-Snapshot]` | lisibilité des écrans avant-jeu (connexion, diagnostic, accueils, salle du lobby, fenêtres) et des panneaux du HUD à 4 tailles de fenêtre (1280x720, 1366x768, 1920x1080, 1024x600) : dépassements, polices sous 15 px, textes tronqués, erreurs de script. `-Snapshot` (version à fenêtre, GPU requis, avec `-Tour` seulement) écrit les PNG dans `%TEMP%\gmix_imgs\ui_tour`. Crée deux business games et douze lobbies, supprimés ensuite. Aucun appel à Ollama. |
-| `flow_test` | `.\scripts\godot.ps1 -Flow [-NoLlm]` | parcours A, formateur de bout en bout (génération, relecture, import, lobby, lancement, monde, vue Sims, postes, dialogues avec chaque agent et mémoire, semaines, débrief ; A.5b : pause, reprise et aléa par la barre « prêt »). `-NoLlm` (`--no-llm`) saute les dialogues, donc tout appel à Ollama. La présence ENet est remplacée par une doublure inerte. **Seul le parcours A existe** : B (joueurs) et V sont annoncés (`--only=A,B,V`) mais non écrits. |
+| `flow_test` | `.\scripts\godot.ps1 -Flow [-NoLlm]` | parcours A, formateur de bout en bout (génération, relecture, import, lobby, lancement, monde, vue Sims, postes, dialogues avec chaque agent et mémoire, semaines, débrief ; A.5b : pause, reprise et aléa par la barre « prêt » ; A.5d : droits de la tablette par département, `_check_tablet_roles`). `-NoLlm` (`--no-llm`) saute les dialogues, donc tout appel à Ollama. La présence ENet est remplacée par une doublure inerte. **Seul le parcours A existe** : B (joueurs) et V sont annoncés (`--only=A,B,V`) mais non écrits. |
 | `world_preview` | exécutable Godot à fenêtre, `res://scenes/tools/world_preview/world_preview.tscn -- --api=… --lobby=<id> --snapshot=<dossier>` (jeton dans `GMIX_TOKEN`) | captures de l'atelier, de la vue Sims, de la troisième personne et fréquence d'images |
 | `asset_gallery` | `.\scripts\assets.ps1 -Gallery <dossier>` | galerie de tous les assets par catégorie |
 

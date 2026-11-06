@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy import delete, func, select
 
 from gmix.db import get_engine, get_sessionmaker
-from gmix.db.models import BusinessGame, Lobby, LobbyMember, User, UserRole
+from gmix.db.models import BusinessGame, Lobby, LobbyGroup, LobbyMember, User, UserRole
 from gmix.tools import ui_accounts
 from gmix.tools.create_user import create_user
 
@@ -70,6 +70,7 @@ async def _add_game_and_lobby(owner: uuid.UUID, members: Sequence[uuid.UUID] = (
 async def _purge(user_ids: list[uuid.UUID]) -> None:
     """Ménage du test, par identifiants exacts (ne passe pas par le code testé)."""
     async with get_sessionmaker()() as session:
+        await session.execute(delete(LobbyGroup).where(LobbyGroup.trainer_id.in_(user_ids)))
         await session.execute(delete(Lobby).where(Lobby.trainer_id.in_(user_ids)))
         await session.execute(delete(BusinessGame).where(BusinessGame.created_by.in_(user_ids)))
         await session.execute(delete(User).where(User.id.in_(user_ids)))
@@ -97,7 +98,7 @@ async def test_cleanup_keeps_lobbies_and_games_of_non_throwaway_accounts() -> No
     try:
         game_id, lobby_id = await _add_game_and_lobby(real.id)
         message = await ui_accounts.cleanup([real.id])
-        assert message.startswith("0 compte(s), 0 lobby(ies), 0 partie(s)")
+        assert message.startswith("0 compte(s), 0 groupe(s), 0 lobby(ies), 0 partie(s)")
         async with get_sessionmaker()() as session:
             assert await session.get(Lobby, lobby_id) is not None
             assert await session.get(BusinessGame, game_id) is not None
@@ -127,9 +128,35 @@ async def test_cleanup_removes_lobby_of_throwaway_account_but_keeps_its_real_mem
             assert await session.get(Lobby, lobby_id) is None
             assert await session.get(LobbyMember, (lobby_id, member.id)) is None
         assert await _count(User, User.id, [member.id]) == 1
-        assert (await ui_accounts.cleanup(ids)).startswith("0 compte(s), 0 lobby(ies), 0 partie(s)")  # idempotent
+        again = await ui_accounts.cleanup(ids)  # idempotent
+        assert again.startswith("0 compte(s), 0 groupe(s), 0 lobby(ies), 0 partie(s)")
     finally:
         await _purge([*ids, member.id])
+
+
+async def test_cleanup_removes_group_of_throwaway_trainer_with_its_teams() -> None:
+    """lobby_groups.trainer_id n'a pas de ON DELETE : le groupe (et ses équipes) part avant le compte formateur."""
+    created = await ui_accounts.create("tour")
+    ids = [uuid.UUID(i) for i in created["ids"]]
+    admin = ids[0]
+    async with get_sessionmaker()() as session:
+        group = LobbyGroup(name="Groupe test", join_code=secrets.token_hex(4).upper(), trainer_id=admin)
+        session.add(group)
+        await session.flush()
+        session.add_all(
+            Lobby(name=f"Equipe {i}", join_code=secrets.token_hex(3).upper(), trainer_id=admin, group_id=group.id)
+            for i in range(2)
+        )
+        await session.commit()
+        group_id = group.id
+    try:
+        message = await ui_accounts.cleanup(ids)
+        assert message.startswith("2 compte(s), 1 groupe(s), 0 lobby(ies)")  # les équipes partent par CASCADE du groupe
+        assert await _count(LobbyGroup, LobbyGroup.id, [group_id]) == 0
+        assert await _count(Lobby, Lobby.trainer_id, ids) == 0
+        assert await _count(User, User.id, ids) == 0
+    finally:
+        await _purge(ids)
 
 
 async def test_create_rolls_back_when_a_later_account_fails(monkeypatch: pytest.MonkeyPatch) -> None:

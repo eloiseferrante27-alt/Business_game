@@ -402,15 +402,15 @@ func _current(field_id: String) -> Variant:
 	return null
 
 
-## Un rôle tenu par un autre joueur garde la main sur son module (l'API tranche, ceci évite un aller-retour).
+## Seul le rôle du module agit (l'API tranche, ceci évite un aller-retour) ; le titulaire est nommé s'il y en a un.
 func _blocked_reason(module: Dictionary) -> String:
-	var role_id: String = module["role_id"]
-	if Session.is_manager() or Session.lobby.get("my_role") == role_id:
-		return ""
+	var reason := Session.module_block(str(module["id"]))
+	if reason.is_empty() or Session.my_role().is_empty():
+		return reason
 	for member: Dictionary in Session.lobby.get("members", []):
-		if member.get("game_role") == role_id:
-			return "Revient à %s (%s) : allez en discuter." % [member["display_name"], GameText.role_title(Session.spec(), role_id)]
-	return ""
+		if member.get("game_role") == module["role_id"]:
+			return "Revient à %s (%s) : allez en discuter." % [member["display_name"], GameText.role_title(Session.spec(), module["role_id"])]
+	return reason
 
 
 func _render_dialogue() -> void:

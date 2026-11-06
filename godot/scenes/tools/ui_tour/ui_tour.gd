@@ -183,6 +183,8 @@ func _tour() -> void:
 	await _screen().call("_debrief")
 	await _look("16-debrief")
 	await _close_dialogs(_screen())
+	await _group_tour()
+	await _become("admin")
 	await _open_lobby(_data["lobby_run"])
 	await _hud_tour()
 
@@ -322,9 +324,34 @@ func _hud_tour() -> void:
 			tablet.select_tab(tab_id)
 			await _look("24-hud-tablette-usine-%s-%s" % ["formateur" if manager else "joueur", tab_id.replace(":", "-")], hud)
 		hud.close_panels()
+	# Joueur titulaire d'un rôle : page de son département active, autre page en lecture seule, alerte grisée.
+	Session.lobby = {"spec": _demo_roles_spec(), "state": _demo_roles_state(), "is_manager": false, "members": [{"display_name": "Camille", "game_role": "r_ach"}], "my_role": "r_prod"}
+	hud.toggle_tablet()
+	for tab_id in ["dept:prod", "dept:ach"]:
+		tablet.select_tab(tab_id)
+		await _look("25-hud-tablette-roles-%s" % tab_id.replace(":", "-"), hud)
+	hud.close_panels()
 	Session.lobby = saved_lobby
 	hud.queue_free()
 	_main.visible = true
+
+
+## Spec factice à deux départements (un module et un rôle chacun) pour la tablette d'un joueur titulaire.
+func _demo_roles_spec() -> Dictionary:
+	var module := func(id: String, title: String) -> Dictionary:
+		return {"id": id, "title": title, "description": "Gérer les décisions du département.", "role_id": "r_" + id, "actions": [
+			{"id": "a", "label": "Lancer un ordre", "fields": [{"id": "qty", "label": "Quantité", "type": "int", "min": 0, "max": 500, "step": 10, "default": 100}]}]}
+	return {
+		"departments": [{"id": "prod", "label": "Production"}, {"id": "ach", "label": "Achats"}],
+		"modules": [module.call("prod", "Production"), module.call("ach", "Achats")],
+		"roles": [{"id": "r_prod", "title": "Chef de production", "module_id": "prod", "department_id": "prod"}, {"id": "r_ach", "title": "Acheteur", "module_id": "ach", "department_id": "ach"}],
+		"panels": [], "tools": []}
+
+
+func _demo_roles_state() -> Dictionary:
+	return {"status": "running", "week": 3, "weeks": 8, "kpis": {}, "alerts": [
+		{"id": "a1", "level": "warning", "department_id": "ach", "module_id": "ach", "text": "Stock bas sur la référence principale.", "action": {"module_id": "ach", "action_id": "a", "values": {}}},
+		{"id": "a2", "level": "warning", "department_id": "prod", "module_id": "prod", "text": "Ligne B arrêtée.", "action": {"module_id": "prod", "action_id": "a", "values": {}}}]}
 
 
 func _demo_factory_spec() -> Dictionary:
@@ -451,7 +478,32 @@ func _prepare() -> bool:
 	for i in int(lobbies["lobby_done"]["spec"]["meta"]["weeks"]):
 		if await _call("POST", "/api/v1/lobbies/%s/advance" % _data["lobby_done"]) == null:
 			return false
+	var group: Variant = await _call("POST", "/api/v1/groups", {"name": "Promotion " + LONG_NAME.left(60), "business_game_id": game_a["id"], "teams": 3})
+	if group == null:
+		return false
+	_data["group"] = group["id"]
+	_data["group_code"] = group["join_code"]
 	return await _call("POST", "/api/v1/lobbies/%s/advance" % _data["lobby_run"]) != null
+
+
+## Écran groupe : vue formateur, débrief refusé (équipes pas finies), puis choix d'équipe du joueur.
+func _group_tour() -> void:
+	GmixGroupScreen.current_id = _data["group"]
+	GmixGroupScreen.join_code = ""
+	await _show("group")
+	await _wait(func() -> bool: return (_screen().get("_group") as Dictionary).has("teams"), 15.0)
+	await _settle()
+	await _look("17-groupe-formateur")
+	_screen().call("_debrief")
+	await _settle()
+	await _look("18-groupe-debrief-refuse")
+	await _become("player")
+	GmixGroupScreen.join_code = _data["group_code"]
+	await _show("group")
+	await _wait(func() -> bool: return (_screen().get("_group") as Dictionary).has("teams"), 15.0)
+	await _settle()
+	await _look("19-groupe-choix-equipe")
+	GmixGroupScreen.join_code = ""
 
 
 func _call(method: String, path: String, body: Variant = {}) -> Variant:

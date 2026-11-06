@@ -192,8 +192,18 @@ func _tabs() -> Array:
 		if _audience() == "joueur" and not GmixPanelView.panels_for(spec, "bandeau", "joueur").is_empty():
 			tabs.append(["indicators", "Indicateurs"])
 		tabs.append(["dashboard", "Tableau de bord"])  # sans panneau déclaré : le tableau de bord générique
-	for module: Dictionary in spec.get("modules", []):
-		tabs.append(["module:%s" % module["id"], str(module["title"])])
+	if (spec.get("departments", []) as Array).is_empty():  # pack sans départements : une page par module
+		for module: Dictionary in spec.get("modules", []):
+			tabs.append(["module:%s" % module["id"], str(module["title"])])
+	else:
+		for dept: Dictionary in spec["departments"]:
+			tabs.append(["dept:%s" % dept["id"], str(dept["label"])])
+		var placed: Array = []
+		for dept: Dictionary in spec["departments"]:
+			placed.append_array(_dept_modules(str(dept["id"])))
+		for module: Dictionary in spec.get("modules", []):  # module rattaché à aucun département : sa propre page
+			if not placed.has(module["id"]):
+				tabs.append(["module:%s" % module["id"], str(module["title"])])
 	if not _tools().is_empty():
 		tabs.append(["tools", "Outils"])
 	return tabs
@@ -239,6 +249,12 @@ func _render() -> void:
 			_render_tools(state)
 		_ when _tab.begins_with("module:"):
 			_render_module(_tab.trim_prefix("module:"))
+		_ when _tab.begins_with("dept:"):
+			var ids := _dept_modules(_tab.trim_prefix("dept:"))
+			for module_id: String in ids:
+				_render_module(module_id)
+			if ids.is_empty():
+				_stage.add_child(Ui.label("Aucune action de joueur dans ce département : lecture seule.", 0, Ui.MUTED, true))
 		_:
 			var panels := GmixPanelView.panels_for(spec, "tableau_de_bord", _audience())
 			if panels.is_empty():
@@ -251,7 +267,12 @@ func _render() -> void:
 
 func _render_alerts(state: Dictionary) -> void:
 	Ui.clear(_alerts)
-	var alerts: Array = state.get("alerts", [])
+	# Une alerte s'affiche sur la page de son département (repli : son module) et dans la vue générale.
+	var general := _tab in ["supervision", "dashboard", "indicators", "tools"]
+	var alerts: Array = (state.get("alerts", []) as Array).filter(
+		func(alert: Dictionary) -> bool:
+			return general or _tab in ["dept:%s" % alert.get("department_id"), "module:%s" % alert.get("module_id")]
+	)
 	_alerts.visible = not alerts.is_empty()
 	for alert: Dictionary in alerts:
 		var color: Color = {"critical": Ui.ERROR, "warning": Ui.WARN}.get(str(alert.get("level", "info")), Ui.MUTED)
@@ -261,7 +282,13 @@ func _render_alerts(state: Dictionary) -> void:
 		row.add_child(text)
 		var action: Variant = alert.get("action")
 		if action is Dictionary:
-			row.add_child(Ui.button("Faire", func() -> void: alert_action.emit(action)))
+			var reason := Session.module_block(str(action.get("module_id", "")))
+			var button := Ui.button("Faire", func() -> void: alert_action.emit(action))
+			button.disabled = not reason.is_empty()
+			button.tooltip_text = reason
+			row.add_child(button)
+			if not reason.is_empty():
+				row.add_child(Ui.label(reason, 0, Ui.MUTED))
 
 
 func _cards(panels: Array, state: Dictionary) -> void:
@@ -332,7 +359,7 @@ func _role_of(module_id: String) -> Dictionary:
 		for member: Dictionary in Session.lobby.get("members", []):
 			if member.get("game_role") == role["id"]:
 				return {"role": role, "holder": str(member["display_name"]), "mine": Session.lobby.get("my_role") == role["id"]}
-		return {"role": role, "holder": "", "mine": false}
+		return {"role": role, "holder": "", "mine": Session.my_role() == role["id"]}  # sans titulaire dans members[] : le mien aussi
 	return {}
 
 
@@ -342,14 +369,27 @@ func _rail_icon(tab_id: String) -> String:
 		"supervision": return "supervision"
 		"dashboard", "indicators": return "dashboard"
 		"tools": return "tools"
-	return tab_id.trim_prefix("module:")
+	return tab_id.get_slice(":", 1)
+
+
+## Ids des modules d'un département (ceux de ses rôles, `roles[].department_id`).
+func _dept_modules(dept_id: String) -> Array:
+	var ids: Array = []
+	for role: Dictionary in Session.spec().get("roles", []):
+		if role.get("department_id") == dept_id and not ids.has(role["module_id"]):
+			ids.append(role["module_id"])
+	return ids
 
 
 ## Un point devant mon département ; les autres sont en lecture seule.
 func _rail_title(tab: Array) -> String:
-	if not str(tab[0]).begins_with("module:") or not _role_of(str(tab[0]).trim_prefix("module:")).get("mine", false):
-		return str(tab[1])
-	return "● %s" % tab[1]
+	var id := str(tab[0])
+	var mine := false
+	if id.begins_with("module:"):
+		mine = _role_of(id.trim_prefix("module:")).get("mine", false)
+	elif id.begins_with("dept:"):
+		mine = _dept_modules(id.trim_prefix("dept:")).any(func(module_id: String) -> bool: return _role_of(module_id).get("mine", false))
+	return "● %s" % tab[1] if mine else str(tab[1])
 
 
 ## Page d'un département : qui le tient, puis les formulaires de ses actions (le HUD dit pourquoi un formulaire est fermé).
@@ -361,13 +401,15 @@ func _render_module(module_id: String) -> void:
 		box.add_child(Ui.label(str(module["title"]), 20, Ui.ACCENT, true))
 		box.add_child(Ui.label(str(module["description"]), 0, Ui.MUTED, true))
 		var owner := _role_of(module_id)
-		var who := "Département sans titulaire : il tourne en pilote automatique ou aide l'équipe."
+		var who := ""
 		if owner.get("mine", false):
 			who = "C'est votre département : vous agissez ici."
-		elif not str(owner.get("holder", "")).is_empty():
-			who = "Tenu par %s : lecture seule pour vous." % GameText.esc(owner["holder"])
 		elif Session.is_manager():
 			who = "Vous pilotez la partie : vous pouvez agir sur tous les départements."
+		elif not str(owner.get("holder", "")).is_empty():
+			who = "Tenu par %s : lecture seule pour vous." % GameText.esc(owner["holder"])
+		else:
+			who = "Département sans titulaire : lecture seule pour vous."
 		box.add_child(Ui.label(who, 0, Ui.OK if owner.get("mine", false) else Ui.MUTED, true))
 		if action_builder.is_valid():
 			for action: Dictionary in module["actions"]:

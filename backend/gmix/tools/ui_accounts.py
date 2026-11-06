@@ -20,7 +20,7 @@ from sqlalchemy import delete, or_, select
 
 from gmix.api.auth import create_access_token
 from gmix.db import get_sessionmaker
-from gmix.db.models import BusinessGame, Lobby, User, UserRole
+from gmix.db.models import BusinessGame, Lobby, LobbyGroup, User, UserRole
 from gmix.tools.create_user import create_user
 
 # scénario -> préfixe des noms ; comptes : (variable lue par Godot, suffixe, rôle, nom affiché)
@@ -63,16 +63,21 @@ async def create(scenario: str) -> dict[str, Any]:
 async def cleanup(ids: list[uuid.UUID]) -> str:
     """Supprime lobbies et parties des identifiants exacts ayant un nom jetable, puis ces comptes.
 
-    L'ordre suit les clés étrangères : lobbies.trainer_id n'a pas de ON DELETE, les lobbies partent avant les comptes.
+    L'ordre suit les clés étrangères : lobbies.trainer_id et lobby_groups.trainer_id n'ont pas de ON DELETE, donc
+    lobbies et groupes partent avant les comptes. Les équipes d'un groupe partent avec lui (CASCADE).
     """
     named = or_(*(User.username.startswith(prefix, autoescape=True) for prefix in PREFIXES))
     doomed = select(User.id).where(User.id.in_(ids), named)
     async with get_sessionmaker()() as session:
+        groups = await session.execute(delete(LobbyGroup).where(LobbyGroup.trainer_id.in_(doomed)))
         lobbies = await session.execute(delete(Lobby).where(Lobby.trainer_id.in_(doomed)))
         games = await session.execute(delete(BusinessGame).where(BusinessGame.created_by.in_(doomed)))
         users = await session.execute(delete(User).where(User.id.in_(doomed)))
         await session.commit()
-    return f"{users.rowcount} compte(s), {lobbies.rowcount} lobby(ies), {games.rowcount} partie(s)"
+    return (
+        f"{users.rowcount} compte(s), {groups.rowcount} groupe(s), "
+        f"{lobbies.rowcount} lobby(ies), {games.rowcount} partie(s)"
+    )
 
 
 def main() -> int:

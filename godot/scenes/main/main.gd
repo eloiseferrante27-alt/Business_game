@@ -10,6 +10,7 @@ const SCREENS := {
 	"login": preload("res://scenes/main/login_screen.gd"),
 	"home": preload("res://scenes/main/home_screen.gd"),
 	"lobby": preload("res://scenes/lobby/lobby_screen.gd"),
+	"group": preload("res://scenes/group/group_screen.gd"),
 }
 
 var _screen: Control

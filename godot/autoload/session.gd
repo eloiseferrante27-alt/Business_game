@@ -55,6 +55,29 @@ func is_manager() -> bool:
 	return lobby.get("is_manager", false)
 
 
+## Id de mon rôle de jeu ("" : aucun).
+func my_role() -> String:
+	var role: Variant = lobby.get("my_role")
+	return role if role is String else ""
+
+
+## Raison pour laquelle je ne peux pas agir sur ce module (vide : permis). Reprend engine.act (annexe 0010 §5) : le
+## formateur agit partout, un joueur seulement sur le module de son rôle ; l'API reste juge.
+func module_block(module_id: String) -> String:
+	if is_manager():
+		return ""
+	for module: Dictionary in spec().get("modules", []):
+		if module["id"] != module_id:
+			continue
+		var role_id: String = module["role_id"]
+		if my_role() == role_id:
+			return ""
+		if my_role().is_empty():
+			return "Choisissez un rôle dans la salle d'attente pour agir."
+		return "Cette action revient au rôle « %s »." % GameText.role_title(spec(), role_id)
+	return ""
+
+
 func url(suffix := "") -> String:
 	return "/api/v1/lobbies/%s%s" % [lobby.get("id", ""), suffix]
 

@@ -12,6 +12,7 @@ const MAIN := "res://scenes/main/main.tscn"
 const WORLD := "res://scenes/world/world.tscn"
 const HOME_SCRIPT := "res://scenes/main/home_screen.gd"
 const LOBBY_SCRIPT := "res://scenes/lobby/lobby_screen.gd"
+const GROUP_SCRIPT := "res://scenes/group/group_screen.gd"
 const WAIT_S := 20.0  # attente par défaut d'une condition (réseau local, Kafka)
 const WS_WAIT_S := 45.0  # relais Kafka -> WebSocket
 const TALK_WAIT_S := 120.0  # réponse d'un agent : le modèle de dialogue peut devoir se charger
@@ -249,6 +250,15 @@ func _trainer_journey() -> void:
 	_begin("A.5b", "Barre d'appel de la salle : pause, reprise, aléa déclenché")
 	await _check_round_bar(lobby)
 
+	_begin("A.5d", "Tablette d'un joueur titulaire : page de son département active, autres en lecture seule, alerte grisée")
+	await _check_tablet_roles()
+
+	_begin("A.5c", "Groupe de 2 équipes : création, écran groupe, entrée d'un joueur, 409, débrief comparé")
+	var reopened := await _check_group(lobby, game)
+	if reopened == null:
+		return
+	lobby = reopened
+
 	_begin("A.6", "Monde 3D : construction depuis la spec")
 	var world := await _enter_world(lobby)
 	if world == null:
@@ -286,6 +296,81 @@ func _trainer_journey() -> void:
 
 	_begin("A.13", "Retour à l'accueil : le lobby terminé figure dans la liste")
 	await _back_home_lists_lobby()
+
+
+# --- groupes d'équipes ---------------------------------------------------------------------------------------
+
+
+## Joue un groupe de 2 équipes puis rouvre le lobby du parcours (sa partie reste en cours) ; null si le parcours s'arrête.
+func _check_group(lobby: Control, game: Dictionary) -> Control:
+	var lobby_id := str(Session.lobby["id"])
+	_click(_button(lobby, "Retour à l'accueil"), "bouton « Retour à l'accueil »")
+	var home := await _wait_screen(HOME_SCRIPT)
+	if not _check(home != null, "l'accueil revient avant le groupe"):
+		return null
+	var row: Variant = await _until(func() -> Variant: return _game_row(home, str(game["title"])))  # liste rechargée à l'arrivée
+	if not _check(row != null and _button(row as Node, "Lancer une session") != null, "ligne du jeu avec « Lancer une session »"):
+		return null
+	_click(_button(row as Node, "Lancer une session"), "bouton « Lancer une session »")
+	var dialog: Variant = await _until(func() -> Variant: return _dialog(home))
+	if not _check(dialog != null, "la fenêtre de session s'ouvre"):
+		return null
+	var window := dialog as ConfirmationDialog
+	(window.find_child("SessionName", true, false) as LineEdit).text = "QA groupe %d" % (Time.get_ticks_msec() % 100000)
+	(window.find_child("TeamCount", true, false) as SpinBox).value = 2
+	window.get_ok_button().pressed.emit()
+	var screen := await _wait_screen(GROUP_SCRIPT)
+	if not _check(screen != null, "l'écran groupe s'affiche (POST /groups)"):
+		return null
+	if not _check(await _until(func() -> bool: return (screen.get("_group") as Dictionary).has("teams")) != null, "le groupe est chargé"):
+		return null
+	var group: Dictionary = screen.get("_group")
+	var cards := screen.find_children("Team_*", "VBoxContainer", true, false)
+	_check(cards.size() == 2 and (group["teams"] as Array).size() == 2, "2 cartes d'équipe", str(cards.size()))
+	var code := str(group.get("join_code", ""))
+	_check(not code.is_empty() and (screen.find_child("GroupCode", true, false) as Label).text.contains(code), "code du groupe affiché", code)
+	if DisplayServer.has_feature(DisplayServer.FEATURE_CLIPBOARD):  # absent en affichage headless
+		_click(screen.find_child("CopyCodeButton", true, false) as Button, "bouton « Copier le code »")
+		await _frames(2)
+		_check(DisplayServer.clipboard_get() == code, "le presse-papiers contient le code", DisplayServer.clipboard_get())
+	else:
+		print("  presse-papiers indisponible (affichage headless) : « Copier le code » non vérifié")
+	_check(screen.find_children("OpenTeamButton", "Button", true, false).size() == 2, "le formateur peut ouvrir chaque équipe")
+
+	var team1 := str(group["teams"][0]["lobby_id"])
+	var team2 := str(group["teams"][1]["lobby_id"])
+	var joined := await _raw(_player, HTTPClient.METHOD_POST, "/api/v1/groups/join", {"code": code, "lobby_id": team1})
+	_check(joined["ok"], "un joueur entre dans l'équipe 1", str(joined["error"]))
+	var other := await _raw(_player, HTTPClient.METHOD_POST, "/api/v1/groups/join", {"code": code, "lobby_id": team2})
+	_check(other["status"] == 409, "409 : le joueur ne peut pas rejoindre l'équipe 2", str(other["error"]))
+	var denied := await _raw(_player, HTTPClient.METHOD_GET, "/api/v1/groups/%s/debrief" % group["id"])
+	_check(denied["status"] == 409, "409 : débrief comparé refusé au joueur tant qu'une équipe n'a pas fini", str(denied["error"]))
+
+	_click(screen.find_child("RefreshButton", true, false) as Button, "bouton « Actualiser »")
+	var seen: Variant = await _until(
+		func() -> bool:
+			var teams: Array = (screen.get("_group") as Dictionary).get("teams", [])
+			return not teams.is_empty() and not (teams[0]["players"] as Array).is_empty()
+	)
+	_check(seen != null, "l'équipe 1 montre son joueur après actualisation")
+	# le formateur n'est pas bloqué par le 409 (réservé aux joueurs) : le débrief s'ouvre, même sans équipe finie
+	_click(screen.find_child("GroupDebriefButton", true, false) as Button, "bouton de débrief comparé")
+	var report: Variant = await _until(func() -> Variant: return _dialog(screen))
+	if _check(report != null, "le débrief comparé s'ouvre pour le formateur"):
+		var shown := _parsed(report as Node)
+		_check(shown.contains(str(group["teams"][0]["name"])) and shown.contains(str(group["teams"][1]["name"])), "le débrief nomme les deux équipes", shown.left(120))
+		_close_dialog(report as AcceptDialog)
+		await _frames(2)
+	_check(not (screen.get("_status") as Label).text.begins_with("HTTP"), "pas d'erreur brute affichée", (screen.get("_status") as Label).text)
+
+	_click(screen.find_child("BackButton", true, false) as Button, "bouton de retour du groupe")
+	home = await _wait_screen(HOME_SCRIPT)
+	if not _check(home != null, "retour à l'accueil depuis le groupe"):
+		return null
+	await home.call("_open_lobby", lobby_id)
+	var back := await _wait_screen(LOBBY_SCRIPT)
+	_check(back != null and Session.lobby.get("id") == lobby_id, "le lobby du parcours est rouvert")
+	return back
 
 
 # --- accueil et génération -------------------------------------------------------------------------------------
@@ -609,6 +694,59 @@ func _lobby_waiting_then_start(lobby: Control, game: Dictionary) -> bool:
 	var server := await _raw(_trainer, HTTPClient.METHOD_GET, "/api/v1/lobbies/%s" % view["id"])
 	_check(server["data"]["state"]["status"] == "running" and server["data"]["status"] == "running", "API : lobby en cours")
 	return true
+
+
+## Tablette sur un lobby fabriqué (deux départements, mon rôle dans « prod ») : le droit est celui de engine.act.
+func _check_tablet_roles() -> void:
+	var module := func(id: String) -> Dictionary: return {"id": id, "title": id, "description": "d", "role_id": "r_" + id, "actions": [{"id": "a", "label": "Agir", "fields": []}]}
+	var spec := {
+		"departments": [{"id": "prod", "label": "Production"}, {"id": "ach", "label": "Achats"}],
+		"modules": [module.call("prod"), module.call("ach")],
+		"roles": [{"id": "r_prod", "title": "Chef de production", "module_id": "prod", "department_id": "prod"}, {"id": "r_ach", "title": "Acheteur", "module_id": "ach", "department_id": "ach"}],
+		"panels": [], "tools": [],
+	}
+	var alerts := [
+		{"id": "a1", "level": "warning", "department_id": "ach", "module_id": "ach", "text": "Stock bas", "action": {"module_id": "ach", "action_id": "a", "values": {}}},
+		{"id": "a2", "level": "warning", "department_id": "prod", "module_id": "prod", "text": "Ligne arrêtée", "action": {"module_id": "prod", "action_id": "a", "values": {}}}]
+	var saved := Session.lobby
+	Session.lobby = {"id": "fixture", "name": "Exemple", "spec": spec, "state": {"status": "running", "week": 1, "weeks": 5, "alerts": alerts}, "is_manager": false, "my_role": "r_prod", "members": []}
+	_check(Session.module_block("prod").is_empty(), "mon module : aucune raison de blocage")
+	_check(Session.module_block("ach").contains("Acheteur"), "module d'un autre rôle : refus nommant le rôle", Session.module_block("ach"))
+	var tablet := (load("res://scenes/tablet/tablet.tscn") as PackedScene).instantiate() as GmixTablet
+	tablet.instant = true
+	tablet.action_builder = func(parent: Node, mod: Dictionary, _action: Dictionary) -> void: parent.add_child(_form_stub(mod))
+	add_child(tablet)
+	tablet.open()
+	var tabs: Array = tablet.call("_tabs").map(func(tab: Array) -> String: return tab[0])
+	_check("dept:prod" in tabs and "dept:ach" in tabs and not tabs.any(func(id: String) -> bool: return id.begins_with("module:")), "une page par département", str(tabs))
+	_check(_button(tablet, "● Production") != null and _button(tablet, "Achats") != null, "point devant mon département seulement")
+	spec["modules"].append(module.call("orph"))  # module sans rôle de département : garde sa page
+	var orphan_tabs: Array = tablet.call("_tabs").map(func(tab: Array) -> String: return tab[0])
+	_check("module:orph" in orphan_tabs and orphan_tabs.count("dept:prod") == 1, "module orphelin : sa page module", str(orphan_tabs))
+	spec["modules"].pop_back()
+	tablet.select_tab("dept:prod")
+	_check(_button(tablet, "Faire") != null and not _button(tablet, "Faire").disabled, "page active : « Faire » de mon module actif")
+	_check(_button(tablet, "Agir prod") != null and not _button(tablet, "Agir prod").disabled, "page active : formulaire ouvert")
+	_check(_buttons(tablet, "Faire").size() == 1, "page active : seule l'alerte de ce département")
+	tablet.select_tab("dept:ach")
+	_check(_button(tablet, "Faire") != null and _button(tablet, "Faire").disabled, "page en lecture seule : « Faire » grisé")
+	_check(_button(tablet, "Agir ach") != null and _button(tablet, "Agir ach").disabled, "page en lecture seule : formulaire fermé")
+	tablet.select_tab("dashboard")
+	_check(_buttons(tablet, "Faire").size() == 2, "vue générale : les deux alertes")
+	Session.lobby["my_role"] = null
+	_check(Session.module_block("prod").contains("Choisissez un rôle"), "sans rôle : « Choisissez un rôle »")
+	Session.lobby["is_manager"] = true
+	_check(Session.module_block("ach").is_empty(), "formateur : tout actionnable")
+	tablet.queue_free()
+	Session.lobby = saved
+
+
+## Bouton factice d'un formulaire de module, ouvert ou fermé comme le fait le HUD (raison de Session.module_block).
+func _form_stub(mod: Dictionary) -> Button:
+	var button := Button.new()
+	button.text = "Agir %s" % mod["id"]
+	button.disabled = not Session.module_block(str(mod["id"])).is_empty()
+	return button
 
 
 func _check_round_bar(lobby: Control) -> void:

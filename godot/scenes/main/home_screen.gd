@@ -505,7 +505,20 @@ func _load_lobbies() -> void:
 		_status.text = res["error"]
 		return
 	Ui.clear(_lobbies)
-	if res["data"].is_empty():
+	var group_count := 0
+	if Api.role() != "player":  # groupes d'équipes du formateur, avant ses sessions seules
+		var groups: Dictionary = await Api.get_json("/api/v1/groups")
+		for group: Dictionary in groups["data"] if groups["ok"] else []:
+			group_count += 1
+			var group_row := Ui.hbox(_lobbies)
+			var group_text := "Groupe  ·  %s" % group["name"]
+			if group.get("join_code"):
+				group_text += "  ·  code [%s]" % group["join_code"]
+			group_row.add_child(Ui.label(group_text, 0, Ui.ACCENT, true))
+			var open_group := Ui.button("Ouvrir le groupe", func() -> void: _open_group(str(group["id"])))
+			open_group.name = "OpenGroupButton"
+			group_row.add_child(open_group)
+	if res["data"].is_empty() and group_count == 0:
 		if Api.role() == "player":
 			Ui.empty_state(_lobbies, "Aucune partie pour l'instant : saisissez le code de votre formateur pour rejoindre la première.", "Saisir un code", func() -> void: _code_field.grab_focus(), "play")
 		else:
@@ -537,12 +550,27 @@ func _join(code: String) -> void:
 	if code.strip_edges().is_empty():
 		_status.text = "Saisissez le code donné par le formateur"
 		return
+	# Code de groupe d'abord (choix de l'équipe) ; 404 : ce n'est pas un groupe, repli sur le code d'une session seule.
+	# Les codes de groupe et de session sont tirés séparément : un code peut exister des deux côtés (rare), le groupe l'emporte.
+	var group: Dictionary = await Api.post_json("/api/v1/groups/join", {"code": code.strip_edges()})
+	if group["ok"]:
+		_open_group(str(group["data"]["id"]), code.strip_edges().to_upper())
+		return
+	if group["status"] != 404:
+		_status.text = group["error"]
+		return
 	var res: Dictionary = await Api.post_json("/api/v1/lobbies/join", {"code": code.strip_edges()})
 	if not res["ok"]:
 		_status.text = res["error"]
 		return
 	Session.open(res["data"])
 	navigate.emit("lobby")
+
+
+func _open_group(group_id: String, code := "") -> void:
+	GmixGroupScreen.current_id = group_id
+	GmixGroupScreen.join_code = code
+	navigate.emit("group")
 
 
 func _open_lobby(lobby_id: String) -> void:
@@ -684,8 +712,18 @@ func _ask_lobby_name(game: Dictionary) -> void:
 	box.add_child(intro)
 	box.add_child(Ui.label("Nom de la session", 0, Color.WHITE))
 	var edit := Ui.field("", false, 0)
+	edit.name = "SessionName"
 	edit.text = "%s : groupe du %s" % [game["title"], Time.get_date_string_from_system()]
 	box.add_child(edit)
+	var teams_hint := Ui.label("Nombre d'équipes (1 : une seule partie ; 2 à 12 : un groupe d'équipes qui jouent le même jeu)", 0, Color.WHITE, true)
+	teams_hint.custom_minimum_size = Vector2(600, 56)  # même piège que `reason`
+	box.add_child(teams_hint)
+	var teams := SpinBox.new()
+	teams.name = "TeamCount"
+	teams.min_value = 1
+	teams.max_value = 12
+	teams.value = 1
+	box.add_child(teams)
 	box.add_child(Ui.label("Avancée des semaines", 0, Color.WHITE))
 	var mode := Ui.select(["Manuelle : le formateur fait avancer", "Automatique : quand tous les joueurs sont prêts"])
 	mode.set_item_disabled(1, true)  # l'API n'a pas encore de mode d'avancée (étape 5)
@@ -696,15 +734,22 @@ func _ask_lobby_name(game: Dictionary) -> void:
 	dialog.register_text_enter(edit)
 	dialog.confirmed.connect(func() -> void:
 		dialog.queue_free()
-		_create_lobby(game, edit.text.strip_edges()))
+		_create_lobby(game, edit.text.strip_edges(), int(teams.value)))
 	dialog.canceled.connect(dialog.queue_free)
 	add_child(dialog)
 	dialog.popup_centered_clamped(Vector2i(760, 0), Ui.DIALOG_RATIO)
 	edit.grab_focus()
 
 
-func _create_lobby(game: Dictionary, lobby_name: String) -> void:
+func _create_lobby(game: Dictionary, lobby_name: String, teams := 1) -> void:
 	if lobby_name.is_empty():
+		return
+	if teams > 1:
+		var created: Dictionary = await Api.post_json("/api/v1/groups", {"name": lobby_name, "business_game_id": game["id"], "teams": teams})
+		if not created["ok"]:
+			_status.text = created["error"]
+			return
+		_open_group(str(created["data"]["id"]))
 		return
 	var res: Dictionary = await Api.post_json("/api/v1/lobbies", {"name": lobby_name, "business_game_id": game["id"]})
 	if not res["ok"]:
