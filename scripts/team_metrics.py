@@ -70,7 +70,7 @@ class Scan:
     effort: str = ""
     usage: dict = field(default_factory=dict)  # message.id -> maximum par champ de tokens
     tools: dict = field(default_factory=dict)  # tool_use.id -> (nom, horodatage, entrée utile)
-    errors: set = field(default_factory=set)  # tool_use.id dont le résultat est en erreur
+    errors: dict = field(default_factory=dict)  # tool_use.id dont le résultat est en erreur -> extrait du message
     launched: dict = field(default_factory=dict)  # agentId -> tool_use.id de l'appel Agent qui l'a lancé
     handback: str = ""  # message du dernier SubagentHandback (compte rendu rendu à l'appelant)
     tail: dict = field(default_factory=dict)  # dernier bloc de contenu de l'assistant
@@ -82,6 +82,11 @@ def text_of(content):
     if isinstance(content, list):
         return "\n".join(b["text"] for b in content if isinstance(b, dict) and isinstance(b.get("text"), str))
     return ""
+
+
+def excerpt(text):
+    """120 premiers caractères d'un message d'erreur, secrets masqués, sur une ligne."""
+    return mask(" ".join(text.split()))[:120]
 
 
 def scan(path):
@@ -137,7 +142,7 @@ def scan(path):
                         continue
                     tid = b.get("tool_use_id")
                     if b.get("is_error"):
-                        s.errors.add(tid)
+                        s.errors[tid] = excerpt(text_of(b.get("content")))
                     tool = s.tools.get(tid)
                     if tool and tool[0] in AGENT_TOOLS:
                         m = AGENT_ID.search(text_of(b.get("content")))
@@ -324,6 +329,7 @@ def make_run(sid, aid, s, call, meta, root, own):
         "tool_calls": dict(Counter(t[0] for t in s.tools.values())),
         "tool_calls_total": len(s.tools),
         "tool_errors": len(s.errors),
+        "tool_error_details": [{"tool": (s.tools.get(tid) or ("inconnu",))[0], "error": e} for tid, e in s.errors.items()],
         "tokens": {
             "input": tokens["input_tokens"],
             "cache_creation": tokens["cache_creation_input_tokens"],
@@ -587,6 +593,8 @@ def render_run(r):
         out.append("(non analysé : .claude/ownership.json absent ou invalide)")
     else:
         out += [f"- {p}" for p in scope] or ["(aucun)"]
+    out += ["", "## Erreurs d'outil", ""]
+    out += [f"- {e['tool']} : {e['error']}" for e in r["tool_error_details"]] or ["(aucune)"]
     return "\n".join(out)
 
 

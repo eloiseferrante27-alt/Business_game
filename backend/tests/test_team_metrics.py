@@ -121,6 +121,7 @@ def test_collect_counts_each_message_once_and_flags_out_of_scope_edit(tmp_path):
     assert run["tokens"]["output"] == 40  # maximum du flux
     assert run["edits"] == 1 and run["out_of_scope_edits"] == 1
     assert run["tool_errors"] == 1
+    assert run["tool_error_details"] == [{"tool": "Edit", "error": "refusé"}]
     assert run["brief_rubrics"] == list(tm.RUBRICS)
     assert run["report"] == "fini"
 
@@ -211,3 +212,10 @@ def test_mask_keeps_ordinary_prose() -> None:
 def test_portable_replaces_windows_profile_only() -> None:
     assert tm.portable("C:\\Users\\Flash\\AppData\\Local\\Temp\\x.py") == "~/AppData/Local/Temp/x.py"
     assert tm.portable("D:/projets/a.py") == "D:/projets/a.py"
+
+
+def test_excerpt_masks_before_cutting_and_stays_on_one_line() -> None:
+    out = tm.excerpt("x" * 100 + "\nAuthorization: Bearer abcdef123456secret\n--password hunter2")
+    assert "\n" not in out and len(out) <= 120
+    assert "hunter2" not in out and "abcdef123456secret" not in out
+    assert "abcdef12" not in tm.excerpt("y" * 112 + " Bearer abcdef123456secret")  # secret coupé par la troncature
