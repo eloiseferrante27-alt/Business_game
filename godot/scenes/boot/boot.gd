@@ -35,18 +35,18 @@ func _ready() -> void:
 
 func _refresh_health() -> bool:
 	for service in SERVICES:
-		_set_status(service, "…", Color.GRAY)
+		_set_status(service, "…", Ui.MUTED)
 	var res: Dictionary = await Api.get_json("/health")
 	if not res["ok"]:
 		for service in SERVICES:
-			_set_status(service, "inconnu", Color.ORANGE)
+			_set_status(service, "inconnu", Ui.WARN)
 		_log_line("[color=red]API injoignable : %s[/color]" % res["error"])
 		return false
 	var services: Dictionary = res["data"]["services"]
 	for service in SERVICES:
 		var report: Dictionary = services.get(service, {})
 		var ok: bool = report.get("ok", false)
-		_set_status(service, _summarize(report), Color.LIME_GREEN if ok else Color.TOMATO)
+		_set_status(service, _summarize(report), Ui.OK if ok else Ui.ERROR)
 	var healthy: bool = res["data"]["status"] == "ok"
 	_log_line("État global du backend : [b]%s[/b]" % res["data"]["status"])
 	EventBus.backend_status_changed.emit(healthy, res["data"])
@@ -113,11 +113,11 @@ func _on_message(type: String, payload: Dictionary) -> void:
 
 
 func _on_ws_connected() -> void:
-	_set_status("websocket", "connecté", Color.LIME_GREEN)
+	_set_status("websocket", "connecté", Ui.OK)
 
 
 func _on_ws_disconnected() -> void:
-	_set_status("websocket", "déconnecté", Color.TOMATO)
+	_set_status("websocket", "déconnecté", Ui.ERROR)
 
 
 func _summarize(report: Dictionary) -> String:
@@ -144,7 +144,7 @@ func _log_line(text: String) -> void:
 func _build_ui() -> void:
 	RenderingServer.set_default_clear_color(Ui.BACKDROP)
 	var column := Ui.vbox(Ui.screen_margin(self, 32), 12)
-	column.add_child(Ui.label("G-mix Open World : diagnostic de l'environnement", 28, Color.WHITE, true))
+	column.add_child(Ui.label("G-mix Open World : diagnostic de l'environnement", 28, Ui.TEXT, true))
 	var who: String = Api.user.get("display_name", "non connecté")
 	column.add_child(Ui.label("API %s   |   %s" % [AppConfig.api_base_url, who], 0, Ui.MUTED, true))
 

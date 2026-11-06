@@ -124,6 +124,11 @@ static func _style_buttons(theme: Theme) -> void:
 		for state in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
 			theme.set_stylebox(state, kind, plain)
 		theme.set_constant("h_separation", kind, 8)
+	# Icônes de case : teintées (le gris par défaut de Godot contraste peu sur fond clair).
+	theme.set_color("checkbox_checked_color", "CheckBox", UiTokens.LIME)
+	theme.set_color("checkbox_unchecked_color", "CheckBox", TEXT)
+	theme.set_color("button_checked_color", "CheckButton", UiTokens.LIME)
+	theme.set_color("button_unchecked_color", "CheckButton", TEXT)
 
 
 static func _style_fields(theme: Theme) -> void:
@@ -180,6 +185,18 @@ static func _style_popups(theme: Theme) -> void:
 	# Fenêtres intégrées : cadre du thème par défaut (il réserve la place de la barre de titre), repeint aux couleurs de la DA.
 	theme.set_color("title_color", "Window", TEXT)
 	theme.set_font_size("title_font_size", "Window", UiTokens.WINDOW_TITLE_SIZE)
+	# Le « × » du thème par défaut est blanc : repeint aux couleurs de la palette (pas de couleur de thème pour lui).
+	for icon_name in ["close", "close_pressed"]:
+		var icon := ThemeDB.get_default_theme().get_icon(icon_name, "Window")
+		var img := icon.get_image() if icon != null else null
+		if img == null:
+			continue
+		img.convert(Image.FORMAT_RGBA8)
+		var tint := TEXT if icon_name == "close" else UiTokens.LIME
+		for y in img.get_height():
+			for x in img.get_width():
+				img.set_pixel(x, y, Color(tint, img.get_pixel(x, y).a))
+		theme.set_icon(icon_name, "Window", ImageTexture.create_from_image(img))
 	for kind in ["embedded_border", "embedded_unfocused_border"]:
 		var base := ThemeDB.get_default_theme().get_stylebox(kind, "Window") as StyleBoxFlat
 		if base == null:

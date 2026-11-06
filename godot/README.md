@@ -152,9 +152,9 @@ grandes crée des dépassements à 1024x600 (revérifier le tour après chaque c
 ### Direction artistique (référence : la tablette du Business_game, ADR 0010)
 
 - Palette chaude limitée (fond, surface, accent, succès, alerte), définie en un seul endroit, `Ui.make_theme` ;
-  aucune couleur codée en dur dans les écrans. Palette par défaut : cacao sombre. Trois palettes claires (`chaud`,
-  `sauge`, `ardoise`) se choisissent par `GMIX_PALETTE=<id>` ou `--palette=<id>` (`godot/autoload/session.gd`,
-  `godot/scenes/common/ui_tokens.gd`) ; le choix de l'utilisateur est en attente. Contraste de texte d'au moins 4,5:1 (WCAG AA), à calculer.
+  aucune couleur codée en dur dans les écrans. Palette par défaut : `ardoise` (bleu et blanc, choix du 06/11). Trois autres (`cacao` sombre, `chaud`,
+  `sauge`) se choisissent par `GMIX_PALETTE=<id>` ou `--palette=<id>` (`godot/autoload/session.gd`,
+  `godot/scenes/common/ui_tokens.gd`). Contraste de texte d'au moins 4,5:1 (WCAG AA), à calculer.
 - Coins arrondis ; marges et espacements sur une échelle fixe (4, 8, 16, 24) ; hiérarchie typographique : titre,
   sous-titre, corps (le corps reste à 18 px, jamais sous 15 px).
 - États vides accueillants : une phrase qui explique et un bouton vers l'action suivante. Accueil personnalisé

@@ -6,11 +6,11 @@ extends RefCounted
 ## Palette choisie une fois au démarrage par Session (`use`) ; pas de changement à chaud : les écrans déjà construits gardent leurs couleurs.
 ## `contrast_failures()` (appelée par `-Check`) calcule le rapport de contraste de chaque texte sur son fond (>= 4,5:1).
 
-const DEFAULT_PALETTE := "defaut"
-## Palettes choisissables (argument `--palette=<id>` ou variable GMIX_PALETTE, lus par Session). `defaut` : cacao sombre ; les autres sont claires et
-## plus douces (accents moins saturés, contrastes calculés par `contrast_failures`). Une couleur ne s'écrit qu'ici.
+const DEFAULT_PALETTE := "ardoise"
+## Palettes choisissables (argument `--palette=<id>` ou variable GMIX_PALETTE, lus par Session). `ardoise` (bleu et blanc) est la palette par défaut ;
+## `cacao` est la sombre, `chaud` et `sauge` d'autres claires (contrastes calculés par `contrast_failures`). Une couleur ne s'écrit qu'ici.
 const PALETTES := {
-	"defaut": {  # cacao sombre
+	"cacao": {  # cacao sombre
 		"INK": "#fbf3e6",
 		"MUTED": "#d3c4b2",
 		"LIME": "#f4b066",
