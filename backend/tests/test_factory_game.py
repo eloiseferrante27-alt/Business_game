@@ -181,13 +181,22 @@ def test_generation_stays_within_its_time_budget() -> None:
         pack="usine", theme="industrie", modules=MODULES, weeks=12, options={"lines": 3}, seed=3,
         difficulty="expert", events="frequents",
     )  # fmt: skip
-    for params, limit in ((usual, 1.0), (worst, 2.0)):
-        durations = []
+
+    # Temps CPU rapporté à une boucle de référence mesurée au même moment : la charge du poste (SMT, bridage, antivirus)
+    # ralentit les deux de la même façon ; seuils = 1 s et 2 s au repos (boucle ~0,06 s au repos, ~0,2 s sous charge).
+    def reference() -> float:
+        start = time.process_time()
+        sum(i % 7 for i in range(1_000_000))
+        return time.process_time() - start
+
+    for params, limit in ((usual, 15), (worst, 30)):
+        ratios = []
         for attempt in range(3):  # meilleur de trois (graines distinctes : le résultat est mis en cache par spec)
-            start = time.perf_counter()
+            ref = min(reference() for _ in range(3))
+            start = time.process_time()
             generate(params.model_copy(update={"seed": params.seed + 10 * attempt}))
-            durations.append(time.perf_counter() - start)
-        assert min(durations) < limit, durations
+            ratios.append((time.process_time() - start) / ref)
+        assert min(ratios) < limit, ratios
 
 
 def test_autopilot_check_is_not_replayed_for_the_same_spec() -> None:

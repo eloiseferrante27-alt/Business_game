@@ -21,6 +21,8 @@ func _ready() -> void:
 ## Serveur choisi à l'écran de connexion (salle : http://IP:8000 ; distance : https://nom-de-domaine).
 func set_server(api_url: String, username: String) -> void:
 	api_base_url = api_url.strip_edges().trim_suffix("/")
+	if not api_base_url.begins_with("http"):
+		api_base_url = "http://" + api_base_url  # « 192.168.11.100:8000 » sans schéma
 	ws_url = ws_url_for(api_base_url)
 	last_username = username
 	var cfg := ConfigFile.new()

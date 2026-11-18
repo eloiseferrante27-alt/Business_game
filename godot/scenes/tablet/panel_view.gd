@@ -70,7 +70,7 @@ static func format_value(value: Variant, column: Dictionary) -> String:
 			return "%s min" % GameText.number(value)
 		"state":
 			return str((column.get("labels", {}) as Dictionary).get(str(value), value))
-	return str(value)
+	return "—" if value == null else str(value)
 
 
 ## [couleur, mot] de l'écart à la cible d'une colonne, null sans cible ni valeur. Le mot double la couleur (daltonisme).

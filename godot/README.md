@@ -122,7 +122,7 @@ base locale), `-Tour` et `-Flow` ne se combinent pas.
 | Outil | Lancement | Contrôle |
 |---|---|---|
 | `ui_tour` | `.\scripts\godot.ps1 -Tour [-Snapshot]` | lisibilité des écrans avant-jeu (connexion, diagnostic, accueils, salle du lobby, fenêtres) et des panneaux du HUD à 4 tailles de fenêtre (1280x720, 1366x768, 1920x1080, 1024x600) : dépassements, polices sous 15 px, textes tronqués, erreurs de script. `-Snapshot` (version à fenêtre, GPU requis, avec `-Tour` seulement) écrit les PNG dans `%TEMP%\gmix_imgs\ui_tour`. Crée deux business games et douze lobbies, supprimés ensuite. Aucun appel à Ollama. |
-| `flow_test` | `.\scripts\godot.ps1 -Flow [-NoLlm] [-Design]` | parcours A, formateur de bout en bout (génération, relecture, import, lobby, lancement, monde, vue Sims, postes, dialogues avec chaque agent et mémoire, semaines, débrief en courbes ; A.5b : pause, reprise et aléa par la barre « prêt » ; A.5d : droits de la tablette par département, `_check_tablet_roles`). `-NoLlm` (`--no-llm`) saute les dialogues, donc tout appel à Ollama. `-Pack <slug>` (avec `-Flow` seulement, ex. `-Pack usine`) joue le parcours sur un autre pack que l'atelier. La présence ENet est remplacée par une doublure inerte. `-Design` (avec `-Flow` seulement) joue le parcours D (`--only=D`) : conception par l'IA (F1, F2), écran de brouillon, régénération d'une carte, publication ; le worker `generation` est relancé s'il est absent ou plus ancien que backend\gmix\**\*.py, ai\packs, ai\prompts ou ai\models.yaml. **Parcours existants : A et D** : B (joueurs) et V sont annoncés (`--only=A,B,V`) mais non écrits. |
+| `flow_test` | `.\scripts\godot.ps1 -Flow [-NoLlm] [-Design]` | parcours A, formateur de bout en bout (génération, relecture, import, lobby, lancement, monde, vue Sims, postes, dialogues avec chaque agent et mémoire, semaines, débrief en courbes ; A.5b : pause, reprise et aléa par la barre « prêt » ; A.5d : droits de la tablette par département, `_check_tablet_roles`). `-NoLlm` (`--no-llm`) saute les dialogues, donc tout appel à Ollama. `-Pack <slug>` (avec `-Flow` seulement, ex. `-Pack usine`) joue le parcours sur un autre pack que l'atelier. La présence ENet est remplacée par une doublure inerte. `-Design` (avec `-Flow` seulement) joue le parcours D (`--only=D`) : conception par l'IA (F1, F2), écran de brouillon, régénération d'une carte, publication ; le worker `generation` est relancé s'il est absent ou plus ancien que backend\gmix\**\*.py, ai\packs, ai\prompts ou ai\models.yaml. **Parcours existants : A, B et D** ; V est annoncé (`--only=A,B,V`) mais non écrit. Parcours B (joueur, B.0 à B.7) : touches physiques AZERTY (ZQSD), entrée par code et par groupe, choix d'équipe et de rôle, tablette en lecture seule hors de son département, « Prêt » et vote sur un absent, débrief. Mesuré le 18/11 : `-Flow -NoLlm` 686 vérifications, `-Flow` (modèle) 813. |
 | `world_preview` | exécutable Godot à fenêtre, `res://scenes/tools/world_preview/world_preview.tscn -- --api=… --lobby=<id> --snapshot=<dossier>` (jeton dans `GMIX_TOKEN`) | captures de l'atelier, de la vue Sims, de la troisième personne et fréquence d'images |
 | `asset_gallery` | `.\scripts\assets.ps1 -Gallery <dossier>` | galerie de tous les assets par catégorie |
 
@@ -131,6 +131,15 @@ Si le nettoyage échoue, le script affiche les identifiants à nettoyer :
 
 Limites connues (clic réel, clavier AZERTY réel, pavé tactile non éprouvés ; outils non suivis par git) :
 docs/blocages.md.
+
+## Export : version autonome Windows
+
+`.\scripts\godot.ps1 -Export` construit `build\windows\G-mix.exe` (environ 106 Mo, PCK intégré ; `build/` est hors git).
+Profil « Windows Desktop » de `godot/export_presets.cfg` ; les outils de test (`scenes/tools`) sont exclus.
+Prérequis : modèles d'export de Godot 4.7.2 dans `%APPDATA%\Godot\export_templates\4.7.2.stable\` (officiels, SHA512
+vérifié sur le poste hôte). Essai du 18/11 hors du dépôt (`--headless --quit-after 600`) : code 0, aucune erreur de
+script. Sur un poste joueur : copier `G-mix.exe`, saisir l'adresse du serveur à la connexion (`192.168.11.100:8000` ;
+`http://` ajouté, adresse gardée dans `user://client.cfg`). **Connexion depuis l'exe non essayée à la main.**
 
 ## Pièges et procédures (agent godot-dev)
 
@@ -191,8 +200,8 @@ grandes crée des dépassements à 1024x600 (revérifier le tour après chaque c
 - Test headless qui exécute les vraies scènes de bout en bout contre l'API réelle, avec des comptes jetables
   (`flowtest_…`, créés puis supprimés via `gmix.tools.ui_accounts`, jamais de jeton affiché ni écrit). Il échoue sur
   toute erreur de script ; `-NoLlm` saute les dialogues, donc tout appel à Ollama.
-- Seul le parcours A (formateur) existe ; B (joueurs) et V sont annoncés (`--only=A,B,V`) mais non écrits. Une
-  nouvelle fonction du client se couvre en ajoutant une étape au parcours A.
+- Parcours A (formateur), B (joueur) et D (conception) existent ; V est annoncé (`--only=A,B,V`) mais non écrit. Une
+  nouvelle fonction du client se couvre en ajoutant une étape au parcours concerné (A ou B).
 
 ### Vérification visuelle du monde (tout changement de rendu)
 

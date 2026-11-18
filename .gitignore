@@ -16,8 +16,8 @@ htmlcov/
 # Godot 4
 godot/.godot/
 godot/export/
+build/
 *.translation
-export_presets.cfg
 !godot/export_presets.example.cfg
 
 # Corpus RAG volumineux : stocké dans le bucket gmix-knowledge, pas dans git

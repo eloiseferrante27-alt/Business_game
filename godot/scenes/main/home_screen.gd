@@ -486,7 +486,7 @@ func _design_show(job: Dictionary, game: Dictionary = {}) -> void:
 	if status == "failed":
 		state.add_child(Ui.label("La conception n'a pas abouti", 22, Ui.ERROR))
 		var why := str(job.get("error", ""))
-		if str(job.get("stage")) == "interrupted":
+		if job.get("stage") == "interrupted":
 			why = "La conception a été interrompue (le service a redémarré). " + why
 		state.add_child(Ui.label(why.strip_edges(), 0, Color.WHITE, true))
 		state.add_child(Ui.label("Votre brief est conservé : vous pouvez relancer la conception ou passer par les paramètres.", 0, Ui.MUTED, true))

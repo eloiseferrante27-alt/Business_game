@@ -132,6 +132,8 @@ func _run() -> void:
 	_check(not _player.is_empty() and not _player2.is_empty() or not ("B" in _only), "jetons joueurs fournis")
 	if _failures.is_empty() and "A" in _only:
 		await _trainer_journey()
+	if _failures.is_empty() and "B" in _only:
+		await _player_journey()
 	if _failures.is_empty() and "D" in _only:
 		await _design_journey()
 	_finish("")
@@ -385,6 +387,222 @@ func _check_group(lobby: Control, game: Dictionary) -> Control:
 	var back := await _wait_screen(LOBBY_SCRIPT)
 	_check(back != null and Session.lobby.get("id") == lobby_id, "le lobby du parcours est rouvert")
 	return back
+
+
+# --- parcours B : joueur (code, groupe, rôle, tablette, action, prêt, vote sur un absent, semaine, débrief) -------
+
+
+## Contrôle AZERTY : les actions de l'Input Map reposent sur la touche physique (keycode logique = 0), donc ZQSD
+## (AZERTY) occupe la place de WASD (QWERTY). Tab (world._input) est la seule lecture de keycode, indépendante de la disposition.
+func _check_azerty() -> void:
+	var logical: Array[String] = []
+	for action in InputMap.get_actions():
+		if str(action).begins_with("ui_"):
+			continue
+		for event in InputMap.action_get_events(action):
+			if event is InputEventKey and ((event as InputEventKey).keycode != 0 or (event as InputEventKey).physical_keycode == 0):
+				logical.append(str(action))
+	_check(logical.is_empty(), "aucune action ne repose sur un keycode logique", ", ".join(logical))
+	# Touche posée sur le W d'un clavier QWERTY = Z sur AZERTY : l'action « avancer » répond au même emplacement physique.
+	var press := func(physical: Key, label: Key) -> InputEventKey:
+		var event := InputEventKey.new()
+		event.physical_keycode = physical
+		event.keycode = label
+		event.pressed = true
+		return event
+	_check(InputMap.event_is_action(press.call(KEY_W, KEY_Z), "move_forward"), "AZERTY : Z (emplacement de W) avance")
+	_check(InputMap.event_is_action(press.call(KEY_A, KEY_Q), "move_left"), "AZERTY : Q (emplacement de A) va à gauche")
+	_check(InputMap.event_is_action(press.call(KEY_S, KEY_S), "move_back"), "AZERTY : S recule")
+	_check(InputMap.event_is_action(press.call(KEY_D, KEY_D), "move_right"), "AZERTY : D va à droite")
+	_check(not InputMap.event_is_action(press.call(KEY_Q, KEY_A), "move_left"), "AZERTY : A (emplacement de Q) ne va pas à gauche")
+	_check(GmixHud.HELP_THIRD.contains("ZQSD") and GmixHud.HELP_SIMS.contains("ZQSD"), "aide à l'écran : ZQSD (WASD en QWERTY)")
+
+
+## Texte du bouton « Rejoindre » de l'accueil : code saisi comme le ferait un joueur.
+func _join_by_code(home: Control, code: String) -> void:
+	(home.get("_code_field") as LineEdit).text = code
+	_click(_button(home, "Rejoindre"), "bouton « Rejoindre »")
+
+
+func _button_with(root: Node, prefix: String) -> Button:
+	for node in root.find_children("*", "Button", true, false):
+		var button := node as Button
+		if button.text.begins_with(prefix) and button.is_visible_in_tree() and not _doomed(button):
+			return button
+	return null
+
+
+## Page de la tablette d'un rôle : son département si la spec en a, sinon son module.
+func _tab_of(spec: Dictionary, role: Dictionary) -> Array:
+	if not (spec.get("departments", []) as Array).is_empty() and role.get("department_id") != null:
+		for dept: Dictionary in spec["departments"]:
+			if dept["id"] == role["department_id"]:
+				return ["dept:%s" % dept["id"], str(dept["label"])]
+	return ["module:%s" % role["module_id"], GameText.module_title(spec, role["module_id"])]
+
+
+func _player_journey() -> void:
+	_begin("B.0", "Clavier AZERTY : touches physiques, aide à l'écran")
+	_check_azerty()
+
+	_begin("B.1", "Jeu, session et groupe créés par le formateur (API) ; joueur : connexion, code d'accès")
+	var params := MAIN_PARAMS.duplicate()
+	params["weeks"] = 4
+	params["company"] = "QA Joueur"
+	var made := await _raw(_trainer, HTTPClient.METHOD_POST, "/api/v1/games", params, 120.0)
+	if not _check(made["ok"] and made["data"]["status"] == "ready", "jeu généré et prêt (POST /games)", str(made["error"])):
+		return
+	var game_id := str(made["data"]["id"])
+	var spec: Dictionary = made["data"]["spec"]
+	var roles: Array = spec["roles"]
+	if not _check(roles.size() >= 2, "la spec a au moins 2 rôles", str(roles.size())):
+		return
+	var tag := Time.get_ticks_msec() % 100000
+	var created := await _raw(_trainer, HTTPClient.METHOD_POST, "/api/v1/lobbies", {"name": "QA joueur %d" % tag, "business_game_id": game_id, "advance_mode": "auto"})
+	var grouped := await _raw(_trainer, HTTPClient.METHOD_POST, "/api/v1/groups", {"name": "QA groupe joueur %d" % tag, "business_game_id": game_id, "teams": 2})
+	if not _check(created["ok"] and grouped["ok"], "session (mode automatique) et groupe de 2 équipes créés", str(created["error"]) + str(grouped["error"])):
+		return
+	var lobby_id := str(created["data"]["id"])
+	var code := str(created["data"]["join_code"])
+	var group_code := str(grouped["data"]["join_code"])
+	if not await _sign_in(_player):
+		return
+	var home := await _wait_screen(HOME_SCRIPT)
+	if not _check(home != null and _button(home, "Rejoindre") != null, "accueil du joueur : champ de code et « Rejoindre »"):
+		return
+	_join_by_code(home, "ZZZZZZ")
+	_check(await _until(func() -> bool: return (home.get("_status") as Label).text.contains("Code inconnu")) != null, "code inconnu : message de l'API", (home.get("_status") as Label).text)
+	_join_by_code(home, code)
+	var lobby := await _wait_screen(LOBBY_SCRIPT)
+	if not _check(lobby != null and Session.lobby.get("id") == lobby_id, "code d'une session seule : la salle s'ouvre"):
+		return
+	_check(not Session.is_manager() and not (lobby.get("_code") as Label).visible, "joueur : pas de code d'accès ni de pilotage")
+	_check((lobby.get("_role_box") as Control).visible and not (lobby.get("_start_button") as Button).visible, "joueur : choix du rôle, pas de « Lancer la partie »")
+
+	_begin("B.2", "Choix du rôle ; un second joueur inscrit par l'API prend un autre rôle et reste absent")
+	var takes := _buttons(lobby, "Prendre ce rôle")
+	_check(takes.size() == roles.size(), "un bouton « Prendre ce rôle » par rôle", str(takes.size()))
+	if not _click(takes[0], "bouton « Prendre ce rôle » (%s)" % roles[0]["title"]):
+		return
+	_check(await _until(func() -> bool: return Session.my_role() == roles[0]["id"]) != null, "mon rôle est enregistré", Session.my_role())
+	_check(_texts(lobby.get("_roles") as Node).has("Votre rôle"), "la carte du rôle indique « Votre rôle »")
+	_check((lobby.get("_welcome") as Label).text.begins_with("Votre rôle est choisi"), "message : rôle choisi")
+	var me2 := await _raw(_player2, HTTPClient.METHOD_GET, "/api/v1/auth/me")
+	var joined := await _raw(_player2, HTTPClient.METHOD_POST, "/api/v1/lobbies/join", {"code": code})
+	var chosen := await _raw(_player2, HTTPClient.METHOD_PUT, "/api/v1/lobbies/%s/role" % lobby_id, {"game_role": roles[1]["id"]})
+	_check(me2["ok"] and joined["ok"] and chosen["ok"], "second joueur inscrit avec le rôle %s (API)" % roles[1]["title"], str(joined["error"]) + str(chosen["error"]))
+	var other_name := str(me2["data"]["display_name"])
+	var seen_role: Variant = await _until(func() -> bool: return (Session.lobby.get("members", []) as Array).any(func(m: Dictionary) -> bool: return m.get("game_role") == roles[1]["id"]), WS_WAIT_S)
+	_check(seen_role != null, "le WebSocket apporte le second joueur et son rôle (lobby.members)")
+
+	_begin("B.3", "Code d'un groupe : choix de l'équipe, une seule équipe par groupe")
+	_click(_button(lobby, "Retour à l'accueil"), "bouton « Retour à l'accueil »")
+	home = await _wait_screen(HOME_SCRIPT)
+	if not _check(home != null, "retour à l'accueil"):
+		return
+	_join_by_code(home, group_code)
+	var group_screen := await _wait_screen(GROUP_SCRIPT)
+	if not _check(group_screen != null, "code de groupe : l'écran groupe s'ouvre"):
+		return
+	await _until(func() -> bool: return (group_screen.get("_group") as Dictionary).has("teams"))
+	_check((group_screen.get("_status") as Label).text.begins_with("Choisissez votre équipe"), "invite à choisir son équipe", (group_screen.get("_status") as Label).text)
+	var join_buttons := group_screen.find_children("JoinTeamButton", "Button", true, false)
+	if not _check(join_buttons.size() == 2, "un bouton « Rejoindre » par équipe", str(join_buttons.size())):
+		return
+	_click(join_buttons[0] as Button, "bouton « Rejoindre » de l'équipe 1")
+	var team := await _wait_screen(LOBBY_SCRIPT)
+	_check(team != null and Session.lobby.get("group_id") == str(grouped["data"]["id"]) and not Session.lobby.get("my_role") is String, "équipe 1 rejointe : salle du groupe, sans rôle")
+	_check(not (team.get("_code") as Label).visible, "l'équipe du groupe n'affiche pas le code")
+	_click(_button(team, "Retour à l'accueil"), "bouton « Retour à l'accueil » (équipe)")
+	home = await _wait_screen(HOME_SCRIPT)
+	if home == null:
+		return
+	await home.call("_open_lobby", lobby_id)
+	lobby = await _wait_screen(LOBBY_SCRIPT)
+	if not _check(lobby != null and Session.lobby.get("id") == lobby_id and Session.my_role() == roles[0]["id"], "la session par code est rouverte avec mon rôle"):
+		return
+
+	_begin("B.4", "Lancement par le formateur, entrée dans l'atelier")
+	var started := await _raw(_trainer, HTTPClient.METHOD_POST, "/api/v1/lobbies/%s/start" % lobby_id)
+	_check(started["ok"], "POST /start par le formateur", str(started["error"]))
+	_check(await _until(func() -> bool: return Session.state().get("status") == "running", WS_WAIT_S) != null, "le WebSocket annonce la partie en cours")
+	_check((lobby.get("_enter_button") as Button).text.begins_with("Entrer dans"), "bouton « Entrer dans … 3D »", (lobby.get("_enter_button") as Button).text)
+	var world := await _enter_world(lobby)
+	if world == null:
+		return
+	var hud := _hud_of(world)
+	var tablet := hud.get("_tablet") as GmixTablet
+	tablet.instant = true
+
+	_begin("B.5", "Tablette : ma page modifiable, les autres en lecture seule avec la raison ; une action sur mon module")
+	var mine := _tab_of(spec, roles[0])
+	var theirs := _tab_of(spec, roles[1])
+	hud.open_tablet(str(mine[0]))
+	await _frames(3)
+	_check(tablet.is_open(), "la tablette s'ouvre sur ma page", str(mine[0]))
+	_check(_button(tablet, "● %s" % mine[1]) != null, "point devant mon département", str(mine[1]))
+	var forms := _buttons(tablet, "Valider")
+	_check(not forms.is_empty() and not forms.any(func(b: Button) -> bool: return b.disabled), "ma page : formulaires ouverts", str(forms.size()))
+	if theirs[0] == mine[0]:
+		print("  note : les deux rôles partagent la page %s, lecture seule non vérifiée" % mine[0])
+	else:
+		tablet.select_tab(str(theirs[0]))
+		await _frames(3)
+		forms = _buttons(tablet, "Valider")
+		_check(not forms.is_empty() and forms.all(func(b: Button) -> bool: return b.disabled), "page d'un autre rôle : formulaires fermés", str(forms.size()))
+		var texts := _texts(tablet)
+		_check(texts.any(func(t: String) -> bool: return t.contains("lecture seule") and t.contains(other_name)), "la page nomme le titulaire et la lecture seule", str(texts.filter(func(t: String) -> bool: return t.contains("lecture"))))
+		_check(texts.any(func(t: String) -> bool: return t.contains("revient au rôle") or t.contains("Revient à")), "la raison du refus est affichée")
+		tablet.select_tab(str(mine[0]))
+		await _frames(3)
+	var module: Dictionary = (spec["modules"] as Array).filter(func(m: Dictionary) -> bool: return m["id"] == roles[0]["module_id"])[0]
+	forms = _buttons(tablet, "Valider")
+	if not forms.is_empty():
+		await _submit_form(hud, forms[0], str(module["id"]), str(module["actions"][0]["id"]))
+
+	_begin("B.6", "« Prêt », vote sur l'absent (attendre puis ignorer), passage de semaine")
+	var week := int(Session.state()["week"])
+	var ready_button := _button(tablet, "Prêt pour la semaine suivante")
+	if not _click(ready_button, "bouton « Prêt pour la semaine suivante »"):
+		return
+	var me := str(Api.user["id"])
+	_check(await _until(func() -> bool: return me in Session.round_view().get("ready", [])) != null, "mon « prêt » est enregistré (POST /ready)")
+	_check(await _until(func() -> bool: return Session.round_view().get("vote", {}).get("open", false)) != null, "le vote sur les absents s'ouvre", str(Session.round_view().get("vote")))
+	await _frames(3)
+	_check(_texts(tablet).any(func(t: String) -> bool: return t.begins_with("Absent : ") and t.contains(other_name)), "le vote nomme l'absent", other_name)
+	if not _click(_button_with(tablet, "Attendre son retour"), "bouton « Attendre son retour »"):
+		return
+	_check(await _until(func() -> bool: return Session.round_view().get("vote", {}).get("wait", 0) == 1) != null, "bulletin « attendre » compté")
+	_check(int(Session.state()["week"]) == week, "attendre : la semaine n'avance pas")
+	if not _click(_button_with(tablet, "Ignorer : pilote automatique"), "bouton « Ignorer : pilote automatique »"):
+		return
+	var advanced: Variant = await _until(func() -> bool: return int(Session.state()["week"]) == week + 1 and (Session.state()["history"] as Array).size() == 1, 60.0)
+	_check(advanced != null, "majorité des connectés : la semaine %d est simulée sans l'absent" % week)
+	await _frames(3)
+	_check(_button(tablet, "Prêt pour la semaine suivante") != null, "nouvelle semaine : l'appel « prêt » repart de zéro")
+	var after := await _raw(_player, HTTPClient.METHOD_GET, "/api/v1/lobbies/%s" % lobby_id)
+	_check(after["ok"] and int(after["data"]["state"]["week"]) == week + 1, "API : semaine %d" % (week + 1), str(after["error"]))
+
+	_begin("B.7", "Fin de partie par le formateur, débrief du joueur")
+	for i in int(spec["meta"]["weeks"]) - week:
+		var step := await _raw(_trainer, HTTPClient.METHOD_POST, "/api/v1/lobbies/%s/advance" % lobby_id, null, 120.0)
+		if not _check(step["ok"], "formateur : semaine suivante simulée", str(step["error"])):
+			return
+	var back := await _leave_world()
+	if back == null:
+		return
+	_check(await _until(func() -> bool: return Session.state().get("status") == "finished", WS_WAIT_S) != null, "la salle apprend la fin de la partie")
+	await _frames(2)
+	var debrief := back.get("_debrief_button") as Button
+	if not _click(debrief, "bouton « Débrief » du joueur"):
+		return
+	var window: Variant = await _until(func() -> Variant: return _dialog(back))
+	if not _check(window != null, "la fenêtre du débrief s'ouvre"):
+		return
+	var text := _all_text(window as Node)
+	_check(text.contains("Semaines jouées") and text.contains("S1 : OTIF"), "débrief joueur : semaines jouées et OTIF", text.left(100))
+	_check(_bbcode_leak(text, "").is_empty(), "débrief joueur : aucune balise visible", _bbcode_leak(text, ""))
+	_close_dialog(window as AcceptDialog)
 
 
 # --- parcours D : conception, brouillon F3, régénération ---------------------------------------------------------

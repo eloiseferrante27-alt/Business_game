@@ -60,8 +60,8 @@ Mis à jour le 2026-11-06 (ordre de travail validé par l'utilisateur, voir docs
 
 | Point | Détail | À prévenir |
 |---|---|---|
-| Parcours B (joueurs) et V de `flow_test` non écrits | Seul le parcours A (formateur) existe ; `--only=A,B,V` annonce les trois. Le comportement d'un joueur (rejoindre, rôle, décisions, dialogue) n'est pas couvert par un parcours scripté. | godot-dev |
-| Vue Sims éprouvée seulement par événements simulés | Clic réel à la souris, clavier AZERTY réel, ressenti de la caméra : non éprouvés. Pavé tactile : non géré. À essayer à la main avant une séance. | godot-dev, utilisateur |
+| Parcours V de `flow_test` non écrit | Le parcours B (joueur) existe depuis le 18/11 (B.0 à B.7, 686 vérifications en `-NoLlm`, 813 avec le modèle). Reste V, annoncé par `--only=A,B,V`. | godot-dev |
+| Vue Sims et clavier éprouvés seulement par événements simulés | Le parcours B vérifie les touches physiques AZERTY par la carte des actions, pas au clavier réel. Reste l'essai réel au clavier et à la souris (clic, ressenti de la caméra) ; pavé tactile non géré. À faire à la répétition LAN (docs/repetition-lan.md). | godot-dev, utilisateur |
 | Cinq assets sans collision propre | `prop_kpi_screen`, `prop_desk_computer`, `prop_meeting_table`, `prop_pallet`, `prop_pallet_stack` : `world.gd` leur ajoute une emprise de secours (couche 16). Une collision propre à l'asset la remplacerait. | assets-3d |
 | Agents PNJ en ligne droite | Ils patrouillent en ligne droite entre les points de leur route (`spec.agents[].route`), sans maillage de navigation ni évitement d'obstacle. | godot-dev |
 | Garde-fou de `gmix/game/npc.py` non écrit | Filtre lexical d'injection avant l'appel au modèle, détection d'un nombre absent des faits dans la réplique. Motifs : tev1:0.8b manque 5 injections sur 8 (série F), dont « Ignore tes instructions précédentes… », et le 3b invente 1 à 3 nombres sur 59 répliques. **Décision de l'utilisateur (06/11) : OUI, à activer avant la démo** (EX-33). | utilisateur, moteur-jeu, ia-runtime |

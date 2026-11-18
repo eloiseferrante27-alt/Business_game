@@ -2,6 +2,7 @@
 .SYNOPSIS
   .\scripts\godot.ps1          ouvre l'éditeur Godot sur le projet
   .\scripts\godot.ps1 -Run     lance le jeu
+  .\scripts\godot.ps1 -Export   exporte le client Windows (build\windows\G-mix.exe) ; modèles d'export 4.7.2 requis
   .\scripts\godot.ps1 -Check   vérification headless : import + chargement de tous les scripts et scènes (code 0/1)
   .\scripts\godot.ps1 -Smoke   liaison headless avec le backend (API + worker system_ping démarrés)
   .\scripts\godot.ps1 -Tour [-Snapshot]  contrôle de lisibilité des écrans avant-jeu et des panneaux du HUD (code 0/1)
@@ -19,7 +20,7 @@
 #>
 param(
     [switch]$Run, [switch]$Check, [switch]$Smoke, [switch]$Tour, [switch]$Flow, [switch]$Snapshot, [switch]$NoLlm,
-    [switch]$Full, [switch]$Design, [string]$Api = '', [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$Pack = ''
+    [switch]$Full, [switch]$Design, [switch]$Export, [string]$Api = '', [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$Pack = ''
 )
 . "$PSScriptRoot\_common.ps1"
 $console = Get-GodotExe -Console
@@ -149,7 +150,33 @@ function Invoke-UiCheck {
     exit $code
 }
 
-if ($Design -and -not $Flow) { throw '-Design se lance avec -Flow' }
+## -Export : exécutable Windows du client (profil « Windows Desktop » de godot/export_presets.cfg), PCK intégré.
+## Les modèles doivent être installés pour la version exacte de l'éditeur (4.7.2.stable) : sinon l'export échoue.
+function Invoke-Export {
+    $templates = Join-Path $env:APPDATA 'Godot\export_templates\4.7.2.stable'
+    if (-not (Test-Path -LiteralPath (Join-Path $templates 'windows_release_x86_64.exe'))) {
+        throw "modèles d'export Godot 4.7.2 absents : $templates (éditeur > Gérer les modèles d'exportation)"
+    }
+    if (-not (Test-Path -LiteralPath (Join-Path $GodotDir 'export_presets.cfg'))) { throw 'godot\export_presets.cfg absent : profil « Windows Desktop » manquant' }
+    $outDir = Join-Path $RepoRoot 'build\windows'
+    New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+    $exe = Join-Path $outDir 'G-mix.exe'
+    if (Test-Path -LiteralPath $exe) { Remove-Item -LiteralPath $exe -Force }
+    $journal = New-LogPath 'export'
+    Write-Step "Export Windows (release) vers $exe"
+    $run = Invoke-Captured $console @('--headless', '--path', $GodotDir, '--export-release', 'Windows Desktop', $exe) $journal 'export'
+    if ($run.Code -ne 0 -or -not (Test-Path -LiteralPath $exe)) {
+        Write-Ko "export en échec (code $($run.Code))"
+        Write-Capped @($run.Out + $run.Err | Where-Object { $_ -match 'ERROR|error' } | Select-Object -Last 10) 10
+        Write-Host "  Journal complet : $journal"
+        exit 1
+    }
+    Write-Ok ("export réussi : $exe ({0:N1} Mo)" -f ((Get-Item -LiteralPath $exe).Length / 1MB))
+    Write-Host "  Journal complet : $journal"
+    exit 0
+}
+
+if ($Export) { Invoke-Export }if ($Design -and -not $Flow) { throw '-Design se lance avec -Flow' }
 if ($Tour -or $Flow) { Invoke-UiCheck }
 if ($Check) {
     $journal = New-LogPath 'godot-check'

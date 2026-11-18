@@ -71,7 +71,7 @@ func _load() -> void:
 
 func _show_group() -> void:
 	var manager: bool = _group.get("is_manager", false)
-	var choosing := not join_code.is_empty() and str(_group.get("my_team", "")).is_empty()
+	var choosing := not join_code.is_empty() and _group.get("my_team") == null  # l'API envoie null (str(null) vaudrait "<null>")
 	_title.text = str(_group.get("name", ""))
 	_subtitle.text = str(_group.get("game_title", "") if _group.get("game_title") != null else "")
 	_code_row.visible = manager and _group.get("join_code") != null
@@ -79,7 +79,7 @@ func _show_group() -> void:
 	_status.text = "Choisissez votre équipe : vous y resterez pour toute la partie." if choosing else ""
 	Ui.clear(_teams)
 	for team: Dictionary in _group.get("teams", []):
-		var mine := str(team["lobby_id"]) == str(_group.get("my_team", ""))
+		var mine := _group.get("my_team") != null and str(team["lobby_id"]) == str(_group.get("my_team"))
 		var row := Ui.vbox(_teams, 6)
 		row.name = "Team_%s" % str(team["name"]).validate_node_name()
 		var names := ", ".join((team["players"] as Array).map(func(p: Dictionary) -> String: return str(p["display_name"])))
