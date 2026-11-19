@@ -5,7 +5,7 @@ from typing import Any
 
 from gmix.game.spec import GameParams, default_params, load_pack
 from gmix.llm.catalog import load_catalog
-from gmix.llm.factory_design import design_factory, design_schema
+from gmix.llm.factory_design import degenerate, design_factory, design_schema
 from gmix.llm.ollama import ChatResult, OllamaError, Usage
 from gmix.llm.prompts import load_prompt
 from gmix.llm.service import LLMService
@@ -65,6 +65,24 @@ async def test_invalid_output_is_repaired_then_succeeds() -> None:
     assert "semaine 9" in design.reasons[1]
     repair = client.calls[2]["messages"][-1]["content"]
     assert "semaine 9" in repair and "pas du json" not in json.dumps(client.calls[2]["messages"])  # sortie non rejouée
+
+
+def test_degenerate_text_is_detected() -> None:
+    assert degenerate("usine chargée à  ubs  ough  ough  ough  ough")  # copie d'un catalogue qui boucle
+    assert degenerate("aucun aléa aucun aléa aucun aléa")
+    assert not degenerate("Le marketing digital n'est pas simulé par l'usine.")
+    assert not degenerate("La machine tombe en panne, la machine voisine reprend et la machine de secours attend.")
+    assert not degenerate("Les prix des pièces, des machines et des fournisseurs ne sont pas simulés dans des détails.")
+    assert not degenerate(
+        "Le marketing digital, le suivi du marketing direct et celui du marketing mobile sont hors de l'atelier."
+    )
+
+
+async def test_degenerate_unmet_is_repaired() -> None:
+    bad = GOOD | {"unmet": ["usine chargée à  ubs  ough  ough  ough  ough"]}
+    llm, _ = _llm(bad, GOOD)
+    design = await design_factory(llm, BRIEF)
+    assert not design.fallback and design.attempts == 2 and "incohérente" in design.reasons[0]
 
 
 async def test_three_failures_fall_back_to_defaults() -> None:

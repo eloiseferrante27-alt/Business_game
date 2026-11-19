@@ -523,19 +523,26 @@ def test_the_timeline_follows_the_contract_and_the_budgets() -> None:
     fs = factory.initial_state(plant)
     fs["settings"]["preventive"] = dict.fromkeys(plant.line_ids, "goulot")
     durations = []
+
+    def reference() -> float:  # boucle de référence : la charge du poste ralentit les deux de la même façon
+        start = time.process_time()
+        sum(i % 7 for i in range(1_000_000))
+        return time.process_time() - start
+
     for turn in range(12):
         busy_scenario(plant, fs, turn)
-        started = time.perf_counter()
+        ref = min(reference() for _ in range(3))
+        started = time.process_time()
         fs, timeline, _ = factory.simulate(plant, fs, turn + 1)
-        durations.append(time.perf_counter() - started)
+        durations.append((time.process_time() - started) / ref)
         if turn in (0, 11):
             checked = Timeline.model_validate(timeline)
             assert len(checked.frames) == 481 and checked.machines == plant.mids
             assert len(json.dumps(timeline)) < 200_000
             assert len(json.dumps(fs)) < 64_000
-    # budget de l'ADR : 150 ms par tour (3 lignes, charge pleine) ; le premier quartile ignore les pointes de charge
-    # de la machine (tests en parallèle) mais une vraie régression ralentit tous les tours
-    assert sorted(durations)[len(durations) // 4] < 0.150, durations
+    # budget de l'ADR : 150 ms par tour (3 lignes, charge pleine) = 2,5 boucles de référence (~0,06 s au repos) ;
+    # le premier quartile ignore les pointes de charge, mais une vraie régression ralentit tous les tours
+    assert sorted(durations)[len(durations) // 4] < 2.5, durations
     assert fs["day"] == 60
 
 

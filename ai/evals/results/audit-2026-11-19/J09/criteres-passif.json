@@ -1,0 +1,78 @@
+[
+ {
+  "id": "otif",
+  "label": "OTIF moyen",
+  "unit": "%",
+  "op": ">=",
+  "target": 95.0,
+  "partial": 90.0,
+  "final": 0.0,
+  "verdict": "non_atteint",
+  "series": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "worst_week": 1,
+  "event": null
+ },
+ {
+  "id": "trs",
+  "label": "TRS moyen",
+  "unit": "%",
+  "op": ">=",
+  "target": 78.0,
+  "partial": 73.0,
+  "final": 0.0,
+  "verdict": "non_atteint",
+  "series": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "worst_week": 1,
+  "event": null
+ },
+ {
+  "id": "stockouts",
+  "label": "Jours-ligne arrêtés faute de matière (sur la partie)",
+  "unit": "",
+  "op": "<=",
+  "target": 0.0,
+  "partial": 4.0,
+  "final": 0,
+  "verdict": "non_atteint",
+  "series": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "worst_week": 1,
+  "event": null
+ },
+ {
+  "id": "cash",
+  "label": "Trésorerie finale",
+  "unit": "€",
+  "op": ">=",
+  "target": 119700.0,
+  "partial": 46700.0,
+  "final": -20500,
+  "verdict": "non_atteint",
+  "series": [
+   33260,
+   19820,
+   6380,
+   -7060,
+   -20500
+  ],
+  "worst_week": 5,
+  "event": null
+ }
+]

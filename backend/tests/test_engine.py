@@ -329,7 +329,7 @@ def _lessons_for(spec, **history_patch):
 def test_lessons_state_computed_facts_only(sim_spec) -> None:
     out = " ".join(_lessons_for(sim_spec, stockouts=1, lost=4, returns=2, delays=3, trs=10.0, margin=-1.0, otif=0.0))
     assert "1 semaine(s), 4 vente(s) perdue(s)" in out and "ne se reporte pas" in out
-    assert "TRS moyen de 10.0 %" in out and "None" not in out and "point(s) par semaine" in out
+    assert "TRS moyen de 10 %" in out and "None" not in out and "point(s) par semaine" in out
     assert "2 produit(s) défectueux livré(s) puis retourné(s)" in out and "0, 50 ou 100 %" in out
     assert "3 report(s) d'une semaine" in out
     assert "négative 1 fois" in out and "possession du stock" in out
@@ -339,3 +339,36 @@ def test_lessons_state_computed_facts_only(sim_spec) -> None:
 def test_lessons_no_trs_lesson_without_measure_and_otif_floor(sim_spec) -> None:
     out = " ".join(_lessons_for(sim_spec, stockouts=0, lost=0, trs=None, otif=100.0))
     assert "Aucune rupture : chaque semaine" in out and "TRS" not in out and "plus bas : 100 %" in out
+
+
+def test_num_francais():
+    from gmix.game.engine import money, num
+
+    assert num(13.7) == "13,7" and num(62.7054) == "62,7" and num(95.0) == "95"
+    assert money(137900) == "137 900 €" and num(-1250.5) == "-1 250,5" and num(-0.01) == "0"
+
+
+def _strings(node) -> str:
+    if isinstance(node, str):
+        return node + " | "
+    items = node.values() if isinstance(node, dict) else node if isinstance(node, list) else []
+    return "".join(_strings(x) for x in items)
+
+
+def test_textes_sans_decimale_a_point():
+    import re
+
+    from gmix.game import engine, generation
+    from gmix.game.spec import GameParams
+
+    modules = ["approvisionnement", "production", "maintenance", "qualite", "commercial", "transport", "finance"]
+    spec = generation.generate(GameParams(theme="industrie", modules=modules, difficulty="equilibre", seed=5))
+    state = engine.start(spec, engine.initial_state(spec))
+    texts = [_strings([(v := engine.public_state(spec, state))["briefings"], v["alerts"]]), spec["meta"]["pitch"]]
+    while state["status"] == "running":
+        state = engine.advance(spec, state, autopilot_all=True)
+        texts += [_strings([(v := engine.public_state(spec, state))["briefings"], v["alerts"]])]
+    texts.append(_strings(engine.debrief(spec, state)))
+    blob = "\n".join(texts)
+    assert not re.search(r"\d\.\d", blob), re.findall(r".{20}\d\.\d.{10}", blob)[:3]
+    assert not re.search(r"\d,\d{2,} ?%", blob)

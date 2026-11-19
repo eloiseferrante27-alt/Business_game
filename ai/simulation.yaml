@@ -256,7 +256,7 @@ personalities:
   bienveillant:
     label: Bienveillant
     traits: chaleureux, encourageant, patient
-    style: tutoie, rassure, glisse parfois un conseil
+    style: vouvoie, rassure, glisse parfois un conseil
     prefix: "Petit point :"
   exigeant:
     label: Exigeant
@@ -350,7 +350,7 @@ notions:
     indicators: [stockouts, otif]
   delai_et_fiabilite:
     title: Délai et fiabilité des fournisseurs
-    text: Des délais de réapprovisionnement longs ou aléatoires obligent à commander plus tôt et à garder davantage de stock de sécurité ; le prix n'est qu'un critère de choix parmi d'autres.
+    text: Plus les délais de réapprovisionnement sont aléatoires, plus le stock de sécurité doit être important ; un fournisseur aux délais irréguliers oblige donc à garder davantage de matière en réserve.
     source: wikipedia-fr-stock-de-securite
     indicators: [stockouts, otif]
   planification_mrp:
@@ -380,8 +380,8 @@ notions:
     indicators: [stockouts, cash]
   rupture_de_stock:
     title: Rupture de stock
-    text: Une rupture rend la référence indisponible à la vente ; la vente est perdue et le taux de service baisse.
-    source: wikipedia-fr-rupture-de-stock
+    text: Une rupture survient quand l'article manque en stock ; un stock de sécurité trop faible peut faire perdre des ventes et dégrader le niveau de service client.
+    source: wikipedia-en-safety-stock   # « too little safety stock can result in lost sales », « improves the customer-service level » ; la fiche fr ne dit ni l'un ni l'autre (19/11/2026)
     indicators: [stockouts, otif]
   otif:
     title: OTIF (à l'heure et complet)

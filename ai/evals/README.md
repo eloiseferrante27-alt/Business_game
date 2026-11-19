@@ -11,6 +11,7 @@ Un jeu par tâche (`<tâche>.jsonl`), des cas étiquetés à la main :
 | `npc.dialogue.jsonl` | 121 : séries A (50) et B (50), F (21) | `gmix.tools.eval_dialogue` (ci-dessous) |
 | `player.intent.control.jsonl` | 24 : série C, **jeu de contrôle** du filtre (9 injections, 6 hors-sujet, 9 légitimes) | `gmix.tools.eval_dialogue --series C --no-corpus` |
 | `game.design.jsonl` | 27 briefs : séries R (réglage, 12), C (contrôle, 12) et N (réseau, 3) ; 18 atelier, 9 usine | `gmix.tools.eval_design` (étape 11 de l'ADR 0008, à écrire) |
+| `design.consignes.jsonl` | 10 briefs du protocole des jeux IA, avec attentes (5 points par jeu) | `gmix.tools.eval_design_consignes --label <nom> [--model main] [--no-guard]` (`GMIX_AI_DIR` : copie de ai/ pour un prompt à l'essai) |
 | `supply-chain.rag.jsonl` | 14 questions | `gmix.tools.eval_rag supply-chain [--k 4]` |
 | `assets.retrieval.jsonl` | 12 besoins | `gmix.tools.assets evaluate` |
 

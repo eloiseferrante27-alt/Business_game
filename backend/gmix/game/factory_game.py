@@ -11,7 +11,7 @@ import random
 from typing import Any
 
 from gmix.game import engine, factory
-from gmix.game.engine import GameRuleError, money
+from gmix.game.engine import GameRuleError, money, num
 from gmix.game.spec import COUNTERS, INDICATORS, load_pack
 
 # Effets d'aléa que le noyau lit ; `cost` est une hausse durable des achats, gérée ici (refus de tout autre effet à la
@@ -29,9 +29,13 @@ KEPT_CLOSED = factory.KEPT_ORDERS
 
 def initial_state(spec: dict[str, Any]) -> dict[str, Any]:
     plant = factory.Plant(spec)
+    fs = factory.initial_state(plant)
+    if first := spec["factory"].get("initial_order"):  # commande déjà en route (règle n° 5a), payée à la réception
+        offer = next(o for o in spec["offers"] if o["id"] == first["offer_id"])
+        factory.order_mp(plant, fs, offer, first["pallets"], day=first["arrival_day"] - offer["lead_time"])
     return {
         "status": "waiting", "week": 1, "cash": spec["economy"]["initial_cash"], "cost_index": 1.0, "event": None,
-        "history": [], "log": [], "last": None, "fs": factory.initial_state(plant), "snap": None,
+        "history": [], "log": [], "last": None, "fs": fs, "snap": None,
     }  # fmt: skip
 
 
@@ -269,7 +273,7 @@ def _snapshot(
     lines = {}
     for ln, lid in enumerate(plant.line_ids):
         r, b = report["lines"][lid], report["machines"][plant.mids[plant.bottleneck[ln]]]["minutes"]
-        planned_h = (T - b["arret"]) / 60  # temps planifié : hors les moments où la ligne n'a rien à faire
+        planned_h = (T - b["arret"] - b["pause"]) / 60  # planifié : hors arrêts et pauses (fiche OEE)
         run_h = (T - b["arret"] - b["pause"] - b["panne"]) / 60
         th = r["theoretical_h"]
         ok = planned_h > 0 and r["out"] > 0
@@ -505,18 +509,18 @@ def _alerts(spec: dict[str, Any], state: dict[str, Any], view: dict[str, Any]) -
     for m in f["machines"]:
         if m["state"] == "panne":
             emit(
-                "breakdown",
+                "breakdown_goulot" if m["bottleneck"] else "breakdown",
                 f"breakdown:{m['id']}",
                 {"machine": m["name"]},
-                level="critical" if m["bottleneck"] else "warning",
                 ref=f"machine:{m['id']}",
                 action=None if ordered else ("priorite_reparation", {"ordre": "goulot"}),
             )
-            out[-1]["text"] = (f"{m['name']} en panne" + (" : c'est le goulot." if m["bottleneck"] else "."))[:120]
     threshold = tpl.get("trs_low", {}).get("threshold")
     for lid, line in (snap.get("lines") or {}).items():
         if threshold is not None and line["trs"] is not None and line["trs"] < threshold:
-            emit("trs_low", f"trs_low:{lid}", {"line": _name(spec, lid), "trs": f"{line['trs']:g}"}, ref=f"line:{lid}")
+            emit(
+                "trs_low", f"trs_low:{lid}", {"line": _name(spec, lid), "trs": f"{num(line['trs'])}"}, ref=f"line:{lid}"
+            )
     for oid in ((state["last"] or {}).get("delayed") or [])[:3]:
         emit("late", f"late:{oid}", {"order": oid}, ref="dock")
     return engine.finish_alerts(out + engine.common_alerts(spec, state, view))
@@ -575,7 +579,8 @@ def _lessons(spec: dict[str, Any], state: dict[str, Any]) -> list[str]:
         both = sum(1 for h in history if h["delays"] and h["stockouts"])
         shared = f" ; {both} des semaines concernées ont aussi eu des lignes arrêtées faute de matière" if both else ""
         lessons.append(
-            f"OTIF moyen de {otif} % pour un objectif de {targets['otif']:.0f} % : {late} commande(s) client en "
+            f"OTIF moyen de {num(otif)} % pour un objectif de {num(targets['otif'], 0)} % : "
+            f"{late} commande(s) client en "
             f"retard{shared}. Une commande ne compte que si elle part complète au plus tard le jour promis."
         )
     trs = engine._mean(history, "trs")
@@ -583,8 +588,8 @@ def _lessons(spec: dict[str, Any], state: dict[str, Any]) -> list[str]:
         good = engine._mean(history, "good_share")
         wear = any(m["weibull_shape"] > 1 for m in factory.Plant(spec).machines)
         lessons.append(
-            f"TRS moyen de {trs} % pour un objectif de {targets['trs']:.0f} %"
-            + (f", avec {good} % de produits bons" if good is not None else "")
+            f"TRS moyen de {num(trs)} % pour un objectif de {num(targets['trs'], 0)} %"
+            + (f", avec {num(good)} % de produits bons" if good is not None else "")
             + ". Le TRS d'une ligne se mesure sur son goulot : pannes, pauses, ralentissements et rebuts le font "
             "baisser."
             + (
@@ -604,8 +609,8 @@ def _lessons(spec: dict[str, Any], state: dict[str, Any]) -> list[str]:
     if not lessons:
         lessons.append(
             "Objectifs atteints : aucune ligne arrêtée faute de matière, "
-            + (f"OTIF moyen de {otif} %, " if otif is not None else "")
-            + (f"TRS moyen de {trs} %, " if trs is not None else "")
+            + (f"OTIF moyen de {num(otif)} %, " if otif is not None else "")
+            + (f"TRS moyen de {num(trs)} %, " if trs is not None else "")
             + f"trésorerie finale de {money(state['cash'])}."
         )
     return lessons
@@ -623,7 +628,11 @@ def _rep(state: dict[str, Any]) -> dict[str, Any] | None:
 def _facts_fournisseur(spec: dict[str, Any], state: dict[str, Any], view: dict[str, Any]) -> list[Fact]:
     pending = state["fs"]["pending"]
     facts: list[Fact] = [
-        (False, f"{len(pending)} commande(s) de matière en route, soit {sum(p['pallets'] for p in pending)} palettes.")
+        (
+            False,
+            f"{len(pending)} commande(s) de matière en route, "
+            f"soit {num(sum(p['pallets'] for p in pending), 0)} palettes.",
+        )
     ]
     if state["cost_index"] > 1:
         facts.append((False, f"Nos prix ont augmenté de {round((state['cost_index'] - 1) * 100)} % depuis le début."))
@@ -640,10 +649,12 @@ def _facts_reception(spec: dict[str, Any], state: dict[str, Any], view: dict[str
     if rep:
         r = rep["reception"]
         if r["quarantined"]:
-            facts.append((True, f"{r['quarantined']} produits de matière mis en quarantaine : palettes non conformes."))
-        facts.append((False, f"Semaine passée : {r['trucks']} camion(s) déchargé(s), {r['pallets']} palettes."))
+            facts.append(
+                (True, f"{num(r['quarantined'], 0)} produits de matière mis en quarantaine : palettes non conformes.")
+            )
+        facts.append((False, f"Semaine passée : {r['trucks']} camion(s) déchargé(s), {num(r['pallets'], 0)} palettes."))
         if rep["dock"]["wait_min"] > 30:
-            facts.append((False, f"Les camions ont attendu un quai {round(rep['dock']['wait_min'])} minutes en tout."))
+            facts.append((False, f"Les camions ont attendu un quai {num(rep['dock']['wait_min'], 0)} minutes en tout."))
     if due:
         facts.append((False, f"Prochaine livraison attendue dans {max(min(due), 0)} jour(s)."))
     return facts or [(False, "Aucun camion attendu pour l'instant.")]
@@ -653,15 +664,23 @@ def _facts_stock_mp(spec: dict[str, Any], state: dict[str, Any], view: dict[str,
     mp = view["factory"]["stocks"]["mp"][0]
     rep = _rep(state)
     facts: list[Fact] = []
-    stopped = sum(line["stockout_min"] for line in rep["lines"].values()) if rep else 0
-    if stopped:
-        facts.append((True, f"Une ligne s'est arrêtée {round(stopped)} minutes faute de matière."))
+    stopped = [line["stockout_min"] for line in rep["lines"].values() if line["stockout_min"]] if rep else []
+    if stopped:  # somme sur les lignes : à dire comme un total, pas comme la durée d'une ligne
+        total, n = num(sum(stopped), 0), len(rep["lines"])
+        facts.append((True, f"Les {n} lignes ont été arrêtées {total} minutes au total faute de matière.")
+                     if n > 1 else (True, f"La ligne a été arrêtée {total} minutes faute de matière."))  # fmt: skip
     left = mp["capacity_pallets"] - mp["pallets"] - mp["pending"]
     if mp["pallets"] + mp["pending"] < mp["reorder_point"]:
-        stock = f"{mp['pallets']} palettes en stock et {mp['pending']} en commande"
-        facts.append((True, f"{stock}, sous le point de commande de {mp['reorder_point']} : il faut commander."))
+        stock = f"{num(mp['pallets'], 0)} palettes en stock et {num(mp['pending'], 0)} en commande"
+        facts.append(
+            (True, f"{stock}, sous le point de commande de {num(mp['reorder_point'], 0)} : il faut commander.")
+        )
     facts.append(
-        (False, f"Magasin : {mp['pallets']} palettes sur {mp['capacity_pallets']} places, {max(left, 0)} libres.")
+        (
+            False,
+            f"Magasin : {num(mp['pallets'], 0)} palettes sur {num(mp['capacity_pallets'], 0)} places, "
+            f"{num(max(left, 0), 0)} libres.",
+        )
     )
     return facts
 
@@ -676,7 +695,11 @@ def _facts_production(spec: dict[str, Any], state: dict[str, Any], view: dict[st
         if line["real_h"] is not None:
             slow = line["real_h"] < 0.9 * line["expected_h"]
             facts.append(
-                (slow, f"{line['name']} : {line['real_h']} bons par heure mesurés pour {line['expected_h']} attendus.")
+                (
+                    slow,
+                    f"{line['name']} : {num(line['real_h'])} bons par heure mesurés "
+                    f"pour {num(line['expected_h'])} attendus.",
+                )
             )
     open_of = [of for of in f["orders"]["production"] if of["status"] != "termine"]
     facts.append((False, f"{len(open_of)} ordre(s) de fabrication ouvert(s)."))
@@ -690,9 +713,13 @@ def _facts_qualite(spec: dict[str, Any], state: dict[str, Any], view: dict[str, 
     f = view["factory"]
     shares = next(x for x in f["formulas"] if x["id"] == "capacite_et_trs.qualite")
     scrap = sum(line["scrap"] for line in rep["lines"].values())
-    facts: list[Fact] = [(False, f"Semaine passée : {rep['controlled']} produits contrôlés, {scrap} rebuts.")]
+    facts: list[Fact] = [
+        (False, f"Semaine passée : {num(rep['controlled'], 0)} produits contrôlés, {num(scrap, 0)} rebuts.")
+    ]
     if shares["measured"] is not None and shares["measured"] < shares["expected"] - 2:
-        facts.insert(0, (True, f"Part de bons de {shares['measured']} % pour {shares['expected']} % attendus."))
+        facts.insert(
+            0, (True, f"Part de bons de {num(shares['measured'])} % pour {num(shares['expected'])} % attendus.")
+        )
     return facts
 
 
@@ -701,12 +728,21 @@ def _facts_emballage(spec: dict[str, Any], state: dict[str, Any], view: dict[str
     facts: list[Fact] = []
     waiting = view["factory"]["products"]["conforme"]
     if waiting > 2 * spec["factory"]["logistics"]["units_per_case"] * spec["factory"]["logistics"]["cases_per_pallet"]:
-        facts.append((True, f"{waiting} produits bons attendent d'être emballés."))
+        facts.append((True, f"{num(waiting, 0)} produits bons attendent d'être emballés."))
     if rep:
         facts.append(
-            (False, f"Semaine passée : {rep['packed']['cases']} cartons et {rep['packed']['pallets']} palettes.")
+            (
+                False,
+                f"Semaine passée : {num(rep['packed']['cases'], 0)} cartons "
+                f"et {num(rep['packed']['pallets'], 0)} palettes.",
+            )
         )
-    facts.append((False, f"Entrepôt PF : {plant_pallet['pallets']} palettes sur {plant_pallet['capacity_pallets']}."))
+    facts.append(
+        (
+            False,
+            f"Entrepôt PF : {num(plant_pallet['pallets'], 0)} palettes sur {num(plant_pallet['capacity_pallets'], 0)}.",
+        )
+    )
     return facts
 
 
@@ -719,7 +755,9 @@ def _facts_maintenance(spec: dict[str, Any], state: dict[str, Any], view: dict[s
     facts: list[Fact] = []
     total = sum(m["failures"] for m in f["machines"])
     if worst["downtime_min"]:
-        facts.append((worst["bottleneck"], f"{worst['name']} a perdu {worst['downtime_min']} minutes en panne."))
+        facts.append(
+            (worst["bottleneck"], f"{worst['name']} a perdu {num(worst['downtime_min'], 0)} minutes en panne.")
+        )
     facts.append((False, f"Semaine passée : {total} panne(s) au total."))
     if rep["technician"]["waited"]:
         facts.append((False, f"{rep['technician']['waited']} panne(s) ont attendu le technicien."))
@@ -749,8 +787,8 @@ def _facts_pilotage(spec: dict[str, Any], state: dict[str, Any], view: dict[str,
         facts.append(
             (
                 False,
-                f"OTIF à {otif:.0f} % (objectif {targets['otif']:.0f} %), "
-                f"TRS à {trs:.0f} % (objectif {targets['trs']:.0f} %).",
+                f"OTIF à {num(otif, 0)} % (objectif {num(targets['otif'], 0)} %), "
+                f"TRS à {num(trs, 0)} % (objectif {num(targets['trs'], 0)} %).",
             )
         )
     return facts
@@ -774,7 +812,11 @@ def _facts_client(spec: dict[str, Any], state: dict[str, Any], view: dict[str, A
     facts: list[Fact] = []
     if otif is not None and otif < targets["otif"]:
         facts.append(
-            (True, f"Livraisons à l'heure et complètes : {otif:.0f} %, sous l'objectif de {targets['otif']:.0f} %.")
+            (
+                True,
+                f"Livraisons à l'heure et complètes : {num(otif, 0)} %, "
+                f"sous l'objectif de {num(targets['otif'], 0)} %.",
+            )
         )
     facts.append((False, f"{len(open_)} commande(s) attendue(s) chez nous."))
     return facts

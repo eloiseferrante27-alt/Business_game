@@ -45,6 +45,8 @@ def _money(value: float) -> str:
 
 
 def generate(params: GameParams) -> dict[str, Any]:
+    if params.events == "aucun" and params.event_plan:  # contradiction que GameParams ne valide pas (contrat spec.py)
+        raise engine.GameRuleError("Aléas « aucun » et plan d'aléas non vide : choisissez l'un ou l'autre.")
     if params.pack != "atelier":  # l'usine a son générateur ; l'atelier (gelé) garde ce chemin
         from gmix.game.factory_generation import generate_factory  # import tardif : il importe autopilot_check d'ici
         from gmix.game.spec import load_pack
@@ -186,6 +188,8 @@ def apply_rules(spec: dict[str, Any], source: dict[str, Any]) -> dict[str, Any]:
                             ("cash", t["cash_final"], ">=")):  # fmt: skip
         entry = margins.get(cid) or {}
         margin = (entry.get("margin") or {}).get(spec["meta"]["difficulty"])
+        if margin is not None and spec.get("factory") and cid == "stockouts":  # marge donnée pour `margin_lines` lignes
+            margin = margin * len({m["line_id"] for m in spec["factory"]["machines"]}) / entry.get("margin_lines", 1)
         partial = None if margin is None else target - margin if op == ">=" else target + margin
         share = entry.get("partial_share")
         if cid == "cash" and share is not None:  # départ + part du gain du pilote ; pas de partiel sans gain
@@ -258,7 +262,8 @@ def _meta(
         "client": theme["client"],
         "theme": params.theme,
         "theme_label": theme["label"],
-        "pitch": f"{theme['description']} Pendant {params.weeks} semaines, votre équipe pilote {modules_text} "
+        "pitch": f"{theme['description']} Pendant {params.weeks} semaines, votre équipe assure les modules "
+        f"{modules_text} "
         f"pour livrer {theme['client']} à l'heure et complet, sans immobiliser trop de stock ni de trésorerie. "
         f"Niveau {level['label'].lower()} : {level['detail']}.",
         "difficulty": params.difficulty,

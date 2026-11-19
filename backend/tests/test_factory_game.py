@@ -217,6 +217,64 @@ def test_tunings_take_the_value_of_another_profile() -> None:
     assert stock(generate(params)) < stock(base)  # le profil expert part avec moins de matière
 
 
+def test_pitch_states_the_effective_settings() -> None:
+    """Règle n° 4 : expert avec pannes et stocks réglés sur découverte ; le pitch dit ce qui est appliqué."""
+    params = GameParams(
+        pack="usine", theme="industrie", modules=MODULES, difficulty="expert", seed=5, weeks=6,
+        tunings={"mtbf_factor": "decouverte", "mp_stock_days": "decouverte", "pf_stock_days": "decouverte"},
+    )  # fmt: skip
+    pitch = generate(params)["meta"]["pitch"]
+    assert pitch.endswith(
+        "Niveau expert : machines plus fiables, plus de défauts, fournisseurs moins fiables, demande plus variable, "
+        "5 jours de matière en stock, 1,2 jour de produits finis en stock, usine chargée à 92 %, "
+        "livraison promise à J+1."
+    )
+    assert "pannes plus fréquentes" not in pitch and "stocks bas" not in pitch
+    assert "Niveau équilibré : 4 jours de matière en stock," in spec_of()["meta"]["pitch"]  # fragments vides omis
+
+
+def test_initial_order_only_when_stock_is_below_lead_plus_one_day() -> None:
+    """Règle n° 5a : expert (2,5 j < 3 + 1) : commande déjà en route, arrivée au jour 2 ; équilibré : aucune."""
+    assert not spec_of()["factory"].get("initial_order")
+    spec = spec_of(difficulty="expert", lines=3)
+    first = spec["factory"]["initial_order"]
+    offer = next(o for o in spec["offers"] if o["id"] == first["offer_id"])
+    plant = factory.Plant(spec)
+    mp_day = spec["components"][0]["safety_stock"]  # arrondi de la consommation d'un jour
+    assert offer["profile"] == "standard" and first["arrival_day"] == 2
+    assert 1 <= first["pallets"] <= 6 and abs(first["pallets"] * plant.upp - 1.5 * mp_day) < 2 * plant.upp
+    fs = engine.initial_state(spec)["fs"]
+    assert [(po["pallets"], po["due_day"]) for po in fs["pending"]] == [(first["pallets"], 2)]
+
+
+def test_initial_order_arrives_and_is_paid_at_reception() -> None:
+    spec = spec_of(difficulty="expert")
+    state = engine.start(spec, engine.initial_state(spec))
+    paid = state["cash"]
+    state = engine.advance(spec, state, autopilot_all=False)  # joueur passif : seule la commande de départ arrive
+    assert state["snap"]["report"]["reception"]["trucks"] == 1 and state["cash"] != paid
+
+
+def test_stockout_margin_scales_with_the_number_of_lines() -> None:
+    """Règle n° 5b : marge de 4 donnée pour 2 lignes ; expert à 3 lignes : 6 jours-ligne."""
+    partial = lambda **kw: next(c for c in spec_of(**kw)["criteria"] if c["id"] == "stockouts")["partial"]  # noqa: E731
+    assert (partial(difficulty="expert", lines=2), partial(difficulty="expert", lines=3)) == (4, 6)
+    assert partial(difficulty="expert", lines=1) == 2
+
+
+def test_line_trs_excludes_breaks_from_planned_time() -> None:
+    """Règle n° 4 (fiche OEE) : TRS de ligne = bons produits / (débit théorique x temps hors arrêts et pauses)."""
+    spec = spec_of()
+    plant = factory.Plant(spec)
+    state = engine.advance(spec, engine.start(spec, engine.initial_state(spec)), autopilot_all=True)
+    report = state["snap"]["report"]
+    lid = plant.line_ids[0]
+    mins = report["machines"][plant.mids[plant.bottleneck[0]]]["minutes"]
+    planned_h = (plant.T - mins["arret"] - mins["pause"]) / 60
+    expected = min(1.0, report["lines"][lid]["good"] / (report["lines"][lid]["theoretical_h"] * planned_h)) * 100
+    assert mins["pause"] > 0 and state["snap"]["lines"][lid]["trs"] == pytest.approx(expected)
+
+
 # --- handlers : un résultat chiffré et un refus par règle -----------------------------------------------------------
 
 
@@ -373,6 +431,36 @@ def test_factory_alerts_are_validated_facts(running) -> None:
     assert [e["kind"] for e in play(spec, autopilot=True)["log"]].count("auto") > 0
 
 
+def test_overdraft_alert_proposes_no_action_the_factory_lacks(running) -> None:
+    spec, state = running
+    state["cash"] = -1
+    alert = next(a for a in engine.public_state(spec, state)["alerts"] if a["id"] == "cash:negative")
+    assert alert["action"] is None  # pas de module finance dans l'usine : pas d'action « decouvert »
+
+
+def test_a_broken_bottleneck_raises_the_critical_alert_from_the_pack(running) -> None:
+    from gmix.game import factory_game
+
+    spec, state = running
+    view = engine.public_state(spec, state)
+    machines = view["factory"]["machines"]
+    for m in machines:
+        m["state"], m["bottleneck"] = "panne", False
+    machines[0]["bottleneck"] = True
+    tpl = {t["id"]: t for t in factory_game.load_pack(spec["meta"]["pack"])["alerts"]}
+    alerts = {a["id"]: a for a in factory_game._alerts(spec, state, view)}
+    goulot, other = alerts[f"breakdown:{machines[0]['id']}"], alerts[f"breakdown:{machines[1]['id']}"]
+    assert goulot["level"] == tpl["breakdown_goulot"]["level"] == "critical"
+    assert goulot["text"] == tpl["breakdown_goulot"]["text"].format(machine=machines[0]["name"])[:120]
+    assert other["level"] == tpl["breakdown"]["level"] == "warning" and other["text"].endswith("en panne.")
+
+
+def test_no_events_with_an_event_plan_is_refused() -> None:
+    plan = [{"week": 2, "event_id": "retard_transport"}]
+    with pytest.raises(GameRuleError, match="plan d'aléas"):
+        generate(GameParams(pack="usine", theme="industrie", modules=MODULES, events="aucun", event_plan=plan, seed=1))
+
+
 def test_passive_player_misses_the_stockout_criterion_and_cash_partial_is_the_starting_cash() -> None:
     spec = spec_of(difficulty="expert")
     state = engine.start(spec, engine.initial_state(spec))
@@ -411,7 +499,7 @@ def test_factory_lessons_state_computed_facts_only() -> None:
     text = " ".join(out)
     assert f"{2 * n} jour(s)-ligne arrêté(s) faute de matière, sur {n} semaine(s)" in text and "palettes" in text
     assert f"{n} commande(s) client en retard ; {n} des semaines concernées" in text
-    assert "avec 90.0 % de produits bons" in text and "risque de panne croît avec l'âge" in text
+    assert "avec 90 % de produits bons" in text and "risque de panne croît avec l'âge" in text
     assert "elle a baissé sur" in text and "aurait" not in text and "None" not in text
 
 
@@ -422,7 +510,7 @@ def test_factory_lessons_all_targets_met_names_the_figures() -> None:
     state["history"] = [{**h, **met} for h in state["history"]]
     state["cash"] = spec["targets"]["cash_final"]
     (line,) = engine.debrief(spec, state)["lessons"]
-    assert line.startswith("Objectifs atteints : aucune ligne arrêtée faute de matière, OTIF moyen de 100.0 %")
+    assert line.startswith("Objectifs atteints : aucune ligne arrêtée faute de matière, OTIF moyen de 100 %")
 
 
 def test_factory_lessons_all_targets_met_omits_missing_figures() -> None:
@@ -433,3 +521,50 @@ def test_factory_lessons_all_targets_met_omits_missing_figures() -> None:
     state["cash"] = spec["targets"]["cash_final"]
     (line,) = engine.debrief(spec, state)["lessons"]
     assert line.startswith("Objectifs atteints") and "None" not in line and "OTIF" not in line and "TRS" not in line
+
+
+def test_stockout_fact_is_a_total_over_lines():
+    from gmix.game.factory_game import _facts_stock_mp
+
+    mp = {"capacity_pallets": 10, "pallets": 5, "pending": 0, "reorder_point": 1}
+    rep = {"lines": {k: {"stockout_min": v} for k, v in {"a": 445, "b": 445, "c": 516.6}.items()}}
+    facts = _facts_stock_mp({}, {"snap": {"report": rep}}, {"factory": {"stocks": {"mp": [mp]}}})
+    assert facts[0] == (True, "Les 3 lignes ont été arrêtées 1 407 minutes au total faute de matière.")
+
+
+@pytest.mark.parametrize("difficulty", ["decouverte", "expert"])
+def test_factory_texts_shown_to_the_player_use_french_numbers(difficulty: str) -> None:
+    import re
+
+    spec = spec_of(difficulty=difficulty)
+    texts = [spec["meta"]["pitch"]]
+    state = engine.start(spec, engine.initial_state(spec))
+    while state["status"] == "running":
+        state = engine.advance(spec, state, autopilot_all=True)
+        view = engine.public_state(spec, state)
+        texts += [_texts([view["briefings"], view["alerts"]])]
+    texts.append(_texts(engine.debrief(spec, state)))
+    blob = re.sub(r"§\s?[\d.]+|https?://\S+|\S+oldid=\d+", "", "\n".join(texts))  # renvois et liens : pas des nombres
+    assert not re.search(r"\d\.\d", blob), re.findall(r".{20}\d\.\d.{10}", blob)[:3]  # décimale à point
+    big = r"(?<![\w ,./-])\d{4,}"  # millier sans espace ; dates, références (L3121-16) exclues
+    assert not re.search(big, blob), re.findall(r".{20}" + big + ".{10}", blob)[:3]
+
+
+def _texts(node: Any) -> str:
+    if isinstance(node, str):
+        return node + " | "
+    items = node.values() if isinstance(node, dict) else node if isinstance(node, list) else []
+    return "".join(_texts(x) for x in items)
+
+
+def test_initial_order_survives_a_json_roundtrip_with_float_numbers() -> None:
+    """Godot relit toute spec en flottants (4 -> 4.0) : SimSpec doit les ramener à des entiers, sinon 500."""
+    from gmix.game.spec import SimSpec
+
+    spec = json.loads(json.dumps(spec_of(difficulty="expert")))
+    order = spec["factory"]["initial_order"]
+    order.update(pallets=float(order["pallets"]), arrival_day=float(order["arrival_day"]))
+    valid = SimSpec.model_validate(spec).model_dump(mode="json")
+    assert all(type(valid["factory"]["initial_order"][k]) is int for k in ("pallets", "arrival_day"))
+    original = SimSpec.model_validate(spec_of(difficulty="expert")).model_dump(mode="json")
+    assert autopilot_check(valid) == autopilot_check(original)

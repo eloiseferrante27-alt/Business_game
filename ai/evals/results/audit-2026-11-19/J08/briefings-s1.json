@@ -1,0 +1,103 @@
+{
+ "week": 1,
+ "event": null,
+ "briefings": {
+  "agent_fournisseur": {
+   "facts": [
+    "0 commande(s) de matière en route, soit 0 palettes."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_reception": {
+   "facts": [
+    "Aucun camion attendu pour l'instant."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_stock_mp": {
+   "facts": [
+    "3 palettes en stock et 0 en commande, sous le point de commande de 6 : il faut commander.",
+    "Magasin : 3 palettes sur 24 places, 21 libres."
+   ],
+   "urgent": true,
+   "line": "Il faut agir : 3 palettes en stock et 0 en commande, sous le point de commande de 6 : il faut commander."
+  },
+  "agent_production": {
+   "facts": [
+    "0 ordre(s) de fabrication ouvert(s)."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_qualite": {
+   "facts": [
+    "Aucun produit contrôlé pour l'instant."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_emballage": {
+   "facts": [
+    "Entrepôt PF : 3 palettes sur 20."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_maintenance": {
+   "facts": [
+    "Aucune panne depuis le début de la partie."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_pilotage": {
+   "facts": [
+    "0 commande(s) ouverte(s), dont 0 en retard.",
+    "Stock fini et en-cours à 58, sous le minimum de 116 : lancer des ordres."
+   ],
+   "urgent": true,
+   "line": "Vite : Stock fini et en-cours à 58, sous le minimum de 116 : lancer des ordres."
+  },
+  "agent_entrepot_pf": {
+   "facts": [
+    "3 palettes en stock sur 20 places."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_client": {
+   "facts": [
+    "0 commande(s) attendue(s) chez nous."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_direction": {
+   "facts": [
+    "Il reste 12 semaine(s) ; objectifs : OTIF 95 %, TRS 78 %, trésorerie d'au moins 67 000 €."
+   ],
+   "urgent": false,
+   "line": null
+  }
+ },
+ "alerts": [
+  {
+   "id": "reorder:c1",
+   "level": "warning",
+   "department_id": "stock_mp",
+   "module_id": "pilotage",
+   "text": "Matière : 3 palettes en stock, 0 en commande, point de commande 6.",
+   "ref": "mp:c1",
+   "action": {
+    "module_id": "pilotage",
+    "action_id": "commander_mp",
+    "values": {
+     "offer": "o2",
+     "pallets": 6
+    }
+   }
+  }
+ ]
+}

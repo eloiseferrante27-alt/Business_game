@@ -1,4 +1,4 @@
-# Reprise de session (après /clear) - état au 18/11/2026 (le détail des tranches date du 06/11)
+# Reprise de session (après /clear) - état au 19/11/2026 (le détail des tranches date du 06/11)
 
 VS Code s'ouvre sur le dossier parent `G_mix-Generateur-Business_Games` (choix de l'utilisateur, 05/11). L'équipe y vit,
 hors git : `../CLAUDE.md` et `../.claude/` (agents, réglages, `ownership.json`), retirés du dépôt le 05/11 (ils restent
@@ -33,7 +33,31 @@ dans l'historique). Commandes à lancer en `.\Business_game-contribution_Romain\
    - Vérifié le 06/11 : qa-reviewer `test.ps1 -Integration` ruff OK, 822 passés, `smoke.ps1` OK, `-Tour` 236 écrans 0 défaut, « bon pour commit ». Après correctifs : `-Check` 148 OK ; `-Flow -NoLlm` 602 et `-Pack usine` 344 0 échec ; `-Flow -NoLlm -Design` 96 et `-Flow -Design` (modèle) 72, 0 échec.
    - Défauts mineurs laissés : `regenerate_design` non atomique (comme `create_design`) ; en cas de repli, `review` garde d'anciens `autopilot` et `dropped` ; le contrôle « Mes jeux sans doublon » ne couvre pas un jeu en cours de conception.
 
-## À faire, ordre validé par l'utilisateur le 06/11
+## Session du 19/11 : priorité 3, audit de l'exigence n° 1 (point d'étape avant commit)
+
+**Fait**
+- Audit (game-designer, `docs/audits/`) : protocole, puis 10 jeux générés par ia-runtime (`ai/evals/results/audit-2026-11-19/`), tous refusés ; 15 défauts D1 à D15 dans `docs/audits/liste-a-signer.md`, fiches dans `docs/audits/jeux-ia/`. Aucun chiffre inventé : tous calculés par le moteur.
+- Prompt `factory.design` v4 : respect des consignes 30/50 -> 42/50 avec qwen2.5:3b, conservé (le 7b : 45/50 mais 27 s ; comparatif `ai/evals/results/design-consignes-2026-11-19/`). `degenerate()` refuse les `unmet` dégénérés. Contrôle C1 de l'audit fiabilisé.
+- Pack : source retirée, textes conformes au moteur, vouvoiement, sigles expliqués, fragments par niveau.
+- Moteur : alerte `breakdown_goulot` ; chiffres à la française (`num()`) ; pitch selon les réglages effectifs ; fait « 1 406 minutes au total » ; TRS sans les pauses, conforme à la fiche OEE (décision de l'orchestrateur) ; commande initiale en expert (`factory.initial_order`, typée `InitialOrder` par l'architecte) ; marge des ruptures par ligne ; tests de temps relatifs à une boucle de référence.
+- Vérifié par qa-reviewer : `test.ps1 -Integration` 846 passés, `-Flow -NoLlm` 686, `-Flow -Design` 72 ; après correctifs `-Flow -NoLlm -Pack usine` 428, 0 échec. `test.ps1 -Fast` : devops le relance avant commit. Rien n'est commité à la rédaction de cette note (devops commite juste après).
+- Comptes : l'utilisateur a le compte admin `romain` ; l'ancien `admin` est supprimé ; `start.ps1` recrée `admin` s'il manque.
+- Écarts de propriété pour la prochaine rétro : ia-runtime a modifié docs/ai-runtime.md et ai/evals/README.md ; moteur-jeu a modifié spec.py. Tous deux validés ensuite.
+
+**Décision de l'utilisateur, 19/11 : monde 3D variable** (aussi dans docs/blocages.md). Le monde varie en apparence ET en structure : plusieurs bâtiments et pièces entre lesquels sont répartis joueurs, agents, rôles et actions. Chantier juste après l'audit, avant le garde-fou des PNJ.
+- Vision : selon paramètres, consigne ou documents fournis, une équipe d'agents IA spécialisés (orchestrateur et sous-agents) conçoit le monde, avec génération procédurale et expertise métier.
+- Contraintes à rappeler à l'architecte : un seul modèle 3b sur 6 Go de VRAM, donc agents en série ; conception 3 min en médiane, 10 au plus (ADR 0008, qui avait ramené trois appels à un seul) ; le moteur seul calcule les chiffres.
+- Constat du 19/11 : `layout.place_world` n'utilise pas la graine (ADR 0009) ; hall toujours 48 x 30 m ; décor Godot figé (arbres, graine 42) ; 2 modèles de machine sur environ 8 ; toujours 3 fournisseurs et 1 produit.
+
+## À faire, ordre validé par l'utilisateur le 06/11 (priorité 3 détaillée au 19/11)
+
+Priorité 3, dans l'ordre :
+1. Préventif (`docs/audits/preventif-2026-11-19.md`) : P1 pannes évitées et leçons « usure ou hasard » (sourcé, à coder par moteur-jeu) ; P4 séparer les tirages des pannes et des défauts ; puis P2 (`bottleneck_shape` par niveau) et P3 (100 € de dégâts par panne), choix de calibrage à appliquer par game-designer.
+2. Recalibrage par game-designer avec les mesures de moteur-jeu : cible TRS de 78 % trop facile depuis le correctif (pilote à 80-92 %) ; expert à 3 lignes injouable sur 2 graines sur 4 ; J06 à 3 lignes en rupture structurelle.
+3. ia-runtime régénère les 10 jeux (prompt v4), game-designer refait l'audit, puis l'utilisateur signe.
+4. Notés pour plus tard : règle `events: aucun` avec un `event_plan` dans `GameParams` (architecte, après nettoyage des specs existantes) ; page NIST Weibull (§ 8.1.6.2) à ajouter au corpus (rag-knowledge) ; `numbers()` lit « 62.7054 » comme 62705 (garde-fou, priorité 4) ; J10 sort en industrie si le secteur n'est que dans le texte du brief (le formateur peut l'imposer).
+
+Ensuite : chantier monde 3D variable (architecte d'abord, ADR), puis priorité 4.
 
 Cadre de la démo : LAN, 3 à 6 joueurs ; le jeu à distance vient après la Première version.
 
@@ -41,8 +65,9 @@ Cadre de la démo : LAN, 3 à 6 joueurs ; le jeu à distance vient après la Pre
 |---|---|---|
 | 1 | B4b fait et poussé (06/11) ; palette « ardoise » par défaut, commitée et poussée | ADR 0012 ; EX-08 |
 | 2 | **Préparée le 18/11, commitée et poussée (c218212, push 7c99529..c218212 ; `backend/p.out` supprimé, dépôt propre ; rétro du 18/11 faite, `retro-2026-11-18.md`)** : parcours B de flow_test (`-Flow -NoLlm` 686 vérifications, `-Flow` 813), `test_lobbies_absent_vote.py` (`test.ps1 -Integration` : 829 passés), export `godot.ps1 -Export` (`build/windows/G-mix.exe`, connexion depuis l'exe non essayée à la main). **Reste la répétition réelle** : pare-feu à ouvrir le jour même (TCP 8000, UDP 7000-7049, profil Privé), 3 postes, souris et clavier AZERTY réels, fermer les applications lourdes sur l'hôte (le poste était à 100 % CPU à cause du client Riot) ; le test de budget mesure désormais un rapport à une boucle de référence, robuste à la charge, et ne détecte plus qu'une régression d'environ 2x ; date à fixer par l'utilisateur ([fiche pas à pas](../repetition-lan.md)) | EX-05 (LAN), 22, 23, 25 |
-| 3 | **Peut commencer en attendant** : exigence n° 1 : relire et signer 10 jeux conçus par l'IA ; notes périmées de ai/packs/usine.yaml (l. 336 et 370, à revérifier) ; notion `rupture_de_stock` | ADR 0010 ; EX-01, EX-16 |
-| 4 | Garde-fou des nombres de `npc.py` : décision OUI, à activer avant la démo | EX-33 |
+| 3 | **En cours (19/11)** : exigence n° 1 : audit de 10 jeux conçus par l'IA, tous refusés, 15 défauts ; correctifs faits, reste préventif, recalibrage, régénération, nouvel audit, signature (voir « À faire » ci-dessus) ; notes périmées de ai/packs/usine.yaml (l. 336 et 370, à revérifier) ; notion `rupture_de_stock` | ADR 0010 ; EX-01, EX-16 ; docs/audits/ |
+| 3b | **Monde 3D variable** (décision du 19/11), juste après l'audit, avant le garde-fou : ADR à écrire par l'architecte (voir « À faire ») | docs/blocages.md |
+| 4 | Garde-fou des nombres de `npc.py` : décision OUI, à activer avant la démo (inclut `numbers()` : « 62.7054 » lu 62705) | EX-33 |
 | 5 | Dette « À corriger » de l'annexe 0010 | ADR 0010 annexe |
 | 6 | Passe finale `-Tour` | EX-34 ; ADR 0012 c2 |
 | 7 | Docs, puis **Première version** : commit et push de chaque tranche (`git push`), LICENSE.md non commercial inclus | décision du 06/11 |

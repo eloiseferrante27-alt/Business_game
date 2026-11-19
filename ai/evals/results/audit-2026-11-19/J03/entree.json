@@ -1,0 +1,9 @@
+{
+ "id": "J03",
+ "seed": 303,
+ "brief": "Former des BTS au goulot d'étranglement dans un atelier de soudure d'équipements en acier, avec un niveau moyen et quelques aléas.",
+ "fixed": {
+  "company_name": "Soudures de l'Estuaire",
+  "products": 1
+ }
+}

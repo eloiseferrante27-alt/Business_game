@@ -622,6 +622,14 @@ class FactoryCosts(BaseModel):
     operator_per_h: float = Field(ge=0)
 
 
+class InitialOrder(BaseModel):
+    """Commande de matière déjà en route au départ (règle n° 5a) ; typée pour que 4.0 relu par Godot redevienne 4."""
+
+    offer_id: str
+    pallets: int = Field(gt=0)
+    arrival_day: int = Field(ge=0, description="jour ouvré d'arrivée, depuis le début de partie")
+
+
 class Factory(BaseModel):
     """Usine à lignes de machines en série (modèle `factory` du moteur, ADR 0007)."""
 
@@ -632,6 +640,7 @@ class Factory(BaseModel):
         default=None, ge=0, description="le lancement d'OF en campagne remonte le stock PF à ce niveau"
     )
     mp_safety_days: float = Field(default=1, ge=0, description="stock de sécurité matière (jours) du point de commande")
+    initial_order: InitialOrder | None = None
     bom: list[BomItem] = Field(min_length=1)
     machines: list[Machine] = Field(min_length=1)
     crew: list[CrewMember] = Field(default_factory=list)
@@ -1308,6 +1317,8 @@ class SimSpec(BaseModel):
                 errors.append(f"{name} : 0 <= début < fin <= {day} minutes attendu")
         if factory.product_id not in ids["products"]:
             errors.append(f"usine : produit inconnu {factory.product_id}")
+        if factory.initial_order and factory.initial_order.offer_id not in {o.id for o in self.offers}:
+            errors.append(f"usine : commande initiale sur une offre inconnue {factory.initial_order.offer_id}")
         errors += [
             f"ligne {line.id} : produit {line.product_id} différent de celui de l'usine ({factory.product_id})"
             for line in self.lines

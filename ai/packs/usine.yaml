@@ -131,10 +131,14 @@ network:
 # Règles de placement contrôlées par check_placement. Provenance obligatoire : `source` (citation lue dans une fiche
 # du corpus), `calibre` (la note dit pourquoi c'est plausible) ou `exemple` (cahier, non sourcé). Les postes
 # « séparés des flux chariots par des protections fixées au sol » (INRS ED 6350, § 4.4, p. 14-15) sont contrôlés
-# par `protected_path` (postes_proteges_chariots). Non déclarées faute de piétons et de VL dans le jeu, et parce
-# qu'un `protected_path` ne vise pas encore une route de camion (sites hors départements) : flux VL et PL
-# dissociés, PL en sens unique, piétons qui ne croisent « qu'une seule fois » les voies PL (§ 4.1, p. 10-11).
-# Fiche inrs-implantation-plateformes-logistiques.
+# par `protected_path` (postes_proteges_chariots). Non déclarées (annexe 0010 §8 et §12, justification du
+# 19/11/2026), fiche inrs-implantation-plateformes-logistiques :
+#  - flux VL et PL dissociés, piétons qui ne croisent « qu'une seule fois » les voies PL (§ 4.1, p. 10-11) : le jeu
+#    n'a ni VL ni piéton ; `crossings_max: 1` sur la voie PL compterait les croisements de routes, pas de piétons ;
+#  - PL en sens unique (§ 4.1, p. 10) : `one_way` cherche un lien de b vers a, or le placeur ne trace que des liens
+#    site -> usine (layout.py) ; la règle serait toujours vraie et n'enseignerait rien ;
+#  - transbordement sans chariot (`crossings_max: 0`) : la fiche dit l'inverse (« une circulation de chariots
+#    parallèle aux portes de quais », § 4.4) ; ce sont les piétons qui ne doivent pas couper les chariots.
 placement_rules:
   - id: allee_chariot_inrs
     kind: aisle_min
@@ -235,6 +239,17 @@ difficulties:
     mp_stock_days: 5
     pf_stock_days: 1.2
     cash_weeks: 6
+    # Pitch (D4, audit du 19/11) : moteur-jeu joint, dans l'ordre de ces clés, le fragment du profil réellement
+    # appliqué à chaque clé (tunings, sinon le niveau) ; un fragment vide est omis. Valeurs reprises des clés ci-dessus.
+    fragments:
+      mtbf_factor: machines plus fiables
+      defect_factor: moins de défauts
+      reliability_shift: fournisseurs plus fiables
+      demand_variability: demande plus régulière
+      mp_stock_days: 5 jours de matière en stock
+      pf_stock_days: 1,2 jour de produits finis en stock
+      load: usine chargée à 80 %
+      promised_days: livraison promise à J+2
   equilibre:
     label: Équilibré
     detail: valeurs du cahier, usine chargée à 85 %
@@ -247,6 +262,15 @@ difficulties:
     mp_stock_days: 4
     pf_stock_days: 1.0
     cash_weeks: 4
+    fragments:  # profil de référence : pannes, défauts, fournisseurs et demande sans comparatif
+      mtbf_factor: ""
+      defect_factor: ""
+      reliability_shift: ""
+      demand_variability: ""
+      mp_stock_days: 4 jours de matière en stock
+      pf_stock_days: 1 jour de produits finis en stock
+      load: usine chargée à 85 %
+      promised_days: livraison promise à J+2
   expert:
     label: Expert
     detail: pannes plus fréquentes, plus de défauts, stocks bas, usine chargée à 92 %, livraison à J+1
@@ -259,6 +283,15 @@ difficulties:
     mp_stock_days: 2.5
     pf_stock_days: 0.5
     cash_weeks: 2.5
+    fragments:
+      mtbf_factor: pannes plus fréquentes
+      defect_factor: plus de défauts
+      reliability_shift: fournisseurs moins fiables
+      demand_variability: demande plus variable
+      mp_stock_days: 2,5 jours de matière en stock
+      pf_stock_days: une demi-journée de produits finis en stock
+      load: usine chargée à 92 %
+      promised_days: livraison promise à J+1
 
 # Réglages que la conception par l'IA peut choisir (ADR 0008, annexe §2) : une clé de profil prend la valeur d'un
 # autre profil de `difficulties`, jamais un nombre nouveau ; provenance dans `values` (liste ci-dessus).
@@ -294,6 +327,9 @@ criteria:
     note: "Partiel de 73 à 78 %, 73 = seuil de l'alerte TRS. Pilote : 80,4-81,6 % en découverte (atteint), 77,0-78,0 % en équilibré (atteint ou partiel), 74,4-75,6 % en expert (partiel) ; passif : 0 %."
   stockouts:
     margin: {decouverte: 2, equilibre: 2, expert: 4}
+    # D9 (b), à coder par moteur-jeu (apply_rules) puis à mesurer : marge donnée pour `margin_lines` lignes ;
+    # partiel = cible + marge x nombre de lignes ÷ margin_lines (expert à 3 lignes : 4 x 3 ÷ 2 = 6 jours-ligne).
+    margin_lines: 2
     status: calibre
     note: >-
       Compte attendu de moteur-jeu : somme de history[].stockouts sur toute la partie (jours-ligne arrêtés faute de
@@ -305,16 +341,15 @@ criteria:
     partial_share: 0
     status: calibre
     note: >-
-      À implémenter par moteur-jeu (apply_rules ne lit que `margin`) : partiel = initial_cash + partial_share x gain
-      du pilote, soit finir sans perdre d'argent ; sans partiel si le gain est nul. D'ici là : atteint ou non atteint.
-      Pilote : 96 802 à 206 146 € pour des cibles de 66 000 à 154 200 € ; passif : sous la trésorerie de départ.
+      Lu par generation.apply_rules : partiel = initial_cash + partial_share x gain du pilote, soit finir sans perdre
+      d'argent ; sans partiel si le gain est nul. Pilote : 96 802 à 206 146 € pour des cibles de 66 000 à 154 200 € ; passif : sous la trésorerie de départ.
 
 # Règles à cocher (annexe 0010 §6), gabarits lus par generation.apply_rules (clés : weeks, company, otif, trs,
 # stockouts, cash_final, initial_cash). Seulement des mécaniques que le moteur applique ; la règle d'annulation de
 # commande n'est pas publiée (décision de l'utilisateur : plus tard). 200 caractères au plus après substitution.
 game_rules:
   - id: objectifs
-    text: "En {weeks} semaines : OTIF moyen d'au moins {otif:g} %, TRS moyen d'au moins {trs:g} %, au plus {stockouts:g} jour-ligne arrêté faute de matière, trésorerie finale d'au moins {cash_final} €."
+    text: "En {weeks} semaines : OTIF (à l'heure et complet) moyen d'au moins {otif:g} %, TRS (rendement des lignes) moyen d'au moins {trs:g} %, au plus {stockouts:g} jour-ligne sans matière, trésorerie finale d'au moins {cash_final} €."
   - id: otif_par_commande
     text: "Une commande compte pour l'OTIF si elle part complète au plus tard le jour promis ; l'OTIF de la semaine est la part de ces commandes."
     citation: "Fiche wikipedia-en-supply-chain-operations-reference (SCOR) : livraisons à temps et en totalité à la date promise, comptées ici par commande."
@@ -325,17 +360,17 @@ game_rules:
     text: "Une ligne arrêtée faute de matière au cours d'un jour compte un jour-ligne ; le bilan les additionne sur la partie, et une usine qui ne produit rien manque ce critère."
   - id: matiere_payee_reception
     text: "La matière est payée à la réception des palettes acceptées ; une palette mise en quarantaine n'est pas payée."
-  - id: camion_six_palettes
+  - id: camion_six_palettes  # règle du jeu, sans citation : valeur dans values.fournisseur.camion_palettes (exemple, non sourcée)
     text: "Une commande de matière est un camion de 6 palettes au plus."
-    citation: "Cahier §2 : camion de 4 à 6 palettes (values.fournisseur.camion_palettes, exemple)."
   - id: alea_annonce
     text: "Chaque aléa est annoncé une semaine à l'avance : il reste un tour pour s'y préparer."
   - id: pilote_automatique
     text: "Un module sans joueur est tenu par le pilote automatique : point de commande, lancement d'OF par campagne, préventif sur le goulot."
 
-# Alertes de l'usine (annexe 0010 §2). Bloc de conception : factory_game._alerts les code aujourd'hui en dur, à
-# relire par moteur-jeu (même id, niveau, texte). Seuils et textes ne prennent que des faits calculés par le moteur
-# ({clés} = champs de la vue) ; 120 caractères au plus après substitution. Pas d'alerte d'usure : aucun seuil sourcé.
+# Alertes de l'usine (annexe 0010 §2), lues par factory_game._alerts (une alerte absente d'ici n'est pas émise),
+# sauf cash_negative et event, encore écrites en dur par engine.common_alerts (annexe 0010 §12, moteur-jeu). Seuils
+# et textes ne prennent que des faits calculés par le moteur ({clés} = champs de la vue) ; 120 caractères au plus
+# après substitution. Pas d'alerte d'usure : aucun seuil sourcé.
 alerts:
   - id: reorder
     level: warning
@@ -355,11 +390,20 @@ alerts:
     status: calibre
     note: "Fait mesuré par le moteur, sans seuil : toute minute arrêtée faute de matière déclenche l'alerte."
   - id: breakdown
-    level: "critical si la machine est le goulot, warning sinon"
+    level: warning
     department_id: maintenance
     module_id: maintenance
-    when: "machine à l'état panne"
-    text: "{machine} en panne (+ « : c'est le goulot. » si bottleneck)."
+    when: "machine à l'état panne, hors goulot de sa ligne"
+    text: "{machine} en panne."
+    action: {action_id: priorite_reparation, values: {ordre: goulot}, unless: "priorité déjà au goulot"}
+    status: calibre
+    note: "Fait du moteur, sans seuil ; niveau warning : une panne hors goulot ne réduit pas d'emblée le débit de la ligne (notion goulot)."
+  - id: breakdown_goulot
+    level: critical
+    department_id: maintenance
+    module_id: maintenance
+    when: "goulot de sa ligne à l'état panne (machines[].bottleneck)"
+    text: "{machine} en panne : c'est le goulot."
     action: {action_id: priorite_reparation, values: {ordre: goulot}, unless: "priorité déjà au goulot"}
     status: source
     citation: "Notion goulot (fiche wikipedia-fr-theorie-des-contraintes) : chaque heure perdue par la contrainte est perdue pour la ligne."
@@ -367,7 +411,7 @@ alerts:
     level: warning
     department_id: production
     module_id: production
-    when: "TRS de la ligne la semaine passée < 73 % (à ajouter par moteur-jeu)"
+    when: "TRS de la ligne la semaine passée < threshold (factory_game._alerts lit threshold)"
     threshold: 73
     text: "TRS de {line} à {trs} % la semaine passée, sous le seuil d'attention de 73 %."
     status: calibre
@@ -433,7 +477,19 @@ values:
   stock_mp.chariots: {value: 1, unit: chariot, status: exemple, note: "Cahier §3.2 : chariot de 1 200 kg (batterie : tranche 2)."}
   stock_mp.kit_min: {value: 8, unit: min par kit, status: calibre, note: "Cahier sans valeur : prélever la matière d'un lot de 24 et la livrer en tête de ligne. Indicatif ; à 3 lignes, environ 15 kits par jour occupent le chariot 2 h."}
   stock_mp.sortie_fifo: {value: FIFO, status: exemple, note: "Cahier §3.2 : sortie dans l'ordre d'arrivée. Pratique décrite par wikipedia-en-stock-rotation (notion rotation_fifo)."}
-  stock_mp.stock_securite_jours: {value: 1, unit: jour de consommation, status: calibre, note: "Pilote automatique : point de commande = consommation pendant (délai du fournisseur standard + période de révision de 1 jour + ce stock de sécurité). En révision périodique, la couverture vaut délai + période de révision (wikipedia-en-safety-stock, § Inventory policy). Le moteur code encore délai + 1 jour sans lire cette valeur : demande à moteur-jeu (05/11/2026)."}
+  stock_mp.commande_initiale:
+    value: {offer: standard, cover_extra_days: 1}
+    unit: profil du fournisseur, jour ajouté au délai
+    status: calibre
+    note: >-
+      D9 (a), à coder par moteur-jeu puis à mesurer (graines 5 à 8, 1 et 3 lignes) avant adoption ; choix de calibrage,
+      non sourcé. Seulement si mp_stock_days < délai + cover_extra_days (comparaison en jours, sans arrondi) : au
+      départ, une commande `offer` déjà en route de min(fournisseur.camion_palettes, place libre du magasin,
+      ceil(round((délai + cover_extra_days - mp_stock_days) x conso, 2))) palettes, conso = mp_day ÷ unités par palette
+      (toutes lignes, rendement compris), arrivée au jour floor(mp_stock_days), payée à la réception. Découverte (5 j) et
+      équilibré (4 j) : aucune, délai standard 3 + 1 = 4. Expert, J01 (2 000 u./sem., 5 j, 120 u./palette, rendement
+      omis, conso 3,33) : (4 - 2,5) x 3,33 = 5 palettes, arrivée au jour 2 ; le stock reste bas sans rupture certaine.
+  stock_mp.stock_securite_jours: {value: 1, unit: jour de consommation, status: calibre, note: "Pilote automatique : point de commande = consommation pendant (délai du fournisseur standard + période de révision de 1 jour + ce stock de sécurité). En révision périodique, la couverture vaut délai + période de révision (wikipedia-en-safety-stock, § Inventory policy). Le moteur lit cette valeur (factory.mp_safety_days, factory_game.py) : point = délai + 1 + 1 jour, vérifié le 19/11/2026."}
   stock_mp.stock_initial_jours: {status: calibre, note: "difficulties.mp_stock_days (5, 4, 2,5 jours de consommation) : au plus 15 palettes à 3 lignes, sous les 24 places."}
   stock_mp.unites_par_palette: {status: calibre, note: "themes.*.mp.units_per_pallet (120 à 150) : à 3 lignes, environ 3 palettes consommées par jour, un camion de 6 tous les 2 jours, racks de 24 suffisants ; kits de quelques kilos, palette sous les 1 200 kg du chariot. Indicatif."}
 
@@ -1024,7 +1080,7 @@ modules:
         fields:
           - {id: offer, label: Matière et fournisseur, type: choice, source: offers}
           - {id: pallets, label: Palettes (un camion), type: int, min: 1, max: 6, step: 1, default: 4}
-    autopilot: OF quand stock PF + encours passe sous une journée de demande ; MP au point de commande (consommation pendant le délai + 1 jour), fournisseur standard
+    autopilot: ordre de fabrication (OF) quand le stock de produits finis (PF) plus l'encours passe sous une journée de demande ; matière première (MP) commandée au fournisseur standard au point de commande (consommation pendant le délai + 1 jour de révision + 1 jour de sécurité)
     notions: [point_de_commande, stock_de_securite, delai_et_fiabilite, otif, loi_de_little, takt_time, charge_et_attente]
   production:
     title: Production
@@ -1091,7 +1147,7 @@ personalities:
   bienveillant:
     label: Bienveillant
     traits: chaleureux, encourageant, patient
-    style: tutoie, rassure, glisse parfois un conseil
+    style: vouvoie, rassure, glisse parfois un conseil
     prefix: "Petit point :"
   exigeant:
     label: Exigeant
@@ -1176,7 +1232,7 @@ notions:
     indicators: [trs]
   pannes_par_usure:
     title: Pannes d'usure et pannes au hasard
-    text: "Réviser ou remplacer à date fixe ne se justifie que si l'équipement s'use avec l'usage : son risque de panne croît avec l'âge et l'entretien le remet à zéro. Les études des compagnies aériennes des années 1960 ont montré que la plupart des pannes ne sont pas liées à l'âge : contre celles-là, le préventif à date fixe n'aide pas."
+    text: "Réviser ou remplacer à date fixe ne se justifie que si l'équipement s'use avec l'usage : son risque de panne croît avec l'âge et l'entretien le remet à zéro. Les études des compagnies aériennes des années 1960 ont montré que la grande majorité des pannes ne sont pas forcément liées à l'âge : contre celles-là, le préventif à date fixe n'aide pas."
     source: wikipedia-en-reliability-centered-maintenance
     indicators: [trs]
   maintenance_preventive:
@@ -1244,7 +1300,7 @@ notions:
     indicators: [stockouts, otif]
   delai_et_fiabilite:
     title: Délai et fiabilité des fournisseurs
-    text: "Des délais de réapprovisionnement longs ou aléatoires obligent à commander plus tôt et à garder davantage de stock de sécurité ; le prix n'est qu'un critère de choix parmi d'autres."
+    text: "Plus les délais de réapprovisionnement sont aléatoires, plus le stock de sécurité doit être important ; un fournisseur aux délais irréguliers oblige donc à garder davantage de matière en réserve."
     source: wikipedia-fr-stock-de-securite
     indicators: [stockouts, otif]
   otif:

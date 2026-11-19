@@ -8,6 +8,7 @@ sur `default_params` marqué `fallback`. Aucune exception ne sort : un worker pu
 
 import hashlib
 import json
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -37,6 +38,7 @@ class FactoryDesign:
     prompt_tokens: int = 0
     completion_tokens: int = 0
     duration_ms: int = 0
+    load_ms: int = 0  # chargement du modèle en VRAM pendant la conception (0 : déjà chargé)
     brief_sha256: str = ""
 
 
@@ -141,10 +143,20 @@ def _params_from(
     )  # keep l'emporte
 
 
+def degenerate(text: str) -> bool:
+    """Texte qui boucle (« ough ough ough ») : un mot de 3 lettres ou plus doublé de suite, ou moins de la moitié de
+    mots distincts sur 6 mots ou plus (un mot outil repris dans une phrase normale ne compte pas)."""
+    words = re.findall(r"[^\W\d_]{3,}", text.lower())
+    return any(a == b for a, b in zip(words, words[1:], strict=False)) or (
+        len(words) >= 6 and len(set(words)) * 2 < len(words)
+    )
+
+
 def _errors(
     pack_id: str, pack: dict[str, Any], data: dict[str, Any], seed: int, keep: dict[str, Any]
 ) -> tuple[GameParams | None, list[str]]:
     errors = [f"unmet : pas de chiffre ni de lien ({u[:30]}…)" for u in data.get("unmet", []) if forbidden_in_text(u)]
+    errors += [f"unmet : phrase incohérente ({u[:30]}…)" for u in data.get("unmet", []) if degenerate(u)]
     try:
         params = _params_from(pack_id, pack, data, seed, keep)
     except ValidationError as exc:
@@ -207,6 +219,7 @@ async def design_factory(
         out.model = result.usage.model
         out.prompt_tokens += result.usage.prompt_tokens
         out.completion_tokens += result.usage.completion_tokens
+        out.load_ms += int(result.usage.load_ms)
         if result.data is None:
             errors = [f"JSON {result.error}"]
         else:

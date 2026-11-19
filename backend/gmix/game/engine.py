@@ -26,8 +26,16 @@ class GameRuleError(ValueError):
     """Action refusée par les règles ; le message est affichable au joueur."""
 
 
+def num(value: float, decimals: int = 1) -> str:
+    """Nombre en français pour un texte : virgule décimale, espace des milliers, zéros inutiles retirés."""
+    text = f"{round(value, decimals):,.{decimals}f}".replace(",", " ")
+    if decimals:
+        text = text.rstrip("0").rstrip(".")
+    return text.replace(".", ",") if text != "-0" else "0"
+
+
 def money(value: float) -> str:
-    return f"{value:,.0f}".replace(",", " ") + " €"
+    return num(value, 0) + " €"
 
 
 def initial_state(spec: dict[str, Any]) -> dict[str, Any]:
@@ -409,7 +417,7 @@ def finish_alerts(alerts: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def common_alerts(spec: dict[str, Any], state: dict[str, Any], view: dict[str, Any]) -> list[dict[str, Any]]:
     """Trésorerie négative et aléa annoncé : les mêmes dans l'atelier et dans l'usine."""
     out = []
-    if state["cash"] < 0:
+    if state["cash"] < 0:  # `alert` ne garde l'action que si le module joué la déclare (usine : pas de finance)
         out.append(alert(spec, "cash:negative", "critical", f"Trésorerie négative : {money(state['cash'])}.",
                          module_id="finance", action=("decouvert", {"limit": "20000"})))  # fmt: skip
     if view["event"]:
@@ -443,7 +451,7 @@ def _alerts(spec: dict[str, Any], state: dict[str, Any], view: dict[str, Any]) -
                              action=("entretenir", {"line": line["id"], "level": "renforcee"})))  # fmt: skip
         elif line["trs"] < WEAR_TRS:
             out.append(alert(spec, f"wear:{line['id']}", "warning",
-                             f"{line['name']} : TRS à {line['trs']:g} %, sous le seuil de {WEAR_TRS} %.",
+                             f"{line['name']} : TRS à {num(line['trs'])} %, sous le seuil de {WEAR_TRS} %.",
                              module_id="maintenance", ref=f"line:{line['id']}",
                              action=("entretenir", {"line": line["id"], "level": "renforcee"})))  # fmt: skip
     names = {item["id"]: item["name"] for item in view["lines"]}
@@ -831,9 +839,11 @@ def _lessons(spec: dict[str, Any], state: dict[str, Any]) -> list[str]:
     if trs is not None and trs < targets["trs"]:
         drift = eco["trs_drift"]
         lessons.append(
-            f"TRS moyen de {trs} % pour un objectif de {targets['trs']:.0f} %. Dans ce jeu, la capacité d'une ligne "
-            f"suit son TRS ; sans entretien, il perd {-drift['aucune']:g} point(s) par semaine (préventif : "
-            f"{drift['preventive']:+g}, renforcé : {drift['renforcee']:+g}), et sous {WEAR_TRS} % la ligne risque "
+            f"TRS moyen de {num(trs)} % pour un objectif de {num(targets['trs'], 0)} %. "
+            f"Dans ce jeu, la capacité d'une ligne "
+            f"suit son TRS ; sans entretien, il perd {num(-drift['aucune'])} point(s) par semaine (préventif : "
+            f"{'+' * (drift['preventive'] > 0)}{num(drift['preventive'])}, renforcé : "
+            f"{'+' * (drift['renforcee'] > 0)}{num(drift['renforcee'])}), et sous {WEAR_TRS} % la ligne risque "
             "la panne."
         )
     returns = sum(h["returns"] for h in history)
@@ -860,7 +870,7 @@ def _lessons(spec: dict[str, Any], state: dict[str, Any]) -> list[str]:
     if all(h["otif"] >= targets["otif"] for h in history):
         low = min(h["otif"] for h in history)
         lessons.append(
-            f"OTIF d'au moins {targets['otif']:.0f} % chaque semaine (plus bas : {low:g} %) : la part livrée à "
+            f"OTIF d'au moins {num(targets['otif'], 0)} % chaque semaine (plus bas : {num(low)} %) : la part livrée à "
             "l'heure et complète est restée au niveau visé."
         )
     return lessons
@@ -935,7 +945,9 @@ def _facts_production(spec: dict, state: dict, view: dict) -> list[tuple[bool, s
 def _facts_maintenance(spec: dict, state: dict, view: dict) -> list[tuple[bool, str]]:
     worst = min(view["lines"], key=lambda line: line["trs"])
     level = LEVEL_LABELS[worst["maintenance"]]
-    facts = [(worst["trs"] < spec["targets"]["trs"], f"{worst['name']} est à {worst['trs']:.0f} % de TRS ({level}).")]
+    facts = [
+        (worst["trs"] < spec["targets"]["trs"], f"{worst['name']} est à {num(worst['trs'], 0)} % de TRS ({level}).")
+    ]
     down = [line["name"] for line in view["lines"] if line["down"]]
     return facts + [(True, f"{name} est tombée en panne la semaine dernière.") for name in down]
 
@@ -964,11 +976,12 @@ def _facts_transport(spec: dict, state: dict, view: dict) -> list[tuple[bool, st
     mode = state["settings"]["transport"]
     rate = spec["economy"]["transport"][mode]["on_time"] * 100
     otif = view["kpis"]["otif"]
-    facts = [(False, f"Livraisons en {TRANSPORT_LABELS[mode]} : {rate:.0f} % à l'heure.")]
+    facts = [(False, f"Livraisons en {TRANSPORT_LABELS[mode]} : {num(rate, 0)} % à l'heure.")]
     if otif is not None:
         target = spec["targets"]["otif"]
         facts.insert(
-            0, (otif < target, f"OTIF de la semaine dernière : {otif:.0f} % pour un objectif de {target:.0f} %.")
+            0,
+            (otif < target, f"OTIF de la semaine dernière : {num(otif, 0)} % pour un objectif de {num(target, 0)} %."),
         )
     return facts
 
@@ -988,8 +1001,8 @@ def _facts_client(spec: dict, state: dict, view: dict) -> list[tuple[bool, str]]
         expected = sum(s["forecast"] for s in view["stocks"])
         return [(False, f"{spec['meta']['client']} attend {expected} unités cette semaine.")]
     if otif < spec["targets"]["otif"]:
-        return [(True, f"OTIF de {otif:.0f} % la semaine dernière : nos rayons ont manqué de vos produits.")]
-    return [(False, f"OTIF de {otif:.0f} % : livraisons satisfaisantes, continuez.")]
+        return [(True, f"OTIF de {num(otif, 0)} % la semaine dernière : nos rayons ont manqué de vos produits.")]
+    return [(False, f"OTIF de {num(otif, 0)} % : livraisons satisfaisantes, continuez.")]
 
 
 def _facts_supplier(spec: dict, state: dict, view: dict) -> list[tuple[bool, str]]:
@@ -1004,11 +1017,11 @@ def _facts_direction(spec: dict, state: dict, view: dict) -> list[tuple[bool, st
     remaining = spec["meta"]["weeks"] - view["week"] + 1
     targets = spec["targets"]
     cash = money(targets["cash_final"])
-    goals = f"OTIF {targets['otif']:.0f} %, TRS {targets['trs']:.0f} %, trésorerie d'au moins {cash}"
+    goals = f"OTIF {num(targets['otif'], 0)} %, TRS {num(targets['trs'], 0)} %, trésorerie d'au moins {cash}"
     facts = [(False, f"Il reste {remaining} semaine(s) ; objectifs : {goals}.")]
     otif = view["kpis"]["otif"]
     if otif is not None and otif < targets["otif"]:
-        facts.insert(0, (True, f"OTIF à {otif:.0f} % : c'est la priorité."))
+        facts.insert(0, (True, f"OTIF à {num(otif, 0)} % : c'est la priorité."))
     return facts
 
 

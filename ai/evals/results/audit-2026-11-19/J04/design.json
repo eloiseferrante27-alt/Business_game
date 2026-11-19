@@ -1,0 +1,92 @@
+{
+ "params": {
+  "pack": "usine",
+  "theme": "industrie",
+  "modules": [
+   "production",
+   "maintenance"
+  ],
+  "extra_agents": [
+   "direction"
+  ],
+  "agent_tone": "exigeant",
+  "difficulty": "expert",
+  "weeks": 12,
+  "events": "rares",
+  "products": 1,
+  "options": {
+   "lines": 3
+  },
+  "company_name": null,
+  "players_min": 2,
+  "players_max": 6,
+  "seed": 404,
+  "tunings": {
+   "mtbf_factor": "decouverte",
+   "mp_stock_days": "decouverte",
+   "pf_stock_days": "decouverte"
+  },
+  "event_plan": [],
+  "network": {
+   "fournisseur_standard": "proche",
+   "fournisseur_economique": "national"
+  }
+ },
+ "fallback": false,
+ "reasons": [],
+ "attempts": 1,
+ "unmet": [],
+ "model": "qwen2.5:3b",
+ "prompt_version": 3,
+ "prompt_tokens": 1177,
+ "completion_tokens": 188,
+ "duration_ms": 3748,
+ "brief_sha256": "51381a3fe055b2b25f59a25bad1e766943d5cf730f19837f8d0267c30cbc7c57",
+ "essais": [
+  {
+   "params": {
+    "pack": "usine",
+    "theme": "industrie",
+    "modules": [
+     "production",
+     "maintenance"
+    ],
+    "extra_agents": [
+     "direction"
+    ],
+    "agent_tone": "exigeant",
+    "difficulty": "expert",
+    "weeks": 12,
+    "events": "rares",
+    "products": 1,
+    "options": {
+     "lines": 3
+    },
+    "company_name": null,
+    "players_min": 2,
+    "players_max": 6,
+    "seed": 404,
+    "tunings": {
+     "mtbf_factor": "decouverte",
+     "mp_stock_days": "decouverte",
+     "pf_stock_days": "decouverte"
+    },
+    "event_plan": [],
+    "network": {
+     "fournisseur_standard": "proche",
+     "fournisseur_economique": "national"
+    }
+   },
+   "fallback": false,
+   "reasons": [],
+   "attempts": 1,
+   "unmet": [],
+   "model": "qwen2.5:3b",
+   "prompt_version": 3,
+   "prompt_tokens": 1177,
+   "completion_tokens": 188,
+   "duration_ms": 3748,
+   "brief_sha256": "51381a3fe055b2b25f59a25bad1e766943d5cf730f19837f8d0267c30cbc7c57"
+  }
+ ]
+}

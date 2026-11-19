@@ -1,0 +1,9 @@
+{
+ "id": "J09",
+ "seed": 909,
+ "brief": "Jeu court pour des ingénieurs : une usine d'équipements en acier, avec en plus un module de marketing digital et des campagnes sur les réseaux sociaux.",
+ "fixed": {
+  "difficulty": "expert",
+  "weeks": 5
+ }
+}

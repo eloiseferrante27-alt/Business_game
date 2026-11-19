@@ -89,13 +89,21 @@ def _meta(pack, params, theme, level, company, item) -> dict[str, Any]:
     return {
         "title": f"{company} · {theme['label']}", "company": company, "client": theme["client"],
         "theme": params.theme, "theme_label": theme["label"],
-        "pitch": f"{theme['description']} Pendant {params.weeks} semaines, votre équipe pilote {text} pour livrer "
+        "pitch": f"{theme['description']} Pendant {params.weeks} semaines, votre équipe assure les modules "
+        f"{text} pour livrer "
         f"{theme['client']} à la date promise : {item['name'].lower()}, sans rupture de matière ni stock inutile. "
-        f"Niveau {level['label'].lower()} : {level['detail']}.",
+        f"Niveau {level['label'].lower()} : {_fragments(pack, params)}.",
         "difficulty": params.difficulty, "difficulty_label": level["label"], "weeks": params.weeks,
         "players": {"min": params.players_min, "max": params.players_max}, "language": "fr",
         "domain": pack["domain"], "pack": params.pack,
     }  # fmt: skip
+
+
+def _fragments(pack: dict[str, Any], params: GameParams) -> str:
+    """Réglages effectifs du pitch : pour chaque clé, le fragment du profil réellement appliqué (règle n° 4)."""
+    profiles = pack["difficulties"]
+    keys = profiles[params.difficulty]["fragments"]
+    return ", ".join(f for k in keys if (f := profiles[params.tunings.get(k, params.difficulty)]["fragments"][k]))
 
 
 def _provenance(pack: dict[str, Any]) -> dict[str, Any]:
@@ -260,6 +268,23 @@ def _calibrate(spec, pack, level, item, machines) -> None:
                  "label": f"{line['name']} · {item['name']} · {capacity} u./sem. à 100 %"}  # fmt: skip
     weekly_purchase = mp_day * days * mp["cost"]
     spec["economy"]["initial_cash"] = round(weekly_purchase * level["cash_weeks"], -2)
+    _initial_order(spec, pack, level, mp_day, stock_mp)
+
+
+def _initial_order(spec, pack, level, mp_day, stock_mp) -> None:
+    """Règle n° 5a (calibrage non sourcé) : si le stock de départ couvre moins que délai + 1 jour, une commande
+    `offer` est déjà en route, arrivant au jour floor(mp_stock_days) (stock_mp.commande_initiale)."""
+    rule = _val(pack, "stock_mp.commande_initiale")
+    offer = next(o for o in spec["offers"] if o["profile"] == rule["offer"])
+    days = level["mp_stock_days"]
+    need = offer["lead_time"] + rule["cover_extra_days"] - days
+    if need <= 0:
+        return
+    upp = spec["factory"]["logistics"]["units_per_pallet_mp"]
+    free = spec["factory"]["logistics"]["mp_capacity_pallets"] - math.ceil(stock_mp / upp)
+    pallets = min(_val(pack, "fournisseur.camion_palettes"), free, math.ceil(round(need * mp_day / upp, 2)))
+    if pallets >= offer["min_order"]:
+        spec["factory"]["initial_order"] = {"offer_id": offer["id"], "pallets": pallets, "arrival_day": int(days)}
 
 
 def _bottlenecks(plant) -> list[dict[str, Any]]:
