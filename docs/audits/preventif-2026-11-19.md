@@ -1,6 +1,6 @@
 # Préventif dans l'usine : diagnostic et proposition de calibrage (19/11/2026)
 
-Auteur : game-designer. Statut : **proposition**, aucune modification du pack ni du code. Mise en œuvre et
+Auteur : game-designer. Statut : **appliqué** (P1 à P4, 21/11/2026, voir § 5 et § 6) ; §§ 1 à 4 = proposition d'origine. Mise en œuvre et
 mesure : `moteur-jeu` (code, mesures), puis `game-designer` (pack `ai/packs/usine.yaml`).
 Marques : **[source]** = affirmation reliée à une fiche du corpus (chemin `knowledge/supply-chain/…`, ligne) ou à
 une source officielle ; **[calibrage]** = choix de jeu, non sourcé, indicatif ; **[à vérifier]**.
@@ -126,3 +126,79 @@ une source officielle ; **[calibrage]** = choix de jeu, non sourcé, indicatif ;
 - Ajouter au corpus la page NIST § 8.1.6.2 (loi de Weibull ; `rag-knowledge`) pour sourcer `weibull_shape`.
 - Formes de Weibull typiques par composant (roulements, électronique) : non sourcées ; les valeurs 1, 2, 3
   restent des choix de jeu.
+- TRS hors pauses (moteur depuis b6f1cf8) : l'exemple de la fiche wikipedia-en-overall-equipment-effectiveness
+  (l.66-71) compte la pause comme perte de disponibilité ; la convention « poste - pauses prévues » n'a pas de fiche
+  (à sourcer, NF E60-182 par exemple ; `rag-knowledge`). Note `pilotage.trs` du pack mise à jour en ce sens.
+
+## 5. Mise en œuvre dans le pack et recalibrage (19 et 21/11/2026)
+
+P1 et P4 codés par `moteur-jeu` ; P2 et P3 appliqués dans `ai/packs/usine.yaml`. Toutes les valeurs ci-dessous sont
+des **[calibrage]** (non sourcées), sauf mention.
+
+| clé | avant -> après | raison |
+|---|---|---|
+| `difficulties.*.bottleneck_shape` (+ `tunables`, `fragments`) | 2 partout -> 3 / 2 / 1 | P2 : usure visible en découverte, hasard en expert (RCM l.28, l.53) |
+| `maintenance.cout_degats_panne` | absent (0) -> 200 € | P3, mesure M4 ci-dessous |
+| `targets.trs`, `pilotage.objectif_trs` | 78 -> 80 % | TRS hors pauses : pilote 79,5-92 % |
+| `criteria.trs` | partiel 73-78 -> 75-80 | marge de 5 points gardée |
+| `alerts.trs_low`, `warn` des panneaux | 73 gardé | seuil d'une semaine, 7 points sous la cible |
+| `stock_mp.stock_securite_jours` | 1 -> 2 jours | expert à 3 lignes : 0-27 -> 0-7 jours-ligne sans matière |
+| `difficulties.expert.cash_weeks` | 2,5 -> 3 | J02 à une ligne : le pilote ne pouvait plus recommander en semaine 2 |
+| `criteria.stockouts.margin.expert` | 4 -> 5 (pour 2 lignes) | partiel : 2,5 jours-ligne à une ligne, 7,5 à trois |
+| `commande_initiale.cover_extra_days` | 1 gardé | 2 retarde la première commande en équilibré |
+
+**M4 (P3)**, J04, 3 lignes, sans aléas, graines 5 à 8, Δ trésorerie pilote (préventif du goulot) - passif (aucun),
+moyenne : dégâts 0 € : -1 238 € (forme 2, MTBF du jeu) ; **200 €** : forme 2 +262 € (-425 à +1 225, neutre au bruit
+près), forme 2 à MTBF x 0,4 +451 €, forme 3 +265 €, forme 1 -3 038 €. 150 € laissait le préventif perdant même en
+forte usure (-137 €). Le gradient usure / hasard est net ; l'écart entre MTBF x 1 et x 0,4 reste faible au regard du
+bruit (4 graines).
+
+**Jouabilité** (`autopilot_check`, partie de référence et J01 à J10 régénérés avec le pack, graines 5 à 8 ; passif =
+partie avancée sans aucune action) :
+
+| niveau, lignes | parties | pilote jouable | TRS pilote | OTIF min | jours-ligne sans matière | passif en échec |
+|---|---|---|---|---|---|---|
+| découverte, 1 | 8 | 8 | 89,7-92,0 % | 100 | 0 | 8 |
+| découverte, 3 | 8 | 8 | 80,8-82,4 % | 100 | 0 | 8 |
+| équilibré, 1 | 4 | 4 | 87,5-89,7 % | 100 | 0-1 (1 partiel) | 4 |
+| équilibré, 3 | 4 | 4 | 79,5-80,5 % (2 partiels) | 100 | 0 | 4 |
+| expert, 1 | 40 | 40 | 82,7-86,9 % | 100 | 0-2 (14 partiels) | 36 |
+| expert, 3 | 40 | 40 | 80,7-84,8 % | 96,7 | 0-7 (12 partiels) | 36 |
+
+Exception : **J04** (modules production et maintenance, sans pilotage) : le passif atteint tout (8 parties sur 8),
+déjà avant ce recalibrage. Les OF et la matière y sont pilotés automatiquement ; seul le préventif sépare pilote et
+passif, et en expert le goulot tombe au hasard, où ne rien faire est juste. À traiter par la mécanique (voir § 6).
+
+## 6. Pour `moteur-jeu` (textes de `_wear_lessons`, `_lessons`, fait de maintenance)
+
+Remplacer (`{p}` = « panne » si n <= 1, sinon « pannes ») :
+1. forme <= 1 : « {goulot} : {n} {p} pour {x} attendues d'après son MTBF, {avec|sans} préventif. Ses pannes arrivent
+   au hasard, quel que soit son âge : l'entretien à date fixe ne les évite pas. » (« attendues avec préventif »
+   laissait croire à une attente calculée avec le préventif).
+2. forme > 1, préventif, écart net : « {goulot} : {n} {p} pour {x} attendues sans entretien d'après son MTBF ; le
+   préventif en a évité environ {e} ({h} h d'arrêt). Son risque de panne croît avec l'âge et l'entretien le remet
+   à zéro. »
+3. forme > 1, préventif, écart sous 2 racine(x) (remplace « pas d'écart net avec le hasard ») : « {goulot} : {n} {p}
+   pour {x} attendues sans entretien d'après son MTBF ; l'écart reste dans les variations du hasard : on ne peut pas
+   dire combien le préventif en a évité. »
+4. forme > 1, sans préventif (remplace « autant que prévu », faux quand n s'écarte de x) : « {goulot} : {n} {p} pour
+   {x} attendues d'après son MTBF, sans préventif. Son risque croît avec l'âge : un entretien régulier en aurait
+   évité une partie. »
+5. bilan (les dégâts sont maintenant comptés) : « Préventif : {C} ; réparations et dégâts évités : environ {R} ;
+   ventes perdues : {L} produit(s). »
+6. `_lessons`, TRS : « pannes, pauses, ralentissements et rebuts le font baisser » est faux depuis que le TRS exclut
+   les pauses -> « pannes, attentes, ralentissements et rebuts le font baisser ». La phrase d'usure se fonde sur
+   `any(weibull_shape > 1)` de toutes les machines ; la fonder sur les goulots : tous > 1 -> phrase actuelle ;
+   tous = 1 -> « Ici, les pannes du goulot arrivent au hasard : un préventif à date fixe ne les évite pas. » ;
+   mixte -> rien.
+7. fait de maintenance : « {goulot} : {n} panne(s) depuis le début, {x} attendue(s) sans entretien d'après son
+   MTBF. »
+8. Phrase d'inactivité (P1, facultative) : ajouter à `_wear` `idle_h` = (attente_matiere + sortie_pleine) / 60 du
+   goulot ; si ventes perdues = 0 et `idle_h` > heures d'arrêt évitées : « Aucune vente perdue : le goulot avait
+   {i} h d'attente pour rattraper ses arrêts ; ici, le marché limitait l'usine. »
+   (wikipedia-fr-theorie-des-contraintes l.32).
+9. J04 (à spécifier avec `architecte` si `spec.py` change) : sans module pilotage, le passif ne peut échouer que sur
+   un critère propre à la maintenance. Proposition : critère « arrêt des goulots pour panne » (heures, somme de
+   `down_h` de `bottleneck_wear`), cible = arrêt du pilote x 1,2, marge 0,3 x cible, appliqué seulement si
+   `maintenance` est un module joué et la forme du goulot > 1. Exemple J04 forme 2 : pilote 1-5 h, passif 11-16 h
+   -> le passif échoue. Seuil 1,2 : **[calibrage]**.

@@ -1,0 +1,95 @@
+{
+ "week": 1,
+ "event": null,
+ "briefings": {
+  "agent_fournisseur": {
+   "facts": [
+    "0 commande(s) de matière en route, soit 0 palettes."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_reception": {
+   "facts": [
+    "Aucun camion attendu pour l'instant."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_stock_mp": {
+   "facts": [
+    "15 palettes en stock et 0 en commande, sous le point de commande de 20 : il faut commander.",
+    "Magasin : 15 palettes sur 24 places, 9 libres."
+   ],
+   "urgent": true,
+   "line": "Attention : 15 palettes en stock et 0 en commande, sous le point de commande de 20 : il faut commander."
+  },
+  "agent_production": {
+   "facts": [
+    "0 ordre(s) de fabrication ouvert(s)."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_qualite": {
+   "facts": [
+    "Aucun produit contrôlé pour l'instant."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_emballage": {
+   "facts": [
+    "Entrepôt PF : 17 palettes sur 20."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_maintenance": {
+   "facts": [
+    "Aucune panne depuis le début de la partie."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_pilotage": {
+   "facts": [
+    "0 commande(s) ouverte(s), dont 0 en retard."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_entrepot_pf": {
+   "facts": [
+    "17 palettes en stock sur 20 places."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_client": {
+   "facts": [
+    "0 commande(s) attendue(s) chez nous."
+   ],
+   "urgent": false,
+   "line": null
+  }
+ },
+ "alerts": [
+  {
+   "id": "reorder:c1",
+   "level": "warning",
+   "department_id": "stock_mp",
+   "module_id": "pilotage",
+   "text": "Matière : 15 palettes en stock, 0 en commande, point de commande 20.",
+   "ref": "mp:c1",
+   "action": {
+    "module_id": "pilotage",
+    "action_id": "commander_mp",
+    "values": {
+     "offer": "o2",
+     "pallets": 6
+    }
+   }
+  }
+ ]
+}

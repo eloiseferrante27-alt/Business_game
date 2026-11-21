@@ -360,8 +360,9 @@ notions:
     indicators: [stockouts, otif]
   capacite_et_trs:
     title: Taux de rendement synthétique (TRS)
-    text: Le TRS (OEE en anglais) rapporte la production de pièces bonnes à ce que la ligne produirait sans arrêt, à pleine cadence ; pannes, ralentissements et rebuts le font baisser, et la capacité réelle avec lui.
-    source: wikipedia-en-overall-equipment-effectiveness   # NF E60-182 : norme payante non lue, retirée (28/10/2026)
+    text: Le TRS (OEE en anglais) rapporte la production de pièces bonnes à ce que la ligne produirait sans arrêt, à pleine cadence ; pannes, ralentissements et rebuts le font baisser, et la capacité réelle avec lui. Chaque organisation fixe sa convention, par exemple compter ou non une pause comme un arrêt.
+    # fiche fr l.10 (définition), l.11 (« standard propre à chaque organisation »), l.48 (pauses) ; NF E60-182 : norme payante non lue
+    source: wikipedia-fr-taux-de-rendement-synthetique
     indicators: [trs, otif]
   maintenance_preventive:
     title: Maintenance préventive

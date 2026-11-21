@@ -48,7 +48,8 @@
 #     attente des commandes -> notion `charge_et_attente`.
 #
 # Hors corpus, donc non présenté comme notion : temps d'un lot = premier produit + (n - 1) x cycle du goulot
-# (formule du cahier, affichée comme `exemple` au débrief) ; loi de Weibull (à sourcer, forme en `calibre`) ;
+# (formule du cahier, affichée comme `exemple` au débrief) ; loi de Weibull (fiche nist-sematech-weibull depuis le
+# 21/11, citée par machine.weibull_shape ; valeurs de forme en `calibre`) ;
 # « six grandes pertes » du TRS (texte absent de la fiche) ; NF E60-182, NF EN 13306, NF ISO 2859-1 (non lues).
 # Tranche 2 et suivantes (non déclarées ici pour que chaque action ait son handler) : module qualité
 # (`frequence_controle`), retouches, absences, usure d'outil, chariot à batterie, aléas propres à l'usine ;
@@ -229,8 +230,9 @@ params:
 difficulties:
   decouverte:
     label: Découverte
-    detail: machines fiables, peu de défauts, stocks confortables, usine chargée à 80 %
+    detail: machines fiables, goulot qui s'use (le préventif se voit), peu de défauts, stocks confortables, usine chargée à 80 %
     mtbf_factor: 1.5
+    bottleneck_shape: 3    # forme de Weibull du goulot (machine.weibull_shape, P2 du 19/11 ; fiche nist-sematech-weibull : > 1 = taux de panne croissant avec l'âge) : usure marquée
     defect_factor: 0.5
     load: 0.80
     promised_days: 2
@@ -243,6 +245,7 @@ difficulties:
     # appliqué à chaque clé (tunings, sinon le niveau) ; un fragment vide est omis. Valeurs reprises des clés ci-dessus.
     fragments:
       mtbf_factor: machines plus fiables
+      bottleneck_shape: goulot qui s'use
       defect_factor: moins de défauts
       reliability_shift: fournisseurs plus fiables
       demand_variability: demande plus régulière
@@ -254,6 +257,7 @@ difficulties:
     label: Équilibré
     detail: valeurs du cahier, usine chargée à 85 %
     mtbf_factor: 1.0
+    bottleneck_shape: 2    # comme les autres machines
     defect_factor: 1.0
     load: 0.85
     promised_days: 2
@@ -264,6 +268,7 @@ difficulties:
     cash_weeks: 4
     fragments:  # profil de référence : pannes, défauts, fournisseurs et demande sans comparatif
       mtbf_factor: ""
+      bottleneck_shape: ""
       defect_factor: ""
       reliability_shift: ""
       demand_variability: ""
@@ -273,8 +278,9 @@ difficulties:
       promised_days: livraison promise à J+2
   expert:
     label: Expert
-    detail: pannes plus fréquentes, plus de défauts, stocks bas, usine chargée à 92 %, livraison à J+1
+    detail: pannes plus fréquentes, pannes du goulot au hasard, plus de défauts, stocks bas, usine chargée à 92 %, livraison à J+1
     mtbf_factor: 0.6
+    bottleneck_shape: 1    # pannes au hasard (fiche nist-sematech-weibull l.68-69 : forme 1 = modèle exponentiel, taux constant) : le préventif du goulot n'évite rien (notion pannes_par_usure)
     defect_factor: 1.5
     load: 0.92
     promised_days: 1
@@ -282,9 +288,10 @@ difficulties:
     reliability_shift: -8
     mp_stock_days: 2.5
     pf_stock_days: 0.5
-    cash_weeks: 2.5
+    cash_weeks: 3          # 2,5 au 05/11 : à une ligne, le pilote manquait de trésorerie pour recommander (19/11)
     fragments:
       mtbf_factor: pannes plus fréquentes
+      bottleneck_shape: pannes du goulot au hasard
       defect_factor: plus de défauts
       reliability_shift: fournisseurs moins fiables
       demand_variability: demande plus variable
@@ -299,6 +306,7 @@ difficulties:
 # `value` : clé de `values` qui porte la provenance du réglage (arbitrage e).
 tunables:
   mtbf_factor: {label: Fréquence des pannes, value: machine.facteur_mtbf, teaches: [disponibilite, pannes_par_usure, maintenance_preventive]}
+  bottleneck_shape: {label: Usure du goulot, value: machine.weibull_shape, teaches: [pannes_par_usure, maintenance_preventive]}
   defect_factor: {label: Défauts des machines, value: qualite.facteur_defauts, teaches: [rendement_en_cascade, capacite_et_trs]}
   load: {label: Charge de l'usine, value: client.charge, teaches: [charge_et_attente, goulot, loi_de_little]}
   promised_days: {label: Délai promis au client, value: client.delai_promis_jours, teaches: [otif, loi_de_little]}
@@ -309,7 +317,7 @@ tunables:
 
 targets:
   otif: 95            # % de commandes livrées complètes au plus tard le jour promis
-  trs: 78             # % moyen des lignes (voir pilotage.objectif_trs)
+  trs: 80             # % moyen des lignes (voir pilotage.objectif_trs ; 78 jusqu'au 19/11/2026)
   stockouts: 0        # jours-ligne arrêtés faute de matière, sur toute la partie (voir criteria.stockouts)
   cash_share: 0.6     # trésorerie finale >= départ + 60 % du gain du pilote automatique (règle de l'atelier)
 
@@ -324,19 +332,21 @@ criteria:
   trs:
     margin: {decouverte: 5, equilibre: 5, expert: 5}
     status: calibre
-    note: "Partiel de 73 à 78 %, 73 = seuil de l'alerte TRS. Pilote : 80,4-81,6 % en découverte (atteint), 77,0-78,0 % en équilibré (atteint ou partiel), 74,4-75,6 % en expert (partiel) ; passif : 0 %."
+    note: "Partiel de 75 à 80 %. Mesure du 19/11/2026 (TRS hors pauses, graines 5 à 8, 1 et 3 lignes) : pilote 82,7-92,0 % à une ligne, 79,5-82,3 % à trois lignes (partiel seulement en équilibré à 3 lignes) ; joueur qui lance un OF par jour sans campagne : 78,5-83 % (partiel ou atteint) ; passif : 0 %."
   stockouts:
-    margin: {decouverte: 2, equilibre: 2, expert: 4}
-    # D9 (b), à coder par moteur-jeu (apply_rules) puis à mesurer : marge donnée pour `margin_lines` lignes ;
-    # partiel = cible + marge x nombre de lignes ÷ margin_lines (expert à 3 lignes : 4 x 3 ÷ 2 = 6 jours-ligne).
+    margin: {decouverte: 2, equilibre: 2, expert: 5}
+    # D9 (b), codé (apply_rules) : marge donnée pour `margin_lines` lignes ; partiel = cible + marge x nombre de
+    # lignes ÷ margin_lines (expert : 2,5 jours-ligne à 1 ligne, 7,5 à 3 lignes). Expert 4 -> 5 le 19/11/2026.
     margin_lines: 2
     status: calibre
     note: >-
       Compte attendu de moteur-jeu : somme de history[].stockouts sur toute la partie (jours-ligne arrêtés faute de
       matière), et non plus la dernière semaine ; non atteint si aucun produit n'est sorti de la partie (good_share
       None chaque semaine), sinon le joueur passif, qui n'a jamais lancé d'OF, l'atteindrait. Partiel : 2 jours-ligne
-      (un jour sur les deux lignes), 4 en expert. Pilote mesuré sur ce compte : 0 en découverte et en équilibré,
-      4 à 8 en expert (partiel ou non atteint).
+      (un jour sur les deux lignes), 5 en expert, pour 2 lignes. Pilote mesuré le 19/11/2026 (graines 5 à 8, 1 et 3
+      lignes, partie de référence et jeux J01 à J10 de l'audit) : 0 à 1 en découverte et en équilibré ; en expert,
+      0 à 2 à une ligne, 0 à 7 à trois lignes (semaine 1 : stock de départ et commande initiale couvrent 4 jours
+      pour un délai de 3 jours, souvent tenu à un jour près), partiel au pire.
   cash:
     partial_share: 0
     status: calibre
@@ -354,8 +364,8 @@ game_rules:
     text: "Une commande compte pour l'OTIF si elle part complète au plus tard le jour promis ; l'OTIF de la semaine est la part de ces commandes."
     citation: "Fiche wikipedia-en-supply-chain-operations-reference (SCOR) : livraisons à temps et en totalité à la date promise, comptées ici par commande."
   - id: trs_par_ligne
-    text: "Le TRS d'une ligne vaut les produits bons fois leur temps de cycle idéal, divisés par le temps planifié ; l'objectif porte sur la moyenne des lignes et des semaines."
-    citation: "Fiche wikipedia-en-overall-equipment-effectiveness : TRS = disponibilité x performance x qualité."
+    text: "Le TRS d'une ligne vaut les produits bons fois leur temps de cycle idéal, divisés par le temps planifié hors pauses (convention du jeu) ; objectif : moyenne des lignes et des semaines."
+    citation: "Fiche wikipedia-fr-taux-de-rendement-synthetique : TRS = Tb x Tf x Tq (l.40) ; une pause compte comme un arrêt ou réduit le temps d'ouverture selon les organisations (l.48)."
   - id: ruptures_jours_ligne
     text: "Une ligne arrêtée faute de matière au cours d'un jour compte un jour-ligne ; le bilan les additionne sur la partie, et une usine qui ne produit rien manque ce critère."
   - id: matiere_payee_reception
@@ -415,7 +425,7 @@ alerts:
     threshold: 73
     text: "TRS de {line} à {trs} % la semaine passée, sous le seuil d'attention de 73 %."
     status: calibre
-    note: "73 = cible 78 moins 5 points (values.interface.seuils_attention), bas de la zone partielle du critère TRS. Sans action : la cause (panne, rupture, défauts) a sa propre alerte."
+    note: "73 = seuil d'attention d'une semaine, 7 points sous la cible de 80 et sous la zone partielle du critère TRS (75-80, moyenne de la partie) : l'alerte signale une chute nette d'une semaine, pas un écart ordinaire. Avant le 19/11 : cible 78 moins 5. Sans action : la cause (panne, rupture, défauts) a sa propre alerte."
   - id: late
     level: warning
     department_id: client
@@ -482,14 +492,29 @@ values:
     unit: profil du fournisseur, jour ajouté au délai
     status: calibre
     note: >-
-      D9 (a), à coder par moteur-jeu puis à mesurer (graines 5 à 8, 1 et 3 lignes) avant adoption ; choix de calibrage,
-      non sourcé. Seulement si mp_stock_days < délai + cover_extra_days (comparaison en jours, sans arrondi) : au
+      D9 (a), codé (factory_generation._initial_order) et mesuré le 19/11/2026 ; choix de calibrage, non sourcé.
+      cover_extra_days 2 a été essayé : il supprime les ruptures de semaine 1 en expert, mais donne à l'équilibré
+      (4 j < 3 + 2) une commande qui arrive au jour 4, quand le stock s'épuise, et qui retarde la première commande
+      du pilote (ruptures en équilibré) : 1 gardé. Seulement si mp_stock_days < délai + cover_extra_days (comparaison en jours, sans arrondi) : au
       départ, une commande `offer` déjà en route de min(fournisseur.camion_palettes, place libre du magasin,
       ceil(round((délai + cover_extra_days - mp_stock_days) x conso, 2))) palettes, conso = mp_day ÷ unités par palette
       (toutes lignes, rendement compris), arrivée au jour floor(mp_stock_days), payée à la réception. Découverte (5 j) et
       équilibré (4 j) : aucune, délai standard 3 + 1 = 4. Expert, J01 (2 000 u./sem., 5 j, 120 u./palette, rendement
       omis, conso 3,33) : (4 - 2,5) x 3,33 = 5 palettes, arrivée au jour 2 ; le stock reste bas sans rupture certaine.
-  stock_mp.stock_securite_jours: {value: 1, unit: jour de consommation, status: calibre, note: "Pilote automatique : point de commande = consommation pendant (délai du fournisseur standard + période de révision de 1 jour + ce stock de sécurité). En révision périodique, la couverture vaut délai + période de révision (wikipedia-en-safety-stock, § Inventory policy). Le moteur lit cette valeur (factory.mp_safety_days, factory_game.py) : point = délai + 1 + 1 jour, vérifié le 19/11/2026."}
+  stock_mp.stock_securite_jours:
+    value: 2
+    unit: jour de consommation
+    status: calibre
+    note: >-
+      Pilote automatique : point de commande = consommation pendant (délai du fournisseur standard + période de
+      révision de 1 jour + ce stock de sécurité). En révision périodique, la couverture vaut délai + période de
+      révision (wikipedia-en-safety-stock, § Inventory policy). Le moteur lit cette valeur (factory.mp_safety_days) :
+      point = délai + 1 + 2 jours. 1 jour jusqu'au 19/11/2026 ; 2 mesurés ce jour-là : en expert à 3 lignes, 0 à 7
+      jours-ligne sans matière au lieu de 0 à 27 (partie de référence et jeux J01 à J10, graines 5 à 8) ; 1,5 laisse des ruptures en équilibré à une ligne. La formule de la
+      fiche (l. 31, SS = z x racine(E(L) sigma_D² + E(D)² sigma_L²)) donne environ 0,6 jour en expert à 95 % (z = 1,65 ;
+      393 unités par jour, ± 15 % ; délai 3 jours, en retard d'un jour 13 fois sur 100) : l'écart couvre ce que la
+      formule ignore ici, les palettes en quarantaine, un seul camion par commande livré entre 8 h et 10 h, après le
+      démarrage des lignes, et les achats bornés par la trésorerie. Choix de calibrage, non sourcé.
   stock_mp.stock_initial_jours: {status: calibre, note: "difficulties.mp_stock_days (5, 4, 2,5 jours de consommation) : au plus 15 palettes à 3 lignes, sous les 24 places."}
   stock_mp.unites_par_palette: {status: calibre, note: "themes.*.mp.units_per_pallet (120 à 150) : à 3 lignes, environ 3 palettes consommées par jour, un camion de 6 tous les 2 jours, racks de 24 suffisants ; kits de quelques kilos, palette sous les 1 200 kg du chariot. Indicatif."}
 
@@ -502,7 +527,12 @@ values:
     note: >-
       Forme 2 : risque de panne croissant avec l'âge (usure), pour que le préventif ait un effet, comme sur une
       machine qui s'use (wikipedia-en-reliability-centered-maintenance : le préventif ne vaut que si l'équipement
-      s'use). La loi de Weibull elle-même n'est dans aucune fiche : à sourcer.
+      s'use). Le goulot prend la forme du profil (difficulties.bottleneck_shape : 3, 2, 1) : usure marquée en
+      découverte, pannes au hasard en expert (forme 1 = loi exponentielle, taux constant), où le préventif du goulot
+      n'évite rien ; valeurs 1, 2, 3 = choix de calibrage, non sourcés. Loi de Weibull : fiche nist-sematech-weibull
+      (NIST appelle gamma la forme) : forme 1 = modèle exponentiel, taux de panne constant (l.68-69) ; taux de panne
+      polynomial d'exposant forme - 1 (l.77-78), donc croissant avec l'âge si la forme dépasse 1 (déduction de la
+      formule, l.30 ; le texte ne dit pas « usure »).
   machine.facteur_mtbf: {status: calibre, note: "difficulties.mtbf_factor (1,5 ; 1 ; 0,6) appliqué aux MTBF du cahier."}
   machine.setup_min: {status: exemple, note: "Cahier §5.2 : 10, 5, 0, 5 min à chaque changement de lot (aucun sur le goulot)."}
   machine.defect_rate: {status: exemple, note: "Cahier §5.2 : 2 %, 1 %, 3 %, 2 % ; rendement cumulé de la ligne = 98 x 99 x 97 x 98 % = 92,2 %."}
@@ -587,7 +617,19 @@ values:
       d'abord), goulots d'abord ; la part qui dépasse la pause arrête la machine ; une panne passe avant ; l'âge
       de la machine revient à zéro. Règle détaillée : annexe §5 (29/10).
   maintenance.cout_reparation_h: {value: 75, unit: € par heure de réparation, status: calibre, note: "Technicien et pièces courantes : ordre de grandeur indicatif, non sourcé."}
-  maintenance.cout_preventif: {value: 50, unit: € par intervention, status: calibre, note: "Indicatif, non sourcé ; une panne du goulot coûte en plus environ 20 produits par heure d'arrêt."}
+  maintenance.cout_preventif: {value: 50, unit: € par intervention, status: calibre, note: "Indicatif, non sourcé. Une heure d'arrêt du goulot ne coûte des ventes que si la ligne est saturée : quand le marché limite l'usine, elle se rattrape sur l'attente du goulot (wikipedia-fr-theorie-des-contraintes l.32 ; audit du préventif du 19/11/2026, J04 : 0 produit perdu)."}
+  maintenance.cout_degats_panne:
+    value: 200
+    unit: € par panne
+    status: calibre
+    note: >-
+      Pièces cassées et dégâts en chaîne d'une panne, en plus de la réparation (factory.costs.damage_per_failure, P3 de
+      docs/audits/preventif-2026-11-19.md). Principe sourcé : le correctif coûte plus que le préventif à cause des
+      dégâts consécutifs (wikipedia-en-maintenance l.50) ; montant : choix de calibrage, non sourcé, indicatif. Mesure
+      du 21/11/2026 (J04, 3 lignes, sans aléas, graines 5 à 8 ; préventif du goulot contre aucun ; Δ trésorerie
+      moyen) : forme 2 au MTBF du jeu +262 € (-425 à +1 225, neutre au bruit près) ; forme 2 au MTBF x 0,4 +451 € ;
+      forme 3 +265 € ; forme 1 -3 038 € (le préventif n'évite rien). 0 € : -1 238 € même en usure ; 150 € : -112 € à
+      x 1 mais -137 € à x 0,4 (le préventif ne paie jamais) : 200 retenu.
 
   # --- Pilotage (cahier §3.7) ----------------------------------------------------------------------------
   pilotage.journee_min: {value: 480, unit: min, status: exemple, note: "Cahier §3.7 : journée de 8 h simulées."}
@@ -625,19 +667,27 @@ values:
       = somme des cycles + 3 transferts = 9 min. Formule du cahier sans fiche : montrée au débrief comme exemple.
   pilotage.trs:
     status: source
-    source: wikipedia-en-overall-equipment-effectiveness
+    source: wikipedia-fr-taux-de-rendement-synthetique
     note: >-
-      TRS = disponibilité x performance x qualité sur le temps planifié : jours ouvrés d'une ligne qui a un OF,
-      pauses comprises comme dans l'exemple de la fiche (pause de 30 min sur 480) ; le temps sans OF (sous-charge)
-      n'est pas planifié, comme le distingue la fiche (OEE et OOE). Différent du taux de réalisation du plan =
+      TRS = disponibilité x performance x qualité sur le temps planifié : jours ouvrés d'une ligne qui a un OF ; le
+      temps sans OF (sous-charge) n'est pas planifié, comme le distingue la fiche (OEE et OOE). Depuis b6f1cf8
+      (décision de l'orchestrateur), le moteur retire aussi les pauses du temps planifié (factory_game._snapshot).
+      C'est une convention, pas une règle : wikipedia-fr-taux-de-rendement-synthetique l.48 dit qu'une pause
+      réglementaire est, « selon les organisations », un arrêt ou une réduction du temps d'ouverture (l.11 : « standard
+      propre à chaque organisation ») ; l'exemple de la fiche OEE anglaise (l.66-71) suit l'autre convention (pause de
+      30 min comptée en perte, 390 / 480). NF E60-182 : non lue (à vérifier). Différent du taux de réalisation du plan =
       bons réalisés / bons prévus par les OF (lines[].production_rate).
   pilotage.objectif_otif: {value: 95, unit: "%", status: calibre, note: "Repris de l'atelier ; OTIF commande par commande (wikipedia-en-supply-chain-operations-reference)."}
   pilotage.objectif_trs:
-    value: 78
+    value: 80
     unit: "%"
     status: calibre
     note: >-
-      TRS attendu au goulot (factory.trs_factors : pauses x pannes de M3 avec trajet x bons) = 87,0 % en découverte,
+      80 % depuis le 19/11/2026 (choix de calibrage, non sourcé) : le TRS exclut désormais les pauses, le pilote
+      mesure 82,7-92,0 % à une ligne et 79,5-82,3 % à trois lignes (graines 5 à 8, partie de référence et jeux
+      J01 à J10) ; 80 est atteint partout sauf l'équilibré à trois lignes (partiel, 79,5-80,5 %), le passif est à
+      0 %. Une cible unique reste plus basse que le TRS à une ligne : la sous-charge des trois lignes (charge
+      répartie, magasin PF borné) baisse le TRS sans faute du joueur. Historique, cible de 78 : TRS attendu au goulot (factory.trs_factors : pauses x pannes de M3 avec trajet x bons) = 87,0 % en découverte,
       83,1 % en équilibré, 78,8 % en expert, avant les attentes de matière. Celles-ci sont des pertes de
       disponibilité sur le temps planifié (machine « No Input », wikipedia-en-overall-equipment-effectiveness).
       Pilote corrigé (commandes au jour simulé, délai réel, trésorerie bornée), graines 5 à 8, 6 semaines :
@@ -648,13 +698,13 @@ values:
       77,0-78,0 % ; 74,4-75,6 %. 78 % reste la cible : atteinte en découverte, à la limite en équilibré (atteint
       ou partiel), partielle en expert (zone partielle 73-78, criteria.trs). L'émulation (79-80 % en équilibré)
       lançait des campagnes plus courtes que le moteur, dont le plafond tombe sur le magasin PF.
-  pilotage.tresorerie_initiale_semaines: {status: calibre, note: "difficulties.cash_weeks (6, 4, 2,5 semaines d'achats de MP), comme l'atelier."}
+  pilotage.tresorerie_initiale_semaines: {status: calibre, note: "difficulties.cash_weeks (6, 4, 3 semaines d'achats de MP), comme l'atelier. Expert porté de 2,5 à 3 le 19/11/2026 : à une ligne (J02, graine 5), le pilote, qui n'achète que dans la limite de sa trésorerie, ne pouvait plus recommander en semaine 2 (2 jours-ligne sans matière) ; mesure : docs/audits/preventif-2026-11-19.md § 5."}
   pilotage.taux_possession_semaine: {value: 0.0048, unit: part de la valeur du stock par semaine, status: calibre, note: "25 % par an, ordre de grandeur usuel du coût de possession, repris de l'atelier ; indicatif, non sourcé."}
   pilotage.taux_interet_semaine: {value: 0.004, unit: part du solde négatif par semaine, status: calibre, note: "Agios repris de l'atelier ; indicatif."}
   pilotage.cout_operateur_h: {value: 28, unit: € par heure, status: calibre, note: "Coût employeur d'un opérateur, ordre de grandeur indicatif (à vérifier : INSEE, coût horaire de la main-d'œuvre) ; sert aux heures de relève."}
   pilotage.prix_et_couts: {status: calibre, note: "Prix de vente, coût de transformation (main-d'œuvre comprise, environ 4 opérateurs x 3 min = 0,2 h par produit) et coût de la MP des themes : ordres de grandeur indicatifs, non sourcés."}
   pilotage.effets_aleas: {status: calibre, note: "Ampleur des effets des aléas (events) : indicative, non sourcée."}
-  interface.seuils_attention: {status: calibre, note: "panels[].columns[].warn : 5 points sous la cible (OTIF 90 pour 95, TRS 73 pour 78), écart de l'exemple de l'annexe 0008 §2. Repris par criteria (marge de 5 points : bas de la zone partielle) et par l'alerte trs_low (TRS < 73) ; n'entre dans aucun calcul de la simulation."}
+  interface.seuils_attention: {status: calibre, note: "panels[].columns[].warn : OTIF 90 pour 95 (5 points sous la cible, écart de l'exemple de l'annexe 0008 §2) ; TRS 73 pour 80 depuis le 19/11/2026 (7 points : seuil d'une semaine, sous la zone partielle 75-80 de la moyenne, voir l'alerte trs_low). Marge de 5 points de criteria = bas de la zone partielle ; n'entre dans aucun calcul de la simulation."}
 
   # --- Réseau logistique (ADR 0009, section `network`) ----------------------------------------------------
   # Délai de transport = préparation + arrondi au-dessus (km / vitesse / heures de conduite par jour), borné 1 à 8 :
@@ -1080,7 +1130,7 @@ modules:
         fields:
           - {id: offer, label: Matière et fournisseur, type: choice, source: offers}
           - {id: pallets, label: Palettes (un camion), type: int, min: 1, max: 6, step: 1, default: 4}
-    autopilot: ordre de fabrication (OF) quand le stock de produits finis (PF) plus l'encours passe sous une journée de demande ; matière première (MP) commandée au fournisseur standard au point de commande (consommation pendant le délai + 1 jour de révision + 1 jour de sécurité)
+    autopilot: ordre de fabrication (OF) quand le stock de produits finis (PF) plus l'encours passe sous une journée de demande ; matière première (MP) commandée au fournisseur standard au point de commande (consommation pendant le délai + 1 jour de révision + 2 jours de sécurité)
     notions: [point_de_commande, stock_de_securite, delai_et_fiabilite, otif, loi_de_little, takt_time, charge_et_attente]
   production:
     title: Production
@@ -1115,7 +1165,7 @@ modules:
             label: Machines entretenues chaque semaine
             type: choice
             options:
-              - {id: aucune, label: "Aucune : pas de coût, l'usure s'accumule"}
+              - {id: aucune, label: "Aucune : pas de coût ; une machine qui s'use tombe plus souvent en panne en vieillissant"}
               - {id: goulot, label: "Le goulot : une intervention pendant une pause"}
               - {id: toutes, label: "Toutes les machines de la ligne : plus de coût et de temps de technicien"}
       - id: priorite_reparation
@@ -1233,6 +1283,8 @@ notions:
   pannes_par_usure:
     title: Pannes d'usure et pannes au hasard
     text: "Réviser ou remplacer à date fixe ne se justifie que si l'équipement s'use avec l'usage : son risque de panne croît avec l'âge et l'entretien le remet à zéro. Les études des compagnies aériennes des années 1960 ont montré que la grande majorité des pannes ne sont pas forcément liées à l'âge : contre celles-là, le préventif à date fixe n'aide pas."
+    # Modèle du jeu : loi de Weibull, fiche nist-sematech-weibull (forme 1 = taux de panne constant, l.68-69 ;
+    # forme > 1 = taux croissant avec l'âge, déduit de l.77-78), voir machine.weibull_shape. Une seule source par notion.
     source: wikipedia-en-reliability-centered-maintenance
     indicators: [trs]
   maintenance_preventive:
@@ -1257,8 +1309,9 @@ notions:
     indicators: [trs]
   capacite_et_trs:
     title: Taux de rendement synthétique (TRS)
-    text: "Le TRS (OEE en anglais) multiplie trois taux : disponibilité (temps de marche ÷ temps planifié, pauses et pannes comprises), performance (vitesse réelle ÷ vitesse maximale) et qualité (bons ÷ produits). À 100 %, la machine tourne sans arrêt, à pleine vitesse, sans défaut."
-    source: wikipedia-en-overall-equipment-effectiveness
+    text: "Le TRS (OEE en anglais) multiplie trois taux : disponibilité (temps de marche ÷ temps d'ouverture), performance (vitesse réelle ÷ vitesse maximale) et qualité (bons ÷ produits). Le temps d'ouverture est une convention : ici, les pauses le réduisent ; d'autres organisations comptent la pause comme un arrêt. À 100 %, la machine tourne sans arrêt, à pleine vitesse, sans défaut."
+    # fiche fr l.18 et l.40 (TRS = Tb x Tf x Tq), l.48 (pause : arrêt ou réduction du temps d'ouverture selon les organisations)
+    source: wikipedia-fr-taux-de-rendement-synthetique
     indicators: [trs]
   loi_de_little:
     title: Loi de Little

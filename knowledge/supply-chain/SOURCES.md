@@ -56,6 +56,8 @@ dans ce tableau avec une licence ou un droit d'usage.
 | reglement-ce-561-2006-temps-de-conduite.md | Temps de conduite et pauses des conducteurs routiers (règlement (CE) n° 561/2006, art. 6 et 7) | Parlement européen et Conseil ; reproduction OPPBTP | 2006-03-15 (reproduction du 2022-06-01) | Texte réglementaire UE ; synthèse interne, citations courtes |  |
 | inrs-allees-chariots-et-pietons.md | Allées de chariots et séparation piétons / engins (INRS ED 949, ED 6350) | INRS | ED 949 réimpr. 2013 ; ED 6350 oct. 2019 | Publications INRS ; synthèse interne, citations courtes |  |
 | inrs-implantation-plateformes-logistiques.md | Implantation d'une plate-forme logistique (INRS ED 6350) | INRS | oct. 2019 | Publication INRS ; synthèse interne, citations courtes |  |
+| wikipedia-fr-taux-de-rendement-synthetique.md | Taux de rendement synthétique | Contributeurs de Wikipédia (fr) | rév. 234398211 | CC BY-SA 4.0 (attribution : contributeurs de Wikipédia) |  |
+| nist-sematech-weibull.md | e-Handbook of Statistical Methods, 8.1.6.2 Weibull | NIST/SEMATECH | consulté le 2026-11-21 | Domaine public (administration fédérale des États-Unis) |  |
 
 ## Statut du corpus
 

@@ -1200,6 +1200,11 @@ func _check_debrief_view(root: Node, report: Dictionary) -> void:
 	_check(charts.size() == with_series.size(), "débrief : une courbe par critère avec série (%d)" % with_series.size(), str(charts.size()))
 	for c: Dictionary in with_series:
 		_check(c.get("final") == null or is_equal_approx(float((c["series"] as Array)[-1]), float(c["final"])), "débrief : series[-1] == final (%s)" % c["id"])
+	var bottlenecks: Array = report.get("bottlenecks", [])
+	if not bottlenecks.is_empty():
+		_check(text.contains("Pannes et arrêt des goulots"), "débrief : section des goulots")
+		for b: Dictionary in bottlenecks:
+			_check(text.contains(str(b["label"])), "débrief : goulot « %s »" % b["label"])
 	for c: Dictionary in criteria:
 		_check(text.contains(str(c["label"])), "débrief : critère « %s »" % c["label"])
 	_check(_bbcode_leak(text, str(Session.spec()["meta"]["company"])).is_empty(), "débrief : aucune balise visible", _bbcode_leak(text, ""))

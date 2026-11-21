@@ -15,7 +15,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from gmix.game import engine
+from gmix.game import engine, factory_game
 from gmix.game.generation import autopilot_check, generate, unsourced
 from gmix.game.spec import FACTORY_SECTIONS, GameParams, forbidden_in_text, load_pack
 from gmix.llm.factory_design import FactoryDesign, design_factory, design_schema
@@ -64,17 +64,22 @@ def play(spec: dict, *, held: set[str] | None = None, autopilot: bool = False, t
 
 
 def event_view(spec: dict) -> tuple[dict, bool]:
-    """Première vue d'une partie en pilote automatique dont l'aléa n'est pas vide ; sinon aléa forcé (semaine 2)."""
+    """Première vue d'une partie en pilote automatique dont l'aléa n'est pas vide ; sinon aléa forcé (semaine 2).
+    La vue porte `usure` (bilan des goulots à cette semaine) : les briefings de maintenance en citent les chiffres."""
+
+    def view_of(state: dict) -> dict:
+        return engine.public_state(spec, state) | {"usure": factory_game.bottleneck_wear(spec, state)}
+
     state = engine.start(spec, engine.initial_state(spec))
     while state["status"] == "running":
-        view = engine.public_state(spec, state)
+        view = view_of(state)
         if view["event"]:
             return view, False
         if state["week"] >= 2:
             break
         state = engine.advance(spec, state, autopilot_all=True)
     state = engine.force_event(spec, state, spec["events"][0]["id"])
-    return engine.public_state(spec, state), True
+    return view_of(state), True
 
 
 def texts(spec: dict, unmet: list[str]) -> list[str]:
@@ -248,14 +253,24 @@ async def run_game(llm: LLMService, entry: dict, done: dict[str, dict], out: Pat
     }
     title = f"# {entry['id']} : {spec['meta']['title']}\n\n"
     write_all(out, files, title + md(spec, art, design.unmet, review["unsourced"]) + "\n")
-    return {"id": entry["id"], "params": design.params, "design": design, "tries": tries, "ctl": ctl, "spec": spec,
-            "review": review}  # fmt: skip
+    return {"id": entry["id"], "entry": entry, "params": design.params, "design": design, "tries": tries, "ctl": ctl,
+            "spec": spec, "review": review}  # fmt: skip
 
 
-def summary(results: list[dict]) -> str:
+def previous_failures(path: Path | None) -> dict[str, str]:
+    """Échecs automatiques par jeu d'un resume.md antérieur (colonne « Échecs auto »)."""
+    if not path or not path.exists():
+        return {}
+    rows = [[c.strip() for c in ln.strip("|").split("|")] for ln in path.read_text("utf-8").splitlines()]
+    return {r[0]: r[8] for r in rows if len(r) >= 12 and re.fullmatch(r"J\d+", r[0])}
+
+
+def summary(results: list[dict], before: dict[str, str] | None = None) -> str:
+    before = before or {}
     rows = [
-        "| Id | Secteur | Niveau | Sem. | Modules | Repli | Essais | unmet | Échecs auto | OTIF pilote | ms | Tokens |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "| Id | Secteur | Niveau | Sem. | Modules | Repli | Essais | unmet | Échecs auto | OTIF pilote | ms | Tokens"
+        " | Échecs avant (19/11) | Niveau / ton demandés | Niveau / ton obtenus |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     ms, tok = [], []
     for r in results:
@@ -266,7 +281,10 @@ def summary(results: list[dict]) -> str:
             f"| {r['id']} | {p['theme']} | {p['difficulty']} | {p['weeks']} | {','.join(p['modules'])} |"
             f" {'oui' if d.fallback else 'non'} | {len(r['tries'])} | {' / '.join(d.unmet) or '-'} |"
             f" {', '.join(r['ctl']['echecs']) or '-'} | {r['review']['autopilot']['otif_mean']} |"
-            f" {ms[-1]} | {tok[-1]} |"
+            f" {ms[-1]} | {tok[-1]} | {before.get(r['id'], '?')} |"
+            f" {(r.get('entry', {}).get('fixed') or {}).get('difficulty', 'libre')} /"
+            f" {(r.get('entry', {}).get('fixed') or {}).get('agent_tone', 'libre')} |"
+            f" {p['difficulty']} / {p.get('agent_tone', '?')} |"
         )
     stats = (
         f"Latence (ms) : médiane {statistics.median(ms):.0f}, max {max(ms)} ;"
@@ -282,6 +300,7 @@ def summary(results: list[dict]) -> str:
 async def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--only", default="")
+    parser.add_argument("--compare", type=Path, default=None, help="resume.md d'un tour précédent")
     parser.add_argument(
         "--out", type=Path, default=get_settings().gmix_ai_dir / "evals" / "results" / f"audit-{date.today()}"
     )
@@ -296,7 +315,7 @@ async def main() -> None:
             print(e["id"], "échecs :", done[e["id"]]["ctl"]["echecs"], "repli :", done[e["id"]]["design"].fallback)
     finally:
         await llm.aclose()
-    (args.out / "resume.md").write_text(summary(list(done.values())), "utf-8")
+    (args.out / "resume.md").write_text(summary(list(done.values()), previous_failures(args.compare)), "utf-8")
     print("Résumé :", args.out / "resume.md")
 
 

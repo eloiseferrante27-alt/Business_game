@@ -237,6 +237,7 @@ Les anciennes entrées, sans `kind`, se lisent comme des `decision`. `debrief.lo
   d'infrastructure, sans spec).
 - **Livré en v0 (accepté, §12)** : un seul appel de la tâche `factory.design` (`gmix.llm.factory_design`) qui rend
   des `GameParams` du pack usine, puis `generate` ; pas de sections concept, cast ni journey, ni de `relax`.
+  **Amendé par 0013 § 3.2** (21/11) : remplacé en T9 par l'équipe d'agents de conception (cinq étapes et un contrôle).
   - Étapes : `brief` 5, `concept` 10, `simulation` 40, `checks` 90, `done` 100 ; `attempt` vaut 1.
   - `generation.failed.stage` ∈ {`design`, `interrupted`} ; `generation.completed` = `{job_id, game_id, title,
     fallback, unmet, attempts, duration_ms, tokens}`.

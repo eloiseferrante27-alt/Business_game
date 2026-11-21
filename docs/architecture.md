@@ -29,8 +29,7 @@ flowchart LR
 
 État (2026-11-06) : comptes et rôles, deux packs de jeu (l'usine, `ai/packs/usine.yaml`, est le pack principal ;
 l'atelier, `ai/simulation.yaml`, est gelé), conception du jeu par l'IA (tâche `factory.design`, docs/decisions/0008
-et 0010) avec repli par paramètres (docs/decisions/0006), régénération d'une section (docs/decisions/0012, statut
-« proposé » dans l'ADR), moteur hebdomadaire, groupes d'équipes (docs/decisions/0011), « prêt », pause et aléa du
+et 0010) avec repli par paramètres (docs/decisions/0006), régénération d'une section (docs/decisions/0012, accepté), moteur hebdomadaire, groupes d'équipes (docs/decisions/0011), « prêt », pause et aléa du
 formateur, lobbies, agents PNJ à mémoire, client Godot et présence multijoueur sont en place. L'ingestion RAG
 passe par `.\scripts\ingest.ps1` (pas de worker `rag`).
 
@@ -52,7 +51,7 @@ Deux chemins, même résultat (une spec validée par `gmix.game.spec.SimSpec`, j
 
 | Chemin | Route | Déroulé |
 |---|---|---|
-| Par l'IA (usine seulement) | `POST /api/v1/games/designs` (202) | le jeu passe en `generating` et un job est créé ; commande `generation.requested` sur `gmix.generation.commands` ; le worker `generation` appelle la tâche `factory.design` (brief -> `GameParams`, 2 réparations puis repli sur `default_params`), assemble la spec par `gmix.game.generation.generate`, la contrôle, puis passe le jeu en `draft` ; `generation.progress` / `completed` / `failed` sur `gmix.generation.events` (non relayés au WebSocket) ; le client suit le job par `GET /games/{id}/job` (étape, pourcentage, place dans la file) |
+| Par l'IA (usine seulement ; cible ADR 0013, T9 : orchestrateur en code `gmix.game.design_pipeline` dans le worker `generation`, cinq tâches IA en série `design.domain`, `design.concept`, `design.world`, `design.cast`, `design.journey`, puis contrôle `design.fact_check`) | `POST /api/v1/games/designs` (202) | le jeu passe en `generating` et un job est créé ; commande `generation.requested` sur `gmix.generation.commands` ; le worker `generation` fait aujourd'hui un appel, la tâche `factory.design` (brief -> `GameParams`, 2 réparations puis repli sur `default_params`), assemble la spec par `gmix.game.generation.generate`, la contrôle, puis passe le jeu en `draft` ; `generation.progress` / `completed` / `failed` sur `gmix.generation.events` (non relayés au WebSocket) ; le client suit le job par `GET /games/{id}/job` (étape, pourcentage, place dans la file) |
 | Par paramètres (repli, atelier) | `POST /api/v1/games` | `generate` assemble la spec sans modèle ; réponse 201 en moins d'une seconde |
 
 Ensuite : relecture (partie de référence comprise), retouches du plan (`PUT /games/{id}/layout`), régénération
@@ -85,12 +84,14 @@ obtient un code d'accès. Détail des routes et des droits : docs/roles.md.
 ## Mondes et assets
 
 L'IA ne crée jamais de géométrie : elle choisit des paramètres dans les listes du pack, et le placeur
-(`gmix.game.layout`, sans hasard, ADR 0009) pose les objets du catalogue `ai/assets.yaml` sur les grilles du
+(`gmix.game.layout`, sans hasard aujourd'hui, ADR 0009 ; cible : placeur déterministe à graine, ADR 0013 §3.4, T4 ; `apply_edits` sans graine) pose les objets du catalogue `ai/assets.yaml` sur les grilles du
 pack, contrôlés par les règles de placement (`check_placement`).
 
 | Pack | Monde (`spec.world`) | Statut |
 |---|---|---|
 | Usine (`ai/packs/usine.yaml`) | hall de 48 x 30 m en U, 11 départements dont 2 externes (fournisseur, client) reliés par des routes, 1 à 3 lignes de 4 machines, semaine simulée minute par minute (`gmix.game.factory`) puis rejouée en 3D | principal |
+| Cible ADR 0013 (T5) | 1 à 3 bâtiments à pièces, trajets calculés ; le hall en U devient le programme de référence et le repli | non livré |
+| Second domaine (finance d'entreprise : trésorerie et BFR d'une PME, ADR 0013 §6 ; pack D2) | monde et pack à écrire, moteur `factory` réutilisé (ADR 0013 §4.2) | non livré (D1-D3) |
 | Atelier (`ai/simulation.yaml`) | hall de 32 x 24 m repris du jeu de référence ; postes et trajets des agents dans les allées libres (vérifiés par les tests) | gelé, gardé en repli |
 
 Godot construit le monde puis l'anime avec l'état public (indicateurs, alertes des agents, chronologie de la
@@ -113,4 +114,5 @@ Voir docs/decisions/ :
 | 0009 | monde sur grilles et réseau logistique |
 | 0010 | refonte alignée sur Business_game (génération, lobby, jeu, débrief) |
 | 0011 | groupes d'équipes dans un lobby, connexions déclaratives, dépôt de travail |
-| 0012 | tranche B4 : régénération par section, débrief en courbes (statut « proposé ») |
+| 0012 | tranche B4 : régénération par section, débrief en courbes (accepté) |
+| 0013 | accepté (21/11) : mondes et jeux variés, équipe d'agents de conception, second domaine, documents du formateur |

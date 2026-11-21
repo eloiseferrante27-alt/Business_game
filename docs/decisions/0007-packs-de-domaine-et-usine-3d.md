@@ -1,7 +1,8 @@
 # 0007 : packs de domaine et monde « usine 3D » (sous-simulation journalière rejouée en 3D)
 
 Date : 2026-10-28. Statut : accepté le 2026-10-28 (décisions de l'utilisateur en fin de document ; points 11 et 12
-ajoutés à l'acceptation).
+ajoutés à l'acceptation). Amendé par l'[ADR 0013](0013-generation-de-mondes-et-de-jeux-differents.md) § 3.4
+(21/11) : d.9.
 Complète l'ADR 0006 (génération par paramètres, moteur pur) sans le remplacer. Contrat précis et plan
 d'exécution : `0007-annexe-contrat-usine.md`.
 
@@ -59,7 +60,8 @@ Contraintes : reproductible, sans IA, testable, léger (RTX 3060 6 Go, 16 Go), r
    non sourcées. Les valeurs du cahier entrent en `exemple`.
 9. **Plan en U, quai unique partagé** (le texte du cahier fait foi sur la carte ; validé par l'utilisateur) :
    réception et entrepôt PF de part et d'autre de la porte de quai, flux réception -> stock MP -> lignes ->
-   contrôle -> emballage -> PF.
+   contrôle -> emballage -> PF. **Amendé par 0013 § 3.4** (21/11) : ce plan devient le programme de référence du pack
+   usine et le repli du placeur ; un jeu peut avoir 1 à 3 bâtiments à pièces (0013, T5).
 10. **Phasage** : tranche 1 (verticale) puis extensions (annexe, section 6).
 11. **Goulot dans les lignes, postes hors lignes dimensionnés** (choix de l'utilisateur). Le goulot de chaque ligne
     est une de ses machines (M3 dans l'exemple du cahier). Contrôle et emballage ont une capacité d'au moins

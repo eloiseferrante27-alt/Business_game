@@ -1,0 +1,259 @@
+# J09 : Ateliers Métal Loire · Équipement en acier
+
+Ateliers Métal Loire · Équipement en acier
+
+Une PME soude des équipements en acier pour un distributeur de bricolage. Pendant 5 semaines, votre équipe assure les modules pilotage, production et maintenance pour livrer Brico Distribution à la date promise : porte-outils mural perforé, sans rupture de matière ni stock inutile. Niveau expert : pannes plus fréquentes, pannes du goulot au hasard, plus de défauts, fournisseurs moins fiables, demande plus variable, 2,5 jours de matière en stock, une demi-journée de produits finis en stock, usine chargée à 92 %, livraison promise à J+1.
+
+- En 5 semaines : OTIF (à l'heure et complet) moyen d'au moins 95 %, TRS (rendement des lignes) moyen d'au moins 80 %, au plus 0 jour-ligne sans matière, trésorerie finale d'au moins 41300 €.
+- Une commande compte pour l'OTIF si elle part complète au plus tard le jour promis ; l'OTIF de la semaine est la part de ces commandes.
+- Source : Fiche wikipedia-en-supply-chain-operations-reference (SCOR) : livraisons à temps et en totalité à la date promise, comptées ici par commande.
+- Le TRS d'une ligne vaut les produits bons fois leur temps de cycle idéal, divisés par le temps planifié hors pauses (convention du jeu) ; objectif : moyenne des lignes et des semaines.
+- Source : Fiche wikipedia-fr-taux-de-rendement-synthetique : TRS = Tb x Tf x Tq (l.40) ; une pause compte comme un arrêt ou réduit le temps d'ouverture selon les organisations (l.48).
+- Une ligne arrêtée faute de matière au cours d'un jour compte un jour-ligne ; le bilan les additionne sur la partie, et une usine qui ne produit rien manque ce critère.
+- La matière est payée à la réception des palettes acceptées ; une palette mise en quarantaine n'est pas payée.
+- Une commande de matière est un camion de 6 palettes au plus.
+- Chaque aléa est annoncé une semaine à l'avance : il reste un tour pour s'y préparer.
+- Un module sans joueur est tenu par le pilote automatique : point de commande, lancement d'OF par campagne, préventif sur le goulot.
+- OTIF moyen >= 95.0 (partiel 90.0)
+- TRS moyen >= 80.0 (partiel 75.0)
+- Jours-ligne arrêtés faute de matière (sur la partie) <= 0.0 (partiel 2.5)
+- Trésorerie finale >= 41300.0 (partiel 18700.0)
+- Pilotage
+- Lancer les ordres de fabrication et acheter la matière pour livrer chaque commande à la date promise.
+- Pilote automatique : ordre de fabrication (OF) quand le stock de produits finis (PF) plus l'encours passe sous une journée de demande ; matière première (MP) commandée au fournisseur standard au point de commande (consommation pendant le délai + 1 jour de révision + 2 jours de sécurité)
+- Production
+- Protéger le goulot de chaque ligne pour que pauses et pannes en amont ne lui fassent pas perdre de temps.
+- Pilote automatique : aucune protection
+- Maintenance
+- Choisir où faire le préventif et dans quel ordre réparer, avec un seul technicien.
+- Pilote automatique : préventif sur le goulot de chaque ligne, réparations dans l'ordre d'arrivée
+- Paul, Commercial du fournisseur
+- Pressé : toujours entre deux tâches, efficace ; très bref, presque télégraphique ; préfixe « Vite : »
+- recevoir les commandes de l'usine
+- préparer les palettes
+- envoyer le camion avec le bon de livraison
+- Noah, Réceptionnaire
+- Exigeant : direct, attaché aux résultats, peu patient avec les erreurs ; phrases sèches, va droit au chiffre ; préfixe « Il faut agir : »
+- décharger les camions
+- contrôler et étiqueter les palettes
+- mettre les non-conformes en quarantaine et prévenir le pilotage
+- Inès, Magasinière-cariste
+- Sceptique : prudent, se méfie des solutions miracles ; pointe les risques, pose une question en retour ; préfixe « Attention : »
+- ranger les palettes reçues
+- sortir la matière dans l'ordre d'arrivée
+- préparer et livrer le kit de chaque OF
+- signaler le stock sous le point de commande
+- Idriss, Chef de ligne
+- Pressé : toujours entre deux tâches, efficace ; très bref, presque télégraphique ; préfixe « Vite : »
+- lancer les OF sur les lignes
+- suivre la cadence et les arrêts
+- relayer l'opérateur du goulot pendant les pauses
+- appeler la maintenance
+- Léa, Contrôleuse qualité
+- Exigeant : direct, attaché aux résultats, peu patient avec les erreurs ; phrases sèches, va droit au chiffre ; préfixe « Il faut agir : »
+- contrôler chaque produit en sortie de ligne
+- trier conformes et rebuts
+- prévenir le chef de ligne quand le rebut grimpe
+- Malik, Emballeur
+- Sceptique : prudent, se méfie des solutions miracles ; pointe les risques, pose une question en retour ; préfixe « Attention : »
+- mettre 4 produits par carton
+- étiqueter et peser
+- monter et filmer les palettes
+- les envoyer à l'entrepôt
+- Karim, Technicien de maintenance
+- Pressé : toujours entre deux tâches, efficace ; très bref, presque télégraphique ; préfixe « Vite : »
+- aller réparer les machines en panne
+- faire le préventif pendant les pauses
+- tenir le tableau des interventions
+- Sophie, Responsable de production
+- Exigeant : direct, attaché aux résultats, peu patient avec les erreurs ; phrases sèches, va droit au chiffre ; préfixe « Il faut agir : »
+- recevoir les commandes client
+- créer et lancer les OF
+- commander la matière
+- suivre les indicateurs
+- Maya, Magasinière PF
+- Sceptique : prudent, se méfie des solutions miracles ; pointe les risques, pose une question en retour ; préfixe « Attention : »
+- ranger les palettes venant de l'emballage
+- préparer les commandes
+- charger le camion du client
+- signaler le stock PF sous le minimum
+- Mme Durand, Acheteuse du client
+- Pressé : toujours entre deux tâches, efficace ; très bref, presque télégraphique ; préfixe « Vite : »
+- passer les commandes
+- suivre les livraisons à la date promise
+- se plaindre des retards
+- Claire, Directrice du site
+- Exigeant : direct, attaché aux résultats, peu patient avec les erreurs ; phrases sèches, va droit au chiffre ; préfixe « Il faut agir : »
+- fixer les objectifs
+- suivre les indicateurs
+- arbitrer les priorités
+- Point de commande
+- On recommande quand le stock, commandes en cours comprises, passe sous le point de commande, égal à la consommation prévue pendant le délai d'approvisionnement plus le stock de sécurité.
+- Source : Wikipédia (en), « Reorder point », révision 1361046588 : https://en.wikipedia.org/wiki/Reorder_point?oldid=1361046588
+- Stock de sécurité
+- Le stock de sécurité couvre l'incertitude de la demande et des délais ; plus ils sont imprévisibles et plus le service visé est élevé, plus il doit être important.
+- Source : Wikipédia (fr), « Stock de sécurité », révision 209683581 : https://fr.wikipedia.org/wiki/Stock_de_s%C3%A9curit%C3%A9?oldid=209683581
+- Délai et fiabilité des fournisseurs
+- Plus les délais de réapprovisionnement sont aléatoires, plus le stock de sécurité doit être important ; un fournisseur aux délais irréguliers oblige donc à garder davantage de matière en réserve.
+- Source : Wikipédia (fr), « Stock de sécurité », révision 209683581 : https://fr.wikipedia.org/wiki/Stock_de_s%C3%A9curit%C3%A9?oldid=209683581
+- OTIF (à l'heure et complet)
+- Le modèle SCOR mesure la performance de livraison comme la part des produits livrés à temps et en totalité à la date promise.
+- Source : Wikipédia (en), « Supply chain operations reference », révision 1378804368 : https://en.wikipedia.org/wiki/Supply_chain_operations_reference?oldid=1378804368
+- Loi de Little
+- En régime stable, l'encours moyen égale le débit multiplié par le temps moyen passé dans le système : à débit égal, plus d'encours veut dire des produits qui attendent plus longtemps.
+- Source : Wikipédia (en), « Little's law », révision 1370351232 : https://en.wikipedia.org/wiki/Little%27s_law?oldid=1370351232
+- Takt time
+- Le takt time est le temps disponible divisé par le nombre d'unités demandées : le rythme à tenir pour suivre le client. Il ne se confond pas avec le temps de cycle réel, qui compte aussi les pièces défectueuses et les réglages.
+- Source : Wikipédia (fr), « Takt time », révision 229912463 : https://fr.wikipedia.org/wiki/Takt_time?oldid=229912463
+- Charge et attente
+- Selon l'approximation de Kingman, l'attente devant un poste croît avec u ÷ (1 − u), u étant son taux d'occupation, et avec la variabilité des arrivées et des temps de service : près de 100 % de charge, elle explose.
+- Source : Wikipédia (en), « Kingman's formula », révision 1322269537 : https://en.wikipedia.org/wiki/Kingman%27s_formula?oldid=1322269537
+- Goulot et contrainte
+- Dans une ligne en série, le poste le plus lent fixe le débit maximal : augmenter sa capacité augmente le débit de l'ensemble, améliorer les autres ne sert à rien. Tant que la demande reste sous ce débit, c'est le marché qui limite l'usine ; lors d'un pic ou après une panne, ce poste devient la contrainte et chaque heure qu'il perd est perdue pour la ligne.
+- Source : Wikipédia (fr), « Théorie des contraintes », révision 237231287 : https://fr.wikipedia.org/wiki/Th%C3%A9orie_des_contraintes?oldid=237231287
+- Protéger la contrainte par des tampons
+- Un stock tampon placé devant la contrainte lui évite de manquer de travail quand un poste amont s'arrête, et de la place libre derrière elle évite qu'un arrêt en aval la bloque. Le tampon achète du temps ; il doit suffire sans être excessif.
+- Source : Wikipédia (en), « Theory of constraints », révision 1380318896 : https://en.wikipedia.org/wiki/Theory_of_constraints?oldid=1380318896
+- Rendement cumulé
+- La probabilité qu'un produit sorte bon d'un procédé à plusieurs étapes est le produit des rendements de chaque étape : le rendement de la ligne n'est donc jamais meilleur que celui de sa moins bonne machine.
+- Source : Wikipédia (en), « Rolled throughput yield », révision 1313806052 : https://en.wikipedia.org/wiki/Rolled_throughput_yield?oldid=1313806052
+- Taux de rendement synthétique (TRS)
+- Le TRS (OEE en anglais) multiplie trois taux : disponibilité (temps de marche ÷ temps d'ouverture), performance (vitesse réelle ÷ vitesse maximale) et qualité (bons ÷ produits). Le temps d'ouverture est une convention : ici, les pauses le réduisent ; d'autres organisations comptent la pause comme un arrêt. À 100 %, la machine tourne sans arrêt, à pleine vitesse, sans défaut.
+- Source : Wikipédia (fr), « Taux de rendement synthétique », révision 234398211 : https://fr.wikipedia.org/wiki/Taux_de_rendement_synth%C3%A9tique?oldid=234398211
+- Changement de série (SMED)
+- Le SMED réduit le temps de changement de série pour pouvoir produire en petits lots ; « single minute » veut dire moins de 10 minutes.
+- Source : Wikipédia (en), « Single-minute exchange of die », révision 1360889711 : https://en.wikipedia.org/wiki/Single-minute_exchange_of_die?oldid=1360889711
+- Disponibilité, MTBF et MTTR
+- La disponibilité est le temps de marche divisé par le temps total. Pour les pannes, avec le MTBF compté en heures de marche entre deux pannes, elle vaut MTBF ÷ (MTBF + MTTR) ; l'attente du technicien et son trajet allongent l'arrêt et la font encore baisser.
+- Source : Wikipédia (en), « Availability », révision 1378432007 : https://en.wikipedia.org/wiki/Availability?oldid=1378432007
+- Pannes d'usure et pannes au hasard
+- Réviser ou remplacer à date fixe ne se justifie que si l'équipement s'use avec l'usage : son risque de panne croît avec l'âge et l'entretien le remet à zéro. Les études des compagnies aériennes des années 1960 ont montré que la grande majorité des pannes ne sont pas forcément liées à l'âge : contre celles-là, le préventif à date fixe n'aide pas.
+- Source : Wikipédia (en), « Reliability-centered maintenance », révision 1318353310 : https://en.wikipedia.org/wiki/Reliability-centered_maintenance?oldid=1318353310
+- Maintenance préventive et corrective
+- Le préventif inspecte et entretient l'équipement à intervalles planifiés pour remplacer les pièces usées avant la panne ; le correctif répare après la panne, souvent plus cher à cause des arrêts et des dégâts en chaîne.
+- Source : Wikipédia (en), « Maintenance », révision 1380603447 : https://en.wikipedia.org/wiki/Maintenance?oldid=1380603447
+- Premier entré, premier sorti (FIFO)
+- Sortir d'abord ce qui est arrivé en premier évite que le stock vieillisse ou se dégrade avant d'être utilisé.
+- Source : Wikipédia (en), « Stock rotation », révision 1363766650 : https://en.wikipedia.org/wiki/Stock_rotation?oldid=1363766650
+- Carte p
+- La carte p suit la part de produits non conformes d'un échantillon ; sa limite haute vaut p + 3 × racine(p (1 − p) ÷ n). Un lot au-delà signale probablement un changement du procédé plutôt qu'un simple aléa.
+- Source : Wikipédia (en), « P-chart », révision 1322280790 : https://en.wikipedia.org/wiki/P-chart?oldid=1322280790
+- Perturbations routières
+- Travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière.
+- Hausse de l'acier
+- Les prix d'achat de la matière augmentent de 10 %.
+- Commandes exceptionnelles du client
+- Le client ajoute des commandes : la demande grimpe de 15 % sur la semaine.
+- Creux de demande
+- Le client commande moins cette semaine : la demande baisse de 15 %.
+- Lot de matière non conforme
+- Un lot du fournisseur est défectueux ; le taux de palettes reçues non conformes, mises en quarantaine, prend 10 points de plus.
+- Vague de chaleur dans l'atelier
+- Les fortes chaleurs fatiguent les machines ; elles tombent en panne environ 40 % plus souvent cette semaine.
+- Vos indicateurs
+- Le bandeau montre l'OTIF, le TRS, les jours-ligne sans matière et la trésorerie face à leur cible.
+- Chaque machine
+- Approchez une machine : son panneau donne son état, sa disponibilité, ses pannes et sa table d'attente.
+- Le goulot de chaque ligne
+- La machine la plus lente d'une ligne fixe son débit maximal : quand la demande l'atteint, chaque minute qu'elle perd est perdue pour la ligne.
+- Le tableau de bord
+- Il montre le flux, les lignes et les machines : comparez le débit de bons attendu et le débit mesuré de chaque ligne.
+- Vos décisions
+- Approchez le poste de votre module ou utilisez la barre d'actions pour décider ; l'aide rouvre ce guide.
+- Tôle perforée et renforts · Perforation de l'Est (Mulhouse) · 1 j · 89 % à l'heure · 11 €/u. · min. 1 palette(s)
+- Tôle perforée et renforts · Tôlerie de Picardie (Amiens) · 3 j · 87 % à l'heure · 10 €/u. · min. 1 palette(s)
+- Tôle perforée et renforts · Perforated Steel Import (Anvers) · 5 j · 77 % à l'heure · 8 €/u. · min. 4 palette(s)
+- Ligne 1 · Porte-outils mural perforé · 800 u./sem. à 100 %
+
+## Non sourcé (vue formateur)
+- client.charge (calibre) : difficulties.load (0,80 ; 0,85 ; 0,92) : demande par jour = charge x débit réel attendu (expected_h) des machines de la partie, facteurs de difficulté compris, x lignes actives x 8 h ; la génération vérifie une charge réelle < 0,95. Au-delà de 0,9, l'attente croît très vite (wikipedia-en-kingman-s-formula). Expert porté à 0,92 au calibrage du 05/11/2026 (232 produits par jour, graine 5). Le cahier (100 / jour) chargeait l'usine à 23 %.
+- client.delai_promis_jours (calibre) : difficulties.promised_days : J+2 (J+1 en expert). Le cahier promet 5 jours, une semaine entière : aucun retard possible.
+- client.orders_per_day (calibre) : Customer.orders_per_day : une commande par jour ouvré, passée à 8 h, d'environ une journée de demande.
+- client.pickup_window_min (calibre) : Customer.pickup_window_min : camion du client entre 14 h et 15 h 30, après les livraisons MP (8 h - 10 h) ; le quai partagé n'est en conflit qu'en cas de retard.
+- client.variabilite (exemple) : Cahier §4.1 : ± 10 % (équilibré) ; 5 % et 15 % en découverte et expert (difficulties.demand_variability, calibre).
+- emballage.colis_par_palette (exemple) : Cahier §3.5.
+- emballage.filmage_min_palette (exemple) : Cahier §3.5.
+- emballage.min_par_colis (exemple) : Cahier §3.5 (mettre en carton, fermer, étiqueter, peser).
+- emballage.produits_par_colis (calibre) : Cahier : 1, soit 6 produits par palette en 6 x 2 + 5 = 17 min, 21 / h : l'emballage serait le goulot de l'usine. Avec 4 : 60 x 4 x 6 / (6 x 2 + 5) = 84,7 / h >= 72 / h (annexe §5) et des palettes de 24.
+- entrepot_pf.capacite_palettes (exemple) : Cahier §4 : 480 produits, environ 2 jours de demande à 2 lignes.
+- entrepot_pf.chargement_min_palette (exemple) : Cahier §4.
+- entrepot_pf.stock_initial_jours (calibre) : difficulties.pf_stock_days (1,2 ; 1 ; 0,5 jour de demande), toujours sous les 20 palettes.
+- fournisseur.camion_palettes (exemple) : Cahier §2 : camion de 4 à 6 palettes ; le maximum borne une commande (une commande = un camion).
+- fournisseur.commande_min_palettes (exemple) : Cahier §2 ; profils rapide et standard.
+- fournisseur.creneau_livraison_min (exemple) : Cahier §2 : créneau 8 h - 10 h.
+- fournisseur.delai_jours (exemple) : Cahier §2, délai de livraison ; profil standard.
+- fournisseur.ecart_fiabilite (calibre) : difficulties.reliability_shift : points ajoutés à la fiabilité des trois profils (+3, 0, -8), plafonnée à 100.
+- fournisseur.fiabilite_delai (exemple) : Cahier §2 ; profil standard.
+- fournisseur.profils (calibre) : Standard = fournisseur du cahier. Arbitrage voulu : le rapide coûte 12 % de plus ; l'économique coûte 12 % de moins mais livre en 5 jours, moins souvent à l'heure et par 4 palettes, ce qui demande plus de stock de sécurité et peut saturer les 24 places de racks à 3 lignes. Écarts indicatifs, non sourcés. Ordre des fournisseurs d'un produit (themes) = ordre des profils.
+- fournisseur.retard_jours (calibre) : Une livraison en retard arrive le jour ouvré suivant ; le cahier ne dit pas de combien.
+- fournisseur.stock (exemple) : Cahier §2 : stock du fournisseur illimité par défaut.
+- fournisseur.taux_non_conforme (exemple) : Cahier §2 (« livraisons non conformes ») ; appliqué palette par palette, la palette part en quarantaine.
+- interface.seuils_attention (calibre) : panels[].columns[].warn : OTIF 90 pour 95 (5 points sous la cible, écart de l'exemple de l'annexe 0008 §2) ; TRS 73 pour 80 depuis le 19/11/2026 (7 points : seuil d'une semaine, sous la zone partielle 75-80 de la moyenne, voir l'alerte trs_low). Marge de 5 points de criteria = bas de la zone partielle ; n'entre dans aucun calcul de la simulation.
+- machine.buffer (exemple) : Cahier §5.2 : table d'attente de 10 produits en sortie de chaque machine.
+- machine.cycle_min (exemple) : Cahier §5.2 : 2 ; 1,5 ; 3 ; 1 min. M3 est le goulot (20 / h).
+- machine.defect_rate (exemple) : Cahier §5.2 : 2 %, 1 %, 3 %, 2 % ; rendement cumulé de la ligne = 98 x 99 x 97 x 98 % = 92,2 %.
+- machine.facteur_mtbf (calibre) : difficulties.mtbf_factor (1,5 ; 1 ; 0,6) appliqué aux MTBF du cahier.
+- machine.mtbf_h (exemple) : Cahier §5.2 : 40, 80, 60, 100 h. Convention du jeu (maintenance.convention_mtbf) : temps moyen de marche entre deux pannes, réparation exclue.
+- machine.mttr_h (exemple) : Cahier §5.2 : 1 ; 0,5 ; 1 ; 0,5 h de réparation active ; l'arrêt réel ajoute l'attente et le trajet du technicien.
+- machine.operators (exemple) : Cahier §3.3 : un opérateur par machine.
+- machine.outil (calibre) : Usure d'outil : tranche 2 (le cahier ne donne aucune durée de vie) ; tool_life absent.
+- machine.pauses (calibre) : Cahier : 110 min de marche / 10 min d'arrêt. Remplacé par les pauses du personnel (clock.breaks) qui arrêtent toute la ligne au même moment ; run_min = 480 et stop_min = 0 (aucun arrêt propre à la machine).
+- machine.protect_buffer (calibre) : Factory.protect_buffer, action proteger_goulot, mode tampon_avant : table devant le goulot portée de 10 à 30 produits, soit 90 min de travail du goulot, plus qu'une réparation de M1 (1 h) ; prix : 20 produits d'encours en plus (loi de Little).
+- machine.setup_min (exemple) : Cahier §5.2 : 10, 5, 0, 5 min à chaque changement de lot (aucun sur le goulot).
+- machine.transfer_min (exemple) : Cahier §8 : 0,5 min ; 3 transferts pour 4 machines (le cahier en compte 4), M4 envoie au contrôle.
+- machine.weibull_shape (calibre) : Forme 2 : risque de panne croissant avec l'âge (usure), pour que le préventif ait un effet, comme sur une machine qui s'use (wikipedia-en-reliability-centered-maintenance : le préventif ne vaut que si l'équipement s'use). Le goulot prend la forme du profil (difficulties.bottleneck_shape : 3, 2, 1) : usure marquée en découverte, pannes au hasard en expert (forme 1 = loi exponentielle, taux constant), où le préventif du goulot n'évite rien ; valeurs 1, 2, 3 = choix de calibrage, non sourcés. Loi de Weibull : fiche nist-sematech-weibull (NIST appelle gamma la forme) : forme 1 = modèle exponentiel, taux de panne constant (l.68-69) ; taux de panne polynomial d'exposant forme - 1 (l.77-78), donc croissant avec l'âge si la forme dépasse 1 (déduction de la formule, l.30 ; le texte ne dit pas « usure »).
+- maintenance.cout_degats_panne (calibre) : Pièces cassées et dégâts en chaîne d'une panne, en plus de la réparation (factory.costs.damage_per_failure, P3 de docs/audits/preventif-2026-11-19.md). Principe sourcé : le correctif coûte plus que le préventif à cause des dégâts consécutifs (wikipedia-en-maintenance l.50) ; montant : choix de calibrage, non sourcé, indicatif. Mesure du 21/11/2026 (J04, 3 lignes, sans aléas, graines 5 à 8 ; préventif du goulot contre aucun ; Δ trésorerie moyen) : forme 2 au MTBF du jeu +262 € (-425 à +1 225, neutre au bruit près) ; forme 2 au MTBF x 0,4 +451 € ; forme 3 +265 € ; forme 1 -3 038 € (le préventif n'évite rien). 0 € : -1 238 € même en usure ; 150 € : -112 € à x 1 mais -137 € à x 0,4 (le préventif ne paie jamais) : 200 retenu.
+- maintenance.cout_preventif (calibre) : Indicatif, non sourcé. Une heure d'arrêt du goulot ne coûte des ventes que si la ligne est saturée : quand le marché limite l'usine, elle se rattrape sur l'attente du goulot (wikipedia-fr-theorie-des-contraintes l.32 ; audit du préventif du 19/11/2026, J04 : 0 produit perdu).
+- maintenance.cout_reparation_h (calibre) : Technicien et pièces courantes : ordre de grandeur indicatif, non sourcé.
+- maintenance.preventif_min (calibre) : Graissage, contrôle, pièce d'usure : indicatif. Égal à la pause de 20 min pour qu'un préventif fait pendant cette pause n'arrête pas la production.
+- maintenance.preventif_regle (calibre) : Une intervention par machine ciblée et par tour, faite pendant les pauses du personnel (les plus longues d'abord), goulots d'abord ; la part qui dépasse la pause arrête la machine ; une panne passe avant ; l'âge de la machine revient à zéro. Règle détaillée : annexe §5 (29/10).
+- maintenance.techniciens (exemple) : Cahier §3.6 : une seule réparation à la fois.
+- maintenance.trajet_min (exemple) : Cahier §3.6 : déplacement jusqu'à la machine.
+- pilotage.chefs_de_ligne (exemple) : Cahier §3.3 : un chef de ligne pour toutes les lignes.
+- pilotage.cout_operateur_h (calibre) : Coût employeur d'un opérateur, ordre de grandeur indicatif (à vérifier : INSEE, coût horaire de la main-d'œuvre) ; sert aux heures de relève.
+- pilotage.effets_aleas (calibre) : Ampleur des effets des aléas (events) : indicative, non sourcée.
+- pilotage.journee_min (exemple) : Cahier §3.7 : journée de 8 h simulées.
+- pilotage.jours_par_tour (calibre) : Décision de l'utilisateur du 28/10/2026 : un tour = une semaine de 5 jours rejouée.
+- pilotage.lancement_avec_rebut (calibre) : Pilote automatique : lots à lancer = besoin en bons / (24 x rendement cumulé attendu), arrondi au-dessus. Le « x (1 + taux de rebut) » du cahier sous-estime le surplus : écart faible à 7,8 % de rebut (1,078 contre 1,084), net à 20 % (1,20 contre 1,25).
+- pilotage.objectif_otif (calibre) : Repris de l'atelier ; OTIF commande par commande (wikipedia-en-supply-chain-operations-reference).
+- pilotage.objectif_trs (calibre) : 80 % depuis le 19/11/2026 (choix de calibrage, non sourcé) : le TRS exclut désormais les pauses, le pilote mesure 82,7-92,0 % à une ligne et 79,5-82,3 % à trois lignes (graines 5 à 8, partie de référence et jeux J01 à J10) ; 80 est atteint partout sauf l'équilibré à trois lignes (partiel, 79,5-80,5 %), le passif est à 0 %. Une cible unique reste plus basse que le TRS à une ligne : la sous-charge des trois lignes (charge répartie, magasin PF borné) baisse le TRS sans faute du joueur. Historique, cible de 78 : TRS attendu au goulot (factory.trs_factors : pauses x pannes de M3 avec trajet x bons) = 87,0 % en découverte, 83,1 % en équilibré, 78,8 % en expert, avant les attentes de matière. Celles-ci sont des pertes de disponibilité sur le temps planifié (machine « No Input », wikipedia-en-overall-equipment-effectiveness). Pilote corrigé (commandes au jour simulé, délai réel, trésorerie bornée), graines 5 à 8, 6 semaines : 72,9-74,7 % ; 72,2-72,9 % ; 72,2-74,5 %, faute de lancement par campagne : l'OF quotidien d'environ un jour de demande vide la ligne chaque après-midi et la redémarre chaque matin (attente matière au goulot). Avec le lancement par campagne demandé à moteur-jeu (pilotage.pf_max_jours) et le point de commande à délai + révision + sécurité (stock_mp.stock_securite_jours), mesuré sur le moteur réel le 05/11/2026 : 80,4-81,6 % ; 77,0-78,0 % ; 74,4-75,6 %. 78 % reste la cible : atteinte en découverte, à la limite en équilibré (atteint ou partiel), partielle en expert (zone partielle 73-78, criteria.trs). L'émulation (79-80 % en équilibré) lançait des campagnes plus courtes que le moteur, dont le plafond tombe sur le magasin PF.
+- pilotage.pauses (calibre) : 2 x 10 + 1 x 20 min (40 min sur 480, comme les 4 x 10 du cahier : disponibilité 440 / 480 = 91,7 %). La pause de 20 min consécutives dès 6 h de travail quotidien est le minimum du Code du travail, art. L3121-16 (texte lu sur des reprises secondaires, Légifrance à vérifier ; hors corpus) ; les deux pauses de 10 min sont un usage d'entreprise.
+- pilotage.pf_max_jours (calibre) : Lancement par campagne : sous pf_min, le pilote lance jusqu'à pf_max = 3 jours de demande, borné par le magasin PF, au lieu d'un jour ; évite de vider et redémarrer la ligne chaque jour. Mesure du 05/11/2026 (graines 5 à 8, équilibré) : 3 jours = plafond du magasin PF (4 ou 5 jours ne changent rien), TRS 77,0-78,0 % ; 2 jours donne 77,5-79,1 % mais une rupture en découverte (graine 7) et 73,8 % en expert : 3 gardé. Indicatif, non sourcé.
+- pilotage.pf_min_jours (calibre) : pf_min : le pilote automatique lance un OF quand stock PF + encours < une journée de demande.
+- pilotage.prix_et_couts (calibre) : Prix de vente, coût de transformation (main-d'œuvre comprise, environ 4 opérateurs x 3 min = 0,2 h par produit) et coût de la MP des themes : ordres de grandeur indicatifs, non sourcés.
+- pilotage.releve_pauses (calibre) : Mode releve_pauses : le chef de ligne fait tourner le goulot pendant les pauses ; seul, il ne relève qu'une ligne à la fois (une autre demande est refusée). Gain : 40 min de goulot par jour, environ +9 % ; coût : minutes de relève x pilotage.cout_operateur_h. Règle détaillée : annexe §5 (29/10).
+- pilotage.taille_lot (calibre) : Cahier : 20. 24 = une palette de 24 (4 colis x 6) : les lots font des palettes entières, la palettisation continue d'un lot à l'autre. Avec 0 min de réglage au goulot, la taille du lot ne coûte rien au débit.
+- pilotage.taux_interet_semaine (calibre) : Agios repris de l'atelier ; indicatif.
+- pilotage.taux_possession_semaine (calibre) : 25 % par an, ordre de grandeur usuel du coût de possession, repris de l'atelier ; indicatif, non sourcé.
+- pilotage.temps_de_lot (exemple) : Cahier §8 : temps d'un lot de n = premier produit + (n - 1) x cycle du goulot, sans attente ; premier produit = somme des cycles + 3 transferts = 9 min. Formule du cahier sans fiche : montrée au débrief comme exemple.
+- pilotage.tresorerie_initiale_semaines (calibre) : difficulties.cash_weeks (6, 4, 3 semaines d'achats de MP), comme l'atelier. Expert porté de 2,5 à 3 le 19/11/2026 : à une ligne (J02, graine 5), le pilote, qui n'achète que dans la limite de sa trésorerie, ne pouvait plus recommander en semaine 2 (2 jours-ligne sans matière) ; mesure : docs/audits/preventif-2026-11-19.md § 5.
+- placement_rules.allees_chariot (calibre) : 2,5 m n'est pas dans la source : c'est 5 cellules, la plus petite allée du plan, au-dessus des 2,15 m de la règle INRS à sens unique. Le double sens (2 chariots : 3,70 m ; chariot et transpalette : 3,10 m) et le passage piéton séparé ne sont pas garantis : allées à sens unique, à vérifier avant d'y voir un plan réel.
+- placement_rules.ecran_indicateurs (calibre) : Mise en scène : un écran se lit de face, depuis l'allée où l'on passe ; aucune source, n'entre dans aucun calcul.
+- placement_rules.marche_en_avant (exemple) : Ordre du cahier (plan en U) ; l'expression et l'ordre ne sont pas dans INRS ED 6350 (fiche inrs-implantation-plateformes-logistiques, « Ce que la source NE dit pas »).
+- placement_rules.quai_entrepot_pf (exemple) : Cahier : l'entrepôt PF charge le camion du client au quai partagé ; non énoncé par la source lue.
+- placement_rules.quai_reception (exemple) : Cahier : quai partagé réception et expédition ; contiguïté non énoncée par la source lue (INRS ED 6350).
+- placement_rules.quarantaine_separee (calibre) : Quarantaine des palettes non conformes (ref quarantine) à une allée au moins des racks MP (ref mp), pour qu'une palette bloquée ne soit pas rangée ni consommée par erreur. Maîtrise des éléments de sortie non conformes : ISO 9001, § 8.7, non lue (à vérifier) ; 2,5 m = une allée du plan.
+- qualite.controle_min_produit (calibre) : Cahier : 1 min, soit 60 / h, autant que 3 lignes au goulot (60 / h) : le contrôle deviendrait le goulot de l'usine. 0,7 min donne 60 / 0,7 = 85,7 / h >= 1,2 x 60 = 72 / h (annexe §5). Indicatif.
+- qualite.facteur_defauts (calibre) : difficulties.defect_factor (0,5 ; 1 ; 1,5) appliqué aux taux de défaut du cahier.
+- qualite.frequence (exemple) : Cahier §3.4 : 100 % (1 sur N : module qualité, tranche 2).
+- reception.controle_min_palette (exemple) : Cahier §3.1.
+- reception.dechargement_min_palette (exemple) : Cahier §3.1.
+- reception.quais (exemple) : Cahier §3.1 : un quai partagé avec l'expédition (décision de l'utilisateur du 28/10/2026).
+- reception.quarantaine_palettes (exemple) : Cahier §3.1.
+- reception.zone_depose_palettes (exemple) : Cahier §3.1 (décor et file d'attente du contrôle).
+- reseau.distance.import (calibre) : Pays voisin d'Europe : 1 300 / 70 = 18,6 h, 3 jours à 9 h par jour. Indicatif.
+- reseau.distance.national (calibre) : Autre bout du pays : 800 / 70 = 11,4 h, au-delà des 9 h de l'art. 6 du règlement 561/2006, donc 2 jours. Indicatif.
+- reseau.distance.proche (calibre) : Fournisseur de la région ou d'une région voisine : 250 / 70 = 3,6 h de conduite, 1 jour. Indicatif.
+- reseau.preparation.client (calibre) : Le client enlève lui-même (client.pickup_window_min) : la distance du client ne change aucun calcul du moteur, elle place seulement son site sur la carte.
+- reseau.preparation.fournisseur_economique (calibre) : Commandes groupées par 4 palettes : avec la classe national, 3 + 2 = 5 jours, délai du profil économique. Classe import : 6 jours.
+- reseau.preparation.fournisseur_rapide (calibre) : Expédition le jour de la commande : avec la classe proche, 0 + 1 = 1 jour, délai du profil rapide.
+- reseau.preparation.fournisseur_standard (calibre) : Préparation et chargement : avec la classe proche, 2 + 1 = 3 jours, délai du fournisseur du cahier (exemple). Classe national : 4 jours.
+- reseau.vitesse.route (calibre) : Vitesse moyenne d'un camion porteur sur la journée de conduite (autoroute, nationale, traversées) : ordre de grandeur indicatif. Le règlement 561/2006 ne donne aucune vitesse ; limites du Code de la route pour les poids lourds : à vérifier.
+- stock_mp.capacite_palettes (exemple) : Cahier §3.2 : racks de 24 emplacements.
+- stock_mp.chariots (exemple) : Cahier §3.2 : chariot de 1 200 kg (batterie : tranche 2).
+- stock_mp.commande_initiale (calibre) : D9 (a), codé (factory_generation._initial_order) et mesuré le 19/11/2026 ; choix de calibrage, non sourcé. cover_extra_days 2 a été essayé : il supprime les ruptures de semaine 1 en expert, mais donne à l'équilibré (4 j < 3 + 2) une commande qui arrive au jour 4, quand le stock s'épuise, et qui retarde la première commande du pilote (ruptures en équilibré) : 1 gardé. Seulement si mp_stock_days < délai + cover_extra_days (comparaison en jours, sans arrondi) : au départ, une commande `offer` déjà en route de min(fournisseur.camion_palettes, place libre du magasin, ceil(round((délai + cover_extra_days - mp_stock_days) x conso, 2))) palettes, conso = mp_day ÷ unités par palette (toutes lignes, rendement compris), arrivée au jour floor(mp_stock_days), payée à la réception. Découverte (5 j) et équilibré (4 j) : aucune, délai standard 3 + 1 = 4. Expert, J01 (2 000 u./sem., 5 j, 120 u./palette, rendement omis, conso 3,33) : (4 - 2,5) x 3,33 = 5 palettes, arrivée au jour 2 ; le stock reste bas sans rupture certaine.
+- stock_mp.kit_min (calibre) : Cahier sans valeur : prélever la matière d'un lot de 24 et la livrer en tête de ligne. Indicatif ; à 3 lignes, environ 15 kits par jour occupent le chariot 2 h.
+- stock_mp.sortie_fifo (exemple) : Cahier §3.2 : sortie dans l'ordre d'arrivée. Pratique décrite par wikipedia-en-stock-rotation (notion rotation_fifo).
+- stock_mp.stock_initial_jours (calibre) : difficulties.mp_stock_days (5, 4, 2,5 jours de consommation) : au plus 15 palettes à 3 lignes, sous les 24 places.
+- stock_mp.stock_securite_jours (calibre) : Pilote automatique : point de commande = consommation pendant (délai du fournisseur standard + période de révision de 1 jour + ce stock de sécurité). En révision périodique, la couverture vaut délai + période de révision (wikipedia-en-safety-stock, § Inventory policy). Le moteur lit cette valeur (factory.mp_safety_days) : point = délai + 1 + 2 jours. 1 jour jusqu'au 19/11/2026 ; 2 mesurés ce jour-là : en expert à 3 lignes, 0 à 7 jours-ligne sans matière au lieu de 0 à 27 (partie de référence et jeux J01 à J10, graines 5 à 8) ; 1,5 laisse des ruptures en équilibré à une ligne. La formule de la fiche (l. 31, SS = z x racine(E(L) sigma_D² + E(D)² sigma_L²)) donne environ 0,6 jour en expert à 95 % (z = 1,65 ; 393 unités par jour, ± 15 % ; délai 3 jours, en retard d'un jour 13 fois sur 100) : l'écart couvre ce que la formule ignore ici, les palettes en quarantaine, un seul camion par commande livré entre 8 h et 10 h, après le démarrage des lignes, et les achats bornés par la trésorerie. Choix de calibrage, non sourcé.
+- stock_mp.unites_par_palette (calibre) : themes.*.mp.units_per_pallet (120 à 150) : à 3 lignes, environ 3 palettes consommées par jour, un camion de 6 tous les 2 jours, racks de 24 suffisants ; kits de quelques kilos, palette sous les 1 200 kg du chariot. Indicatif.

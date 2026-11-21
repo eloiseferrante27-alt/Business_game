@@ -31,18 +31,18 @@ Décisions de l'utilisateur (2026-10-29) :
 |---|---|
 | Caméra | La caméra Sims actuelle est validée. Il manque le côté Sims des menus contextuels et un mode construction sur grille |
 | DA | Assets procéduraux, DA sauge/turquoise du jeu de référence (déjà reprise : `godot/scenes/common/ui_tokens.gd`, `godot/assets/procedural/palette.gd`) |
-| Domaine v1 | Supply chain seule, avec toutes les briques génériques : un nouveau domaine = un pack `ai/packs/<id>.yaml` + des assets, pas du code |
+| Domaine v1 | Supply chain, avec toutes les briques génériques : un nouveau domaine = un pack `ai/packs/<id>.yaml` + des assets, pas du code. Amendé le 21/11 (ADR 0013 §6) : un second domaine jouable, la finance d'entreprise, avant la Première version |
 | Édition | Le formateur modifie le monde généré avant publication avec un éditeur de grille (mode construction), et peut aussi régénérer ou ajuster les paramètres. Spécification : ADR 0009 |
 | Local | Plus jamais de LLM externe (ChatGPT, Gemini, etc.) : tout est local (Ollama) |
 
 ## 2. Les attendus majeurs
 
-Si un chantier ne sert aucun de ces dix attendus, le remettre en question avant de l'écrire.
+Si un chantier ne sert aucun de ces douze attendus, le remettre en question avant de l'écrire.
 
 | # | Attendu | Comment on le vérifie |
 |---|---|---|
 | 1 | **Domaines proposés selon les assets.** Un domaine est proposé si un pack est chargé, sourcé et couvert à 100 % ; sinon grisé avec la raison. Un nouveau domaine = données | ADR 0009 décision 7 ; critère 0009-9 (`pack_coverage("usine")["ratio"] == 1.0`, 422 pour un pack non proposé) |
-| 2 | **L'IA conçoit** concept, cast et journey (3 appels : cible ; v0 = un seul appel `factory.design`) à partir du brief et des paramètres, en choisissant dans les catalogues du pack | ADR 0008 annexe §9 critères 3 et 5 ; `gmix.tools.eval_design --series C` atteint les seuils du §8 |
+| 2 | **L'IA conçoit** en cinq étapes (domaine, mécaniques, monde, personnages, parcours) et un contrôle (cible ADR 0013, T9 ; v0 = un seul appel `factory.design` jusqu'à T9) à partir du brief et des paramètres, en choisissant dans les catalogues du pack | ADR 0008 annexe §9 critères 3 et 5 ; `gmix.tools.eval_design --series C` atteint les seuils du §8 |
 | 3 | **Un monde sur grilles**, posé par un placeur déterministe : carte, site, bloc | ADR 0009 décision 1 ; critères 0009-1, 0009-2 |
 | 4 | **Placement fondé sur le métier** : règles d'implantation du domaine, chacune avec sa provenance | ADR 0009 décision 6 ; critère 0009-8 (`check_placement` ne trouve rien ; un plan qui viole une règle est refusé, 6 types) |
 | 5 | **Réseau logistique** : fournisseurs externalisés, routes, camions rejoués, délais dérivés de la distance | ADR 0009 décisions 3 et 4 ; critères 0009-3, 0009-4, 0009-5 |
@@ -51,6 +51,8 @@ Si un chantier ne sert aucun de ces dix attendus, le remettre en question avant 
 | 8 | **Interfaces modulaires et lisibles** : panneaux et outils du domaine, menus contextuels Sims, 4 tailles de fenêtre | `.\scripts\godot.ps1 -Tour` ; ADR 0008 décision 5 ; ADR 0009 décision 9 ; critères 0009-6, 0009-12 et 0009-13 |
 | 9 | **Partie rejouable et vraie** : événements discrets, mêmes paramètres = même spec, agents qui ne disent que les faits calculés, notions citées | ADR 0007 décisions 1, 2, 7 ; `.\scripts\test.ps1` ; annexe 0008 §8 (notions d'objectif avec citation : 100 %) |
 | 10 | **Tout local et tenable sur le poste** (RTX 3060 6 Go) : un job de conception de 3 min en médiane, jamais plus de 10 | ADR 0008 décision 4 et annexe §8 ; `.\scripts\check-env.ps1` |
+| 11 | **Variété selon la demande** (cible ADR 0013, T4 à T9) : série V, 12 briefs -> 8 structures au moins ; aujourd'hui le monde reste le même hall en U | ADR 0013 §1 et §5 ; série V (pas encore écrite) |
+| 12 | **Second domaine jouable, audité et signé** (cible ADR 0013, D0 à D3) : la finance d'entreprise (trésorerie et BFR d'une PME), en plus de la supply chain ; non livré | ADR 0013 §6 ; audit D3 |
 
 ## 3. Chaîne de bout en bout
 
@@ -61,7 +63,8 @@ Si un chantier ne sert aucun de ces dix attendus, le remettre en question avant 
  modules + paramètres (GameParams) + brief libre (20 à 2000 caractères)
         |
         v
- conception par l'IA : concept -> cast -> journey      (3 appels : cible ; v0 = un seul appel `factory.design`)
+ conception par l'IA : domaine -> concept -> monde -> cast -> parcours + contrôle
+   (cible ADR 0013, T9 ; v0 = un seul appel `factory.design` jusqu'à T9)
    choix dans les catalogues du pack ; aucun nombre, aucune coordonnée, aucun lien
         |
         v
@@ -122,14 +125,14 @@ corpus est provisoire et les domaines sans corpus sont « non sourcés ».
 | Notion | Définition | Renvoi |
 |---|---|---|
 | Grille de carte | Un site = une cellule de `map.cell_m` ; classe de distance = anneau, camp = côté. Le kilométrage est affiché, pas mis à l'échelle | ADR 0009 d.1 |
-| Grille de site | Les blocs sont des rectangles alignés sur `grid.site_cell_m` (0,5 m) ; plan en U conservé | ADR 0009 d.1 |
+| Grille de site | Les blocs sont des rectangles alignés sur `grid.site_cell_m` (0,5 m) ; plan en U = programme de référence du pack et repli du placeur (ADR 0013) | ADR 0009 d.1 |
 | Grille locale de bloc | Cellule, allée, bande libre ; motifs `edge`, `rows`, `line`, `single` ; contenu par rôles (`stockage`, `machine`, `poste`…) | ADR 0009 d.1 et Contrat |
 | Sites et liens | Le principal, les fournisseurs, les clients ; liens à angles droits qui finissent à `ref: dock` | ADR 0009 d.3, Contrat |
 | Règles de placement | `placement_rules[]` du pack, types connus du code (`adjacent`, `flow`, `separated`, `aisle_min`, `facing`, `near`), chacune avec provenance | ADR 0009 d.6 |
 | Couverture d'assets | Assets requis du pack, couverts s'ils sont `importe` dans `ai/assets.yaml` | ADR 0009 d.7 |
 | Délais | Préparation + ⌈ km ÷ vitesse ÷ heures de conduite par jour ⌉, bornés de 1 à 8 jours | ADR 0009 d.3, critère 0009-3 |
 
-Le placeur est pur et sans hasard : même spec, même type de monde (critère 0009-1). L'IA ne choisit que ce que le moteur
+Le placeur est pur et déterministe à graine : mêmes paramètres, même graine, mêmes retouches = même monde (critère 0009-1 ; la graine est cible T4, aujourd'hui sans hasard et monde figé à la graine 42 côté Godot). L'IA ne choisit que ce que le moteur
 simule : en tranche 1, la classe de distance de chaque fournisseur. Éditeur de grille : spécifié dans l'ADR 0009
 décision 8 (`layout_edits`, `apply_edits`, critère 0009-10), y renvoyer plutôt que recopier. Un plan modifié par le formateur repasse par `check_placement`.
 
@@ -219,7 +222,7 @@ mission). Jamais « max » par défaut.
 
 ## 11. Où en est-on
 
-État courant : docs/equipe/reprise.md. Plan d'exécution : ADR 0012 et reprise.md (ADR 0008 annexe §10 : remplacé).
+État courant : docs/equipe/reprise.md. Plan d'exécution : ADR 0013 §5 (variété, second domaine, documents du formateur) et reprise.md (ADR 0008 annexe §10 : remplacé).
 
 ## 12. Prompt de session
 

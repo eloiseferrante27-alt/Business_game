@@ -1,0 +1,92 @@
+{
+ "params": {
+  "pack": "usine",
+  "theme": "automobile",
+  "modules": [
+   "pilotage",
+   "production",
+   "maintenance"
+  ],
+  "extra_agents": [
+   "direction"
+  ],
+  "agent_tone": "exigeant",
+  "difficulty": "expert",
+  "weeks": 12,
+  "events": "rares",
+  "products": 1,
+  "options": {
+   "lines": 3
+  },
+  "company_name": null,
+  "players_min": 2,
+  "players_max": 6,
+  "seed": 202,
+  "tunings": {
+   "mtbf_factor": "decouverte"
+  },
+  "event_plan": [],
+  "network": {
+   "fournisseur_standard": "national",
+   "fournisseur_economique": "national"
+  }
+ },
+ "fallback": false,
+ "reasons": [],
+ "attempts": 1,
+ "unmet": [],
+ "model": "qwen2.5:3b",
+ "prompt_version": 4,
+ "prompt_tokens": 1338,
+ "completion_tokens": 118,
+ "duration_ms": 2403,
+ "load_ms": 16,
+ "brief_sha256": "b38dc6e07dacb09ba9fb0a4f24bb0f84c669baced6bf13875406998dfff8a48c",
+ "essais": [
+  {
+   "params": {
+    "pack": "usine",
+    "theme": "automobile",
+    "modules": [
+     "pilotage",
+     "production",
+     "maintenance"
+    ],
+    "extra_agents": [
+     "direction"
+    ],
+    "agent_tone": "exigeant",
+    "difficulty": "expert",
+    "weeks": 12,
+    "events": "rares",
+    "products": 1,
+    "options": {
+     "lines": 3
+    },
+    "company_name": null,
+    "players_min": 2,
+    "players_max": 6,
+    "seed": 202,
+    "tunings": {
+     "mtbf_factor": "decouverte"
+    },
+    "event_plan": [],
+    "network": {
+     "fournisseur_standard": "national",
+     "fournisseur_economique": "national"
+    }
+   },
+   "fallback": false,
+   "reasons": [],
+   "attempts": 1,
+   "unmet": [],
+   "model": "qwen2.5:3b",
+   "prompt_version": 4,
+   "prompt_tokens": 1338,
+   "completion_tokens": 118,
+   "duration_ms": 2403,
+   "load_ms": 16,
+   "brief_sha256": "b38dc6e07dacb09ba9fb0a4f24bb0f84c669baced6bf13875406998dfff8a48c"
+  }
+ ]
+}

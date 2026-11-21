@@ -41,7 +41,7 @@ pures) : la réponse HTTP porte le nouvel état, `lobby.state` le diffuse aux au
 indisponible : l'action est enregistrée quand même et les clients se resynchronisent par
 `GET /api/v1/lobbies/{id}`. La conception d'un jeu par l'IA (`POST /games/designs`, `POST /games/{id}/design/regenerate`)
 passe par Kafka : le worker `generation` (`.\scripts\worker.ps1 generation`) consomme `gmix.generation.commands`, appelle
-la tâche `factory.design` et publie sur `gmix.generation.events` ; la progression se lit en base par `GET /games/{id}/job`. Si la commande ne part pas, l'API répond une erreur
+aujourd'hui la tâche `factory.design` et publie sur `gmix.generation.events` ; la progression se lit en base par `GET /games/{id}/job` (cible ADR 0013 §3.5, T9 : étapes `domaine`, `mecaniques`, `monde`, `personnages`, `parcours`, `controle` ; aucun topic nouveau ; dépôt des documents du formateur par `gmix.rag.commands`, T8 ; noms exacts à fixer dans l'annexe 0013, T2). Si la commande ne part pas, l'API répond une erreur
 et ne garde ni jeu ni job. Au démarrage, le worker passe en `failed` les jobs restés `running`. Seule la génération
 par paramètres (`POST /games`, atelier, ADR 0006) reste synchrone et sans Kafka.
 

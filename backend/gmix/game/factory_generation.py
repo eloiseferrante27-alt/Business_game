@@ -137,6 +137,10 @@ def _machines(pack, item, level, n_lines) -> list[dict[str, Any]]:
                 "defect_rate": round(t["defect_rate"] * level["defect_factor"], 4), "buffer": t["buffer"],
                 "transfer_min": t["transfer_min"], "operators": t["operators"], "asset": asset,
             })  # fmt: skip
+    if (shape := level.get("bottleneck_shape")) is not None:  # P2 : forme propre au goulot (la plus lente de la ligne)
+        for line in range(n_lines):
+            line_machines = machines[line * len(item["operations"]) :][: len(item["operations"])]
+            max(line_machines, key=lambda m: m["cycle_min"])["weibull_shape"] = shape
     return machines
 
 
@@ -212,6 +216,7 @@ def _calibrate(spec, pack, level, item, machines) -> None:
                       "line_leads": _val(pack, "pilotage.chefs_de_ligne")},  # fmt: skip
         "costs": {"repair_per_h": _val(pack, "maintenance.cout_reparation_h"),
                   "preventive_per_intervention": _val(pack, "maintenance.cout_preventif"),
+                  "damage_per_failure": pack["values"].get("maintenance.cout_degats_panne", {}).get("value", 0),
                   "operator_per_h": _val(pack, "pilotage.cout_operateur_h")},  # fmt: skip
         "protect_buffer": _val(pack, "machine.protect_buffer"),
     }  # fmt: skip

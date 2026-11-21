@@ -22,7 +22,7 @@ comme des données de référence.
 
 | Étape | Usine | Atelier |
 |---|---|---|
-| Création | brief libre en français, conçu par l'IA (`factory.design`, worker `generation`) ; en cas d'échec, repli sur les paramètres par défaut | paramètres choisis dans un menu, génération sans modèle |
+| Création | brief libre en français, conçu par l'IA (aujourd'hui un appel `factory.design`, worker `generation` ; cible ADR 0013, T9 : cinq étapes, domaine, mécaniques, monde, personnages, parcours, et un contrôle) ; en cas d'échec, repli sur les paramètres par défaut | paramètres choisis dans un menu, génération sans modèle |
 | Relecture | partie de référence du pilote automatique, plan 3D modifiable (retouches), régénération d'une section : `entreprise`, `objectifs` ou `personnages` | export, modification hors ligne, réimport validé |
 | Publication | `POST /games/{id}/publish` après contrôle de la spec et du placement | idem |
 | Lancement | groupe d'équipes (ADR 0011) : une équipe = un lobby = une entreprise ; débrief du groupe comparé | lobby |
@@ -33,14 +33,14 @@ Les routes et les droits sont dans docs/roles.md.
 
 | Élément | Valeur (`ai/packs/usine.yaml`) |
 |---|---|
-| Monde | hall de 48 x 30 m en U, 11 départements dont 2 externes (fournisseur, client), reliés par des routes |
+| Monde | référence : hall de 48 x 30 m en U, 11 départements dont 2 externes (fournisseur, client), reliés par des routes ; c'est le seul monde produit aujourd'hui. Cible ADR 0013 (T5) : 1 à 3 bâtiments à pièces, le hall en U devenant le programme de référence |
 | Lignes | 1 à 3 (défaut 2), 4 machines en série chacune |
 | Durée | 4 à 12 semaines (défaut 6) |
 | Semaine | 5 jours de 480 min, début à 8 h, pas de 5 min ; pauses de 10, 20 et 10 min ; simulée minute par minute puis rejouée en 3D |
 | Secteurs | industrie, automobile (un produit) |
 | Difficultés | découverte (charge 80 %), équilibré (85 %), expert (92 %, livraison à J+1) |
 | Aléas | niveau aucun, rares (probabilité 0,25) ou fréquents (0,5) ; 6 aléas : retard de transport, hausse des matières, commande exceptionnelle, creux de demande, lot de matière non conforme, vague de chaleur |
-| Cibles | OTIF 95 %, TRS 78 %, 0 jour-ligne en rupture de matière, trésorerie finale >= départ + 60 % du gain du pilote automatique |
+| Cibles | OTIF 95 %, TRS : la valeur de `criteria` dans `ai/packs/usine.yaml` (recalibrée le 19/11, convention du jeu ; non recopiée ici avant la signature de T0), 0 jour-ligne en rupture de matière, trésorerie finale >= départ + 60 % du gain du pilote automatique |
 | Notions | 17 (goulot, TRS, loi de Little, point de commande, OTIF, etc.), chacune rattachée à une fiche du corpus |
 
 Réglages que l'IA peut choisir (`tunables`) : fréquence des pannes, défauts des machines, charge, délai promis,
@@ -56,6 +56,22 @@ de difficulté, jamais un nombre inventé.
 | Maintenance | Responsable maintenance | `preventif`, `priorite_reparation` |
 
 Un module sans titulaire tourne en pilote automatique (sauf la semaine où le formateur y agit).
+
+## Ce qui varie selon la demande (cible ADR 0013 ; état livré au 21/11 : la demande règle des chiffres d'une usine unique)
+
+| Dimension | Données sourcées du pack | Procédural à graine (T4, T5) | Agents IA (T9) | Moteur seul |
+|---|---|---|---|---|
+| Secteur et domaine | secteurs, produits, notions citées | aucun | choix du domaine, du secteur, des notions visées | moteur du pack |
+| Modules et mécaniques | modules, actions, aléas, réglages | aucun | modules joués, réglages, plan d'aléas, objectifs | effets, verdict |
+| Rôles et PNJ (T7) | rôles, caractères, clés de faits | prénoms, figurants | découpage des rôles, caractères, présentations | faits des PNJ |
+| Produits et réseau | 1 à 4 produits, 3 à 8 fournisseurs, 1 à 4 clients | choix dans les listes | nombres, classes de distance | délais, prix, OTIF |
+| Bâtiments et pièces | archétypes, zonage sourcé | tailles, positions, pièces, portes | programme de bâtiments | temps de trajet |
+| Visuel | variantes d'assets importés | variante par objet, décor | ambiance | rien |
+| Sources du formateur (T8) | aucune | aucun | passages validés cités | aucun chiffre de document |
+
+Aujourd'hui : 1 produit, 3 fournisseurs, 1 client, hall en U, 3 rôles, aucun texte conçu. Règle : le moteur seul calcule, une disposition vient de la graine, l'IA choisit dans un schéma fermé.
+
+**Second domaine** : la finance d'entreprise (trésorerie et BFR d'une PME), décidé le 21/11 (ADR 0013 §6.2) (`finance-entreprise`, moteur `factory`, D0 fait) ; pack, corpus et audit en D1 à D3, non livrés.
 
 ## Atelier (pack gelé)
 

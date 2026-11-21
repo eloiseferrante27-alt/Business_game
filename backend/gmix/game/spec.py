@@ -620,6 +620,9 @@ class FactoryCosts(BaseModel):
     repair_per_h: float = Field(ge=0)
     preventive_per_intervention: float = Field(ge=0)
     operator_per_h: float = Field(ge=0)
+    damage_per_failure: float = Field(
+        default=0, ge=0, description="€ de dégâts ajoutés à chaque réparation (pack : maintenance.cout_degats_panne)"
+    )
 
 
 class InitialOrder(BaseModel):

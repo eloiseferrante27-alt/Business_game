@@ -477,6 +477,7 @@ l'agent contrôleur informe sans action (`module` absent de son entrée).
   `poste_qualite` -> `gauge` part de bons.
 
 Plan en U, hall de 48 x 30 m (x de -24 à 24, z de -15 à 15, porte de quai au mur avant z = 15, x de -3 à 3).
+(Amendé par 0013 § 3.4 : programme de référence et repli du placeur, plus le seul plan possible.)
 Zones indicatives ; allées d'au moins 2,5 m pour le chariot, vérifiées par les tests de génération :
 
 ```

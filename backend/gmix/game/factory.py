@@ -233,7 +233,7 @@ class _M:
     __slots__ = (
         "i", "id", "line", "is_first", "is_last", "cycle", "setup", "defect", "transfer", "scale", "shape", "mttr",
         "run_min", "stop_min", "cur", "phase", "rem_setup", "rem_cycle", "seg", "gen", "ostop", "down", "age", "hazard",
-        "rsince", "last_lot", "fail_t", "wake", "st", "st_t", "bk", "produced", "defects", "failures", "rng",
+        "rsince", "last_lot", "fail_t", "wake", "st", "st_t", "bk", "produced", "defects", "failures", "rng", "drng",
     )  # fmt: skip
 
 
@@ -292,7 +292,8 @@ class _Sim:
                         "rsince", "last_lot", "fail_t", "wake"):  # fmt: skip
                 setattr(m, key, ms[key])
             m.bk, m.produced, m.defects, m.failures = [0.0] * 7, 0, 0, 0
-            m.rng = _rng(P, "machine", week, mc["id"])
+            m.rng = _rng(P, "panne", week, mc["id"])  # seuils de panne
+            m.drng = _rng(P, "defaut", week, mc["id"])  # défauts : indépendants des pannes (pilote et passif appariés)
             m.st, m.st_t = ARRET, 0.0
             self.M.append(m)
         self.tables = [deque((r, c) for r, c in t) for t in fs["tables"]]
@@ -534,7 +535,7 @@ class _Sim:
         m.seg = None
         m.gen += 1
         code = m.cur
-        if m.rng.random() < m.defect:
+        if m.drng.random() < m.defect:
             code |= 1  # type: ignore[operator]
             m.defects += 1
         m.produced += 1
@@ -678,7 +679,7 @@ class _Sim:
         self.tech_busy -= 1
         self.tech_stats["repairs"] += 1
         self.tech_stats["busy_min"] += m.mttr + P.lg["repair_travel_min"]
-        self.costs["repair"] += m.mttr / 60 * P.costs["repair_per_h"]
+        self.costs["repair"] += m.mttr / 60 * P.costs["repair_per_h"] + P.costs.get("damage_per_failure", 0.0)
         self._agent(now, "agent_maintenance", "disponible", "maintenance")
         self._refresh(m, now)
         self._try(m, now)

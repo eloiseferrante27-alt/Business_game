@@ -3,7 +3,8 @@
 Date : 2026-10-29. Statut : accepté (29/10, décisions par défaut à confirmer : voir les questions en fin de document),
 amendé le 29/10 par les points 8 et 9 (éditeur de grille du formateur, menus contextuels). Complète l'ADR 0007 (usine, quai, chronologie) et
 l'ADR 0008 (conception par l'IA). Le contrat est dans ce document ; le plan s'ajoute à `0008-annexe-contrat-conception.md`
-(§10).
+(§10). Amendé par l'[ADR 0013](0013-generation-de-mondes-et-de-jeux-differents.md) (21/11) : d.1 et contrat de
+`place_world` (§ 3.4), d.2 (§ 2 et § 6.7), « Après » (§ 5). d.8 inchangé.
 
 ## Contexte
 
@@ -37,11 +38,14 @@ ni règle de placement à l'intérieur d'une parcelle.
      places). Le placeur tire les emprises (`ai/assets.yaml`, `footprint`) en nombre de cellules et range tout.
    - Une erreur de placement est une erreur du pack, vérifiée par les tests sur toutes les options. Elle n'arrive
      jamais à l'exécution.
+   - **Amendé par 0013 § 3.4** (21/11) : le placeur devient déterministe à graine et gagne un niveau bâtiment (1 à 3
+     bâtiments à pièces) ; le plan en U devient le programme de référence et le repli.
 2. **L'IA ne produit ni coordonnée ni nombre, et ne choisit que ce que le moteur simule.** Le rejeu 3D reste la vérité
    calculée (ADR 0007, point 2) : un site ou un bloc que le moteur ignore enseignerait faux. En tranche 1, l'IA choisit
    dans le concept (ADR 0008) la **classe de distance** de chaque site fournisseur, parmi celles que le pack permet pour
    ce site (`GameParams.network`). Le choix des blocs facultatifs, du mode de transport et du gabarit de site viendra
-   quand un moteur s'en servira (tranches 2 et 3).
+   quand un moteur s'en servira (tranches 2 et 3). **Amendé par 0013 § 2 et § 6.7** (21/11) : l'IA choisit aussi les
+   bâtiments et l'affectation des départements, permis parce que le moteur en tire les trajets (`travel_min`).
 3. **Réseau logistique.** Le pack déclare les classes de distance (km), les types de liens (vitesse, véhicule), les
    heures de conduite par jour et les sites (camp, liens, classes permises, délai de préparation), chaque nombre avec
    sa provenance (`values`, `reseau.*`). La génération calcule le délai d'une offre, puis le borne dans les limites du
@@ -258,7 +262,7 @@ def apply_edits(world: dict, edits: list[dict], pack: dict) -> tuple[dict, list[
 #   asset_non_permis. Les appelants (generate, recompile, routes) enchaînent place_world, apply_edits et check_placement.
 ```
 
-Pur, sans hasard. Il rend `world` (objets, sites, liens, `bounds`, `spawn`, `forklift_route`), la position des postes
+Pur, sans hasard (**amendé par 0013 § 3.4** : déterministe à graine). Il rend `world` (objets, sites, liens, `bounds`, `spawn`, `forklift_route`), la position des postes
 et les routes des agents (cellules libres de la bande d'allée de leur bloc). Les règles :
 - une cellule ne porte qu'un objet ;
 - tout objet reste dans son bloc ;
@@ -365,6 +369,8 @@ Budgets :
   emplacements (`categories`, `defaults`, `candidate_assets`), le réseau de l'atelier (délais en semaines) ;
 - tranche 3 : des blocs et des gabarits de site facultatifs, choisis par l'IA quand un moteur s'en sert, et le second
   domaine.
+- **Amendé par 0013 § 5** (21/11) : le décor et les gabarits (bâtiments, pièces) sont réalisés par 0013 T4 et T5, le
+  second domaine par D0 à D3 ; le mode de transport et le réseau de l'atelier restent hors de la Première version.
 
 ## Questions à l'utilisateur
 

@@ -225,13 +225,60 @@ def advance(spec: dict[str, Any], state: dict[str, Any], played: set[str]) -> di
         "costs": {k: round(v) for k, v in costs.items()}, "timeline": timeline,
     }  # fmt: skip
     new["history"].append(
-        {"week": week, **kpis, "event": new["last"]["event"], "lost": lost, "returns": 0, "delays": len(delayed)}
-    )
+        {"week": week, **kpis, "event": new["last"]["event"], "lost": lost, "returns": 0, "delays": len(delayed),
+         "wear": _wear(plant, report, effects.get("mtbf", 1.0)), "preventive": len(report["preventive"]["done"])}
+    )  # fmt: skip
     if week >= spec["meta"]["weeks"]:
         new["status"], new["event"] = "finished", None
     else:
         new["week"], new["event"] = week + 1, roll_event(spec, week + 1)
     return new
+
+
+def _wear(plant: factory.Plant, report: dict[str, Any], mtbf_factor: float) -> dict[str, Any]:
+    """Par goulot : heures de marche, pannes attendues (heures de marche / MTBF) et observées, arrêt, préventifs."""
+    out = {}
+    for i in plant.bottleneck:
+        mid, mc = plant.mids[i], plant.machines[i]
+        r = report["machines"][mid]
+        run_h = r["minutes"]["marche"] / 60
+        out[mid] = {"run_h": round(run_h, 2), "expected": round(run_h / (mc["mtbf_h"] * mtbf_factor), 3),
+                    "failures": r["failures"], "down_h": round(r["minutes"]["panne"] / 60, 2),
+                    "preventive": report["preventive"]["done"].count(mid)}  # fmt: skip
+    return out
+
+
+def bottleneck_wear(spec: dict[str, Any], state: dict[str, Any]) -> list[dict[str, Any]]:
+    """Pannes des goulots sur la partie, regroupés par forme d'usure et par entretien (préventif fait ou non) :
+    observées, attendues (fiche MTBF : heures de marche / MTBF), évitées (attendues - observées, affichées si
+    >= 2 racine(attendues) : seuil de calibrage, sinon `avoided` vaut None), arrêt en heures."""
+    plant, groups = factory.Plant(spec), {}
+    for i in plant.bottleneck:
+        mid, mc = plant.mids[i], plant.machines[i]
+        ws = [h["wear"][mid] for h in state["history"] if mid in h.get("wear", {})]
+        if not ws:
+            continue
+        prev = sum(w["preventive"] for w in ws)
+        g = groups.setdefault((mc["weibull_shape"], prev > 0), {
+            "names": [], "lines": 0, "shape": mc["weibull_shape"], "mttr_h": mc["mttr_h"], "failures": 0,
+            "expected": 0.0, "down_h": 0.0, "preventive": 0, "with_preventive": prev > 0})  # fmt: skip
+        g["names"] += [mc["name"]] if mc["name"] not in g["names"] else []
+        g["lines"] += 1
+        g["failures"] += sum(w["failures"] for w in ws)
+        g["expected"] += sum(w["expected"] for w in ws)
+        g["down_h"] += sum(w["down_h"] for w in ws)
+        g["preventive"] += prev
+    for g in groups.values():
+        avoided = g["expected"] - g["failures"]
+        g["avoided"] = round(avoided, 1) if avoided >= 2 * math.sqrt(g["expected"]) and avoided > 0 else None
+        costs = spec["factory"]["costs"]
+        counted = g["shape"] > 1 and g["with_preventive"] and g["avoided"] is not None
+        per_failure = g["mttr_h"] * costs["repair_per_h"] + costs.get("damage_per_failure", 0.0)
+        g["avoided_cost"] = g["avoided"] * per_failure if counted else 0.0
+        g["expected"], g["down_h"] = round(g["expected"], 1), round(g["down_h"], 1)
+        g["expected_without_preventive"] = g["expected"]  # pannes attendues sans entretien, telles qu'affichées
+        g["label"] = " / ".join(g["names"]) + (f" ({g['lines']} lignes)" if g["lines"] > 1 else "")
+    return list(groups.values())
 
 
 def _week_kpis(
@@ -273,7 +320,8 @@ def _snapshot(
     lines = {}
     for ln, lid in enumerate(plant.line_ids):
         r, b = report["lines"][lid], report["machines"][plant.mids[plant.bottleneck[ln]]]["minutes"]
-        planned_h = (T - b["arret"] - b["pause"]) / 60  # planifié : hors arrêts et pauses (fiche OEE)
+        # planifié : hors arrêts et pauses (convention du jeu, fiche wikipedia-fr-taux-de-rendement-synthetique l.48)
+        planned_h = (T - b["arret"] - b["pause"]) / 60
         run_h = (T - b["arret"] - b["pause"] - b["panne"]) / 60
         th = r["theoretical_h"]
         ok = planned_h > 0 and r["out"] > 0
@@ -551,7 +599,8 @@ def debrief(spec: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
     events = {e["id"]: e["title"] for e in spec["events"]}
     return {
         "status": state["status"], "company": spec["meta"]["company"], "weeks_played": len(history), "kpis": finals,
-        "history": history, "lessons": _lessons(spec, state),
+        "history": history, "lessons": _lessons(spec, state), "bottlenecks": bottleneck_wear(spec, state),
+        "preventive": preventive_balance(spec, state),
         "notions": [n for n in spec["notions"] if n["id"] in notion_ids],
         "events": [{"week": h["week"], "title": events.get(h["event"], h["event"])} for h in history if h["event"]],
         "log": [engine.full_entry(e) for e in state["log"]],
@@ -586,15 +635,19 @@ def _lessons(spec: dict[str, Any], state: dict[str, Any]) -> list[str]:
     trs = engine._mean(history, "trs")
     if trs is not None and trs < targets["trs"]:
         good = engine._mean(history, "good_share")
-        wear = any(m["weibull_shape"] > 1 for m in factory.Plant(spec).machines)
+        plant = factory.Plant(spec)
+        shapes = [plant.machines[i]["weibull_shape"] for i in plant.bottleneck]
+        wear, random_ = all(k > 1 for k in shapes), all(k <= 1 for k in shapes)
         lessons.append(
             f"TRS moyen de {num(trs)} % pour un objectif de {num(targets['trs'], 0)} %"
             + (f", avec {num(good)} % de produits bons" if good is not None else "")
-            + ". Le TRS d'une ligne se mesure sur son goulot : pannes, pauses, ralentissements et rebuts le font "
+            + ". Le TRS d'une ligne se mesure sur son goulot : pannes, attentes, ralentissements et rebuts le font "
             "baisser."
             + (
                 " Ici, le risque de panne croît avec l'âge de la machine et un préventif le remet à zéro."
                 if wear
+                else " Ici, les pannes du goulot arrivent au hasard : un préventif à date fixe ne les évite pas."
+                if random_
                 else ""
             )
         )
@@ -613,7 +666,54 @@ def _lessons(spec: dict[str, Any], state: dict[str, Any]) -> list[str]:
             + (f"TRS moyen de {num(trs)} %, " if trs is not None else "")
             + f"trésorerie finale de {money(state['cash'])}."
         )
+    return lessons + _wear_lessons(spec, state)
+
+
+def _wear_lessons(spec: dict[str, Any], state: dict[str, Any]) -> list[str]:
+    """Une leçon par goulot (usure avec préventif, usure sans préventif, hasard) et le bilan du préventif."""
+    lessons = []
+    for w in bottleneck_wear(spec, state):
+        n, x, a, name = w["failures"], num(w["expected"]), w["avoided"], w["label"]
+        f = f"{n} {'panne' if n <= 1 else 'pannes'}"
+        if w["shape"] <= 1:
+            lessons.append(
+                f"{name} : {f} pour {x} attendues d'après son MTBF, {'avec' if w['with_preventive'] else 'sans'} "
+                "préventif. Ses pannes arrivent au hasard, quel que soit son âge : l'entretien à date fixe ne les "
+                "évite pas."
+            )
+        elif w["with_preventive"] and a is not None:
+            lessons.append(
+                f"{name} : {f} pour {x} attendues sans entretien d'après son MTBF ; le préventif en a évité environ "
+                f"{num(a, 0)} ({num(a * w['mttr_h'], 0)} h d'arrêt). Son risque de panne croît avec l'âge et "
+                "l'entretien le remet à zéro."
+            )
+        elif w["with_preventive"]:
+            lessons.append(
+                f"{name} : {f} pour {x} attendues sans entretien d'après son MTBF ; l'écart reste dans les "
+                "variations du hasard : on ne peut pas dire combien le préventif en a évité."
+            )
+        else:
+            lessons.append(
+                f"{name} : {f} pour {x} attendues d'après son MTBF, sans préventif. Son risque croît avec l'âge : "
+                "un entretien régulier en aurait évité une partie."
+            )
+    b = preventive_balance(spec, state)
+    if b["done"]:
+        lessons.append(
+            f"Préventif : {money(b['cost'])} ; réparations et dégâts évités : environ "
+            f"{money(b['avoided_cost'])} ; ventes perdues : {b['lost']} produit(s)."
+        )
     return lessons
+
+
+def preventive_balance(spec: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
+    """Bilan du préventif, valeurs avant arrondi (le texte arrondit à l'affichage)."""
+    done = sum(h.get("preventive", 0) for h in state["history"])
+    return {
+        "done": done, "cost": done * spec["factory"]["costs"]["preventive_per_intervention"],
+        "avoided_cost": sum(w["avoided_cost"] for w in bottleneck_wear(spec, state)),
+        "lost": sum(h["lost"] for h in state["history"]),
+    }  # fmt: skip
 
 
 # --- informations essentielles des agents (briefings) ---------------------------------------------------------------
@@ -759,6 +859,8 @@ def _facts_maintenance(spec: dict[str, Any], state: dict[str, Any], view: dict[s
             (worst["bottleneck"], f"{worst['name']} a perdu {num(worst['downtime_min'], 0)} minutes en panne.")
         )
     facts.append((False, f"Semaine passée : {total} panne(s) au total."))
+    facts += [(False, f"{w['label']} : {w['failures']} panne(s) depuis le début, {num(w['expected'])} attendue(s) "
+                      "sans entretien d'après son MTBF.") for w in bottleneck_wear(spec, state)]  # fmt: skip
     if rep["technician"]["waited"]:
         facts.append((False, f"{rep['technician']['waited']} panne(s) ont attendu le technicien."))
     done, skipped = len(rep["preventive"]["done"]), len(rep["preventive"]["skipped"])

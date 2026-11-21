@@ -5,6 +5,8 @@ en fin de document sont retenues).
 Amende l'ADR 0006 : l'IA redevient la couche de conception ; la génération par paramètres reste et sert de repli.
 Complété par l'ADR 0009 (monde sur grilles, réseau logistique, domaines proposés selon la couverture des assets) et
 par les arbitrages du 29/10 (annexe, §2 et §10.1).
+Amendé par l'[ADR 0013](0013-generation-de-mondes-et-de-jeux-differents.md) (21/11) : d.3 (§ 3.4 et § 6.2), d.4 (§ 3.2),
+d.6 (§ 3.3).
 Complète l'ADR 0007 (packs, usine, panneaux). Contrat précis et plan d'exécution : `0008-annexe-contrat-conception.md`.
 
 ## Contexte
@@ -65,6 +67,8 @@ Complète l'ADR 0007 (packs, usine, panneaux). Contrat précis et plan d'exécut
    l'utilisateur en a besoin. Pas de factorisation par anticipation. (C) Un nouveau domaine dont l'IA rédige le
    brouillon de pack (primitives, valeurs `a_sourcer`, notions tirées du corpus) : il n'est jamais jouable avant la
    relecture par game-designer.
+   **Amendé par 0013 § 6.2 et § 3.4** (21/11) : un second domaine jouable est décidé pour la Première version, sur un
+   moteur existant ; (B) ne s'applique que s'il n'y tient pas (nouvel ADR).
 4. **Pipeline.** `POST /games/designs` répond 202 et publie `generation.requested` sur `gmix.generation.commands`.
    Le worker `generation` traite un job à la fois avec un seul modèle chargé, en trois sections et trois appels :
    `concept` (scénario, mécaniques, objectifs), `cast` (personnages), `journey` (interface, didacticiel, débrief).
@@ -73,6 +77,9 @@ Complète l'ADR 0007 (packs, usine, panneaux). Contrat précis et plan d'exécut
    Avec la graine et `cache: true`, une relance ou une reprise retrouve les appels déjà faits dans le cache. La
    progression passe par `gmix.generation.events` puis par le WebSocket du seul demandeur ; une interrogation
    périodique sert de secours. Budget : 3 min en médiane, 5 min au 90e centile, 10 min au plus, puis repli.
+   **Amendé par 0013 § 3.2** (21/11) : cinq sections en série (domaine, mécaniques, monde, personnages, parcours) et
+   un contrôle d'exactitude, tâches `design.*` ; le RAG sert à l'étape 1 (choisir et citer, jamais un chiffre). Budget
+   inchangé.
 5. **Interface modulable et lisible.** Le pack déclare un catalogue de panneaux (5 types, ADR 0007) et d'outils (barre
    d'actions). L'IA en choisit une partie et l'ordonne ; le formateur réordonne ou masque dans l'aperçu ; le joueur
    règle sa disposition sur son poste. Le validateur impose des **limites de lisibilité** (`UI_LIMITS` : nombre de
@@ -98,6 +105,7 @@ Complète l'ADR 0007 (packs, usine, panneaux). Contrat précis et plan d'exécut
    premier essai et après réparation, les replis, la jouabilité, la fidélité au brief, les chiffres tentés, les notions
    sourcées, la durée et les tokens. On retient le plus petit modèle qui passe les critères de l'annexe (§8),
    et de préférence celui du dialogue, qui ne déloge alors aucun autre modèle de la VRAM.
+   **Complété par 0013 § 3.3** (21/11) : série V (variété) et choix du modèle tâche par tâche.
 7. **Rapport aux ADR 0006 et 0007.** Le moteur déterministe, les packs, `factory.py`, la route de la chronologie, le
    monde 3D, les assets et le pack usine restent valables tels quels : ce sont les cibles de la conception. Il faut
    ajuster quatre points : les packs gagnent `tunables`, `tools`, `tutorial` et `notions.*.indicators` ;

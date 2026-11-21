@@ -225,7 +225,8 @@ def test_pitch_states_the_effective_settings() -> None:
     )  # fmt: skip
     pitch = generate(params)["meta"]["pitch"]
     assert pitch.endswith(
-        "Niveau expert : machines plus fiables, plus de défauts, fournisseurs moins fiables, demande plus variable, "
+        "Niveau expert : machines plus fiables, pannes du goulot au hasard, plus de défauts, "
+        "fournisseurs moins fiables, demande plus variable, "
         "5 jours de matière en stock, 1,2 jour de produits finis en stock, usine chargée à 92 %, "
         "livraison promise à J+1."
     )
@@ -256,10 +257,10 @@ def test_initial_order_arrives_and_is_paid_at_reception() -> None:
 
 
 def test_stockout_margin_scales_with_the_number_of_lines() -> None:
-    """Règle n° 5b : marge de 4 donnée pour 2 lignes ; expert à 3 lignes : 6 jours-ligne."""
+    """Règle n° 5b : marge de 5 donnée pour 2 lignes ; expert à 3 lignes : 7,5 jours-ligne."""
     partial = lambda **kw: next(c for c in spec_of(**kw)["criteria"] if c["id"] == "stockouts")["partial"]  # noqa: E731
-    assert (partial(difficulty="expert", lines=2), partial(difficulty="expert", lines=3)) == (4, 6)
-    assert partial(difficulty="expert", lines=1) == 2
+    assert (partial(difficulty="expert", lines=2), partial(difficulty="expert", lines=3)) == (5, 7.5)
+    assert partial(difficulty="expert", lines=1) == 2.5
 
 
 def test_line_trs_excludes_breaks_from_planned_time() -> None:
@@ -509,7 +510,7 @@ def test_factory_lessons_all_targets_met_names_the_figures() -> None:
     met = {"stockouts": 0, "otif": 100.0, "trs": 100.0, "good_share": None}
     state["history"] = [{**h, **met} for h in state["history"]]
     state["cash"] = spec["targets"]["cash_final"]
-    (line,) = engine.debrief(spec, state)["lessons"]
+    line = engine.debrief(spec, state)["lessons"][0]  # puis les leçons sur les pannes des goulots
     assert line.startswith("Objectifs atteints : aucune ligne arrêtée faute de matière, OTIF moyen de 100 %")
 
 
@@ -519,7 +520,7 @@ def test_factory_lessons_all_targets_met_omits_missing_figures() -> None:
     met = {"stockouts": 0, "otif": None, "trs": None, "good_share": None}
     state["history"] = [{**h, **met} for h in state["history"]]
     state["cash"] = spec["targets"]["cash_final"]
-    (line,) = engine.debrief(spec, state)["lessons"]
+    line = engine.debrief(spec, state)["lessons"][0]  # puis les leçons sur les pannes des goulots
     assert line.startswith("Objectifs atteints") and "None" not in line and "OTIF" not in line and "TRS" not in line
 
 
@@ -568,3 +569,107 @@ def test_initial_order_survives_a_json_roundtrip_with_float_numbers() -> None:
     assert all(type(valid["factory"]["initial_order"][k]) is int for k in ("pallets", "arrival_day"))
     original = SimSpec.model_validate(spec_of(difficulty="expert")).model_dump(mode="json")
     assert autopilot_check(valid) == autopilot_check(original)
+
+
+# --- pannes évitées par le préventif (P1) -------------------------------------------------------------------------
+
+
+def _wear_state(spec: dict[str, Any], expected: float, failures: int, preventive: int, shape: float | None = None):
+    """Partie fictive : une semaine, chaque goulot avec `expected` pannes attendues et `failures` observées."""
+    spec = copy.deepcopy(spec)
+    plant = factory.Plant(spec)
+    if shape is not None:
+        for i in plant.bottleneck:
+            spec["factory"]["machines"][i]["weibull_shape"] = shape
+    wear = {plant.mids[i]: {"run_h": 30.0, "expected": expected, "failures": failures, "down_h": float(failures),
+                            "preventive": preventive} for i in plant.bottleneck}  # fmt: skip
+    return spec, {"history": [{"wear": wear, "preventive": preventive * len(wear), "lost": 0}]}
+
+
+def _wear_texts(spec: dict[str, Any], state: dict[str, Any]) -> str:
+    from gmix.game import factory_game
+
+    return " ".join(factory_game._wear_lessons(spec, state))
+
+
+def test_wear_with_preventive_says_how_many_failures_were_avoided() -> None:
+    spec, state = _wear_state(spec_of(lines=1), expected=20, failures=5, preventive=1)
+    text = _wear_texts(spec, state)
+    assert "5 pannes pour 20 attendues" in text and "évité environ 15" in text and "Préventif : 50 €" in text
+
+
+def test_the_avoided_failures_threshold_is_two_square_roots_of_the_expected_ones() -> None:
+    from gmix.game import factory_game
+
+    for failures, shown in ((12, False), (11, True)):  # attendues 20 : seuil 2 x racine(20) = 8,94 ; évitées 8 et 9
+        spec, state = _wear_state(spec_of(lines=1), expected=20, failures=failures, preventive=1)
+        assert (factory_game.bottleneck_wear(spec, state)[0]["avoided"] is not None) is shown
+        assert ("dans les variations du hasard" in _wear_texts(spec, state)) is not shown
+
+
+def test_wear_without_preventive_says_the_failures_were_expected() -> None:
+    spec, state = _wear_state(spec_of(lines=1), expected=20, failures=20, preventive=0)
+    text = _wear_texts(spec, state)
+    assert "attendues d'après son MTBF, sans préventif" in text and "autant que prévu" not in text
+    assert "un entretien régulier en aurait évité" in text and "Préventif :" not in text
+
+
+def test_random_failures_are_never_said_to_be_avoided() -> None:
+    spec, state = _wear_state(spec_of(lines=1), expected=20, failures=0, preventive=1, shape=1.0)
+    text = _wear_texts(spec, state)
+    assert "au hasard" in text and "avec préventif" in text and "évité environ" not in text
+
+
+def test_the_debrief_and_the_maintenance_agent_carry_the_bottleneck_failures() -> None:
+    spec = spec_of()
+    state = play(spec, autopilot=True)
+    plant = factory.Plant(spec)
+    bottlenecks = engine.debrief(spec, state)["bottlenecks"]
+    assert sum(b["lines"] for b in bottlenecks) == len(plant.bottleneck)
+    assert all(b["expected"] > 0 and b["failures"] >= 0 and b["down_h"] >= 0 for b in bottlenecks)
+    briefings = json.dumps(engine.public_state(spec, state)["briefings"], ensure_ascii=False)
+    assert "attendue(s) sans entretien d'après son MTBF" in briefings
+
+
+def test_every_number_of_the_preventive_texts_is_a_debrief_field() -> None:
+    import re
+
+    from gmix.game.engine import money, num
+
+    spec, state = _wear_state(spec_of(lines=1), expected=20, failures=5, preventive=1)
+    state["history"][0]["lost"] = 3
+    debrief = {"bottlenecks": factory_game_wear(spec, state), "preventive": factory_game_balance(spec, state)}
+    b, p = debrief["bottlenecks"][0], debrief["preventive"]
+    assert p["avoided_cost"] == b["avoided_cost"] > 0 and b["expected_without_preventive"] == 20
+    allowed = {num(b["failures"], 0), num(b["expected_without_preventive"]), num(b["avoided"], 0),
+               num(b["avoided"] * b["mttr_h"], 0), money(p["cost"]), money(p["avoided_cost"]),
+               str(p["lost"])}  # fmt: skip
+    for text in _wear_texts(spec, state).split(". "):
+        for n in re.findall(r"\d+(?: \d{3})*(?:,\d+)?(?: €)?", text):
+            assert n in allowed, (n, text)
+
+
+def factory_game_wear(spec, state):
+    from gmix.game import factory_game
+
+    return factory_game.bottleneck_wear(spec, state)
+
+
+def factory_game_balance(spec, state):
+    from gmix.game import factory_game
+
+    return factory_game.preventive_balance(spec, state)
+
+
+def test_wear_texts_say_repairs_and_damages_and_trs_lesson_has_no_pause() -> None:
+    spec, state = _wear_state(spec_of(lines=1), expected=20, failures=5, preventive=1)
+    assert "réparations et dégâts évités : environ" in _wear_texts(spec, state)
+    spec = spec_of()
+    from gmix.game import factory_game
+
+    state = play(spec, autopilot=True)
+    for h in state["history"]:
+        h["trs"] = 1.0  # sous la cible : la leçon TRS s'affiche
+    lessons = factory_game._lessons(spec, state)
+    trs = [t for t in lessons if t.startswith("TRS moyen")]
+    assert trs and all("pause" not in t and "attentes, ralentissements" in t for t in trs)

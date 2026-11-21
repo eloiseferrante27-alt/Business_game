@@ -1,0 +1,105 @@
+{
+ "week": 2,
+ "event": {
+  "id": "retard_transport",
+  "title": "Perturbations routières",
+  "description": "Travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière."
+ },
+ "briefings": {
+  "agent_fournisseur": {
+   "facts": [
+    "Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière.",
+    "3 commande(s) de matière en route, soit 16 palettes."
+   ],
+   "urgent": true,
+   "line": "Petit point : Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière."
+  },
+  "agent_reception": {
+   "facts": [
+    "Semaine passée : 1 camion(s) déchargé(s), 6 palettes.",
+    "Prochaine livraison attendue dans 0 jour(s)."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_stock_mp": {
+   "facts": [
+    "Magasin : 5 palettes sur 24 places, 3 libres."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_production": {
+   "facts": [
+    "Ligne 1 : 17,4 bons par heure mesurés pour 17,1 attendus.",
+    "Ligne 2 : 17,9 bons par heure mesurés pour 17,1 attendus.",
+    "Ligne 3 : 16,7 bons par heure mesurés pour 17,1 attendus.",
+    "0 ordre(s) de fabrication ouvert(s)."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_qualite": {
+   "facts": [
+    "Semaine passée : 1 872 produits contrôlés, 78 rebuts."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_emballage": {
+   "facts": [
+    "258 produits bons attendent d'être emballés.",
+    "Semaine passée : 383 cartons et 63 palettes.",
+    "Entrepôt PF : 10 palettes sur 20."
+   ],
+   "urgent": true,
+   "line": "Petit point : 258 produits bons attendent d'être emballés."
+  },
+  "agent_maintenance": {
+   "facts": [
+    "M1 · Découpe a perdu 63 minutes en panne.",
+    "Semaine passée : 1 panne(s) au total.",
+    "M3 · Soudage de l'écrou (3 lignes) : 0 panne(s) depuis le début, 2,6 attendue(s) sans entretien d'après son MTBF.",
+    "Préventif : 3 fait(s), 0 non fait(s)."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_pilotage": {
+   "facts": [
+    "Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière.",
+    "0 commande(s) ouverte(s), dont 0 en retard.",
+    "Stock fini et en-cours à 240, sous le minimum de 328 : lancer des ordres.",
+    "OTIF à 100 % (objectif 95 %), TRS à 87 % (objectif 80 %)."
+   ],
+   "urgent": true,
+   "line": "Attention : Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière."
+  },
+  "agent_entrepot_pf": {
+   "facts": [
+    "10 palettes en stock sur 20 places."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_client": {
+   "facts": [
+    "0 commande(s) attendue(s) chez nous."
+   ],
+   "urgent": false,
+   "line": null
+  }
+ },
+ "alerts": [
+  {
+   "id": "event:retard_transport",
+   "level": "info",
+   "department_id": null,
+   "module_id": null,
+   "text": "Aléa annoncé pour la semaine qui vient : Perturbations routières.",
+   "ref": null,
+   "action": null
+  }
+ ],
+ "forced": true
+}

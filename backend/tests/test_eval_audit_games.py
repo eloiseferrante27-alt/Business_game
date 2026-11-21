@@ -45,3 +45,12 @@ def test_trace_numbers_skips_notes_and_finds_week_report() -> None:
     assert by["124"]["chemin"] == "rapport[1].packed.cases"
     assert by["137900"]["texte_libre"] and {r["nombre"] for r in missing} == {"13.7", "4.25"}
     assert all(r["chemin"] == NOT_FOUND for r in missing)
+
+
+def test_trace_numbers_reads_french_decimal_in_debrief_and_wear() -> None:
+    sources = {"debrief": {"preventive": {"avoided_cost": 3107.5}}, "vue_alea": {"usure": [{"expected": 2.6}]}}
+    found, missing = trace_numbers(["2,6 attendue(s)", "évités : environ 3 108 €"], sources)
+    assert not missing and {r["nombre"]: r["chemin"] for r in found} == {
+        "2.6": "vue_alea.usure[0].expected",
+        "3108": "debrief.preventive.avoided_cost",
+    }

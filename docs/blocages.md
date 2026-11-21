@@ -18,8 +18,8 @@ Mis à jour le 2026-11-06 (ordre de travail validé par l'utilisateur, voir docs
 | Régénération d'une section (B4b, 06/11) | Sur un jeu publié, elle le repasse en brouillon : il faut le republier | docs/decisions/0012 |
 | Garde-fou des nombres de `npc.py` (06/11) | Décidé le 06/11, à implémenter (ADR 0007) avant la démo : une réplique avec un nombre absent des faits est remplacée par la réponse de secours, clé `guard` ajoutée (EX-33) | docs/decisions/0007 ; docs/cahier-des-attentes.md |
 | Cadre de la démo (06/11) | En LAN, 3 à 6 joueurs ; le jeu à distance vient après la Première version | docs/cahier-des-attentes.md EX-05 |
-| Mode construction B4c c1 (06/11) | Reporté après la Première version (avec EX-12, 14, 19, 29 page F5 complète, 36) | docs/decisions/0012 ; docs/equipe/reprise.md |
-| Monde 3D variable (19/11) | Le monde varie en apparence ET en structure : plusieurs bâtiments et pièces entre lesquels sont répartis joueurs, agents, rôles et actions. Chantier juste après l'audit, avant le garde-fou des PNJ. Vision : une équipe d'agents IA (orchestrateur et sous-agents) le conçoit selon paramètres, consigne ou documents, avec génération procédurale. Contraintes : un seul modèle 3b sur 6 Go (agents en série), conception 3 min en médiane et 10 au plus (ADR 0008), le moteur seul calcule les chiffres. À cadrer par l'architecte (ADR à écrire) | docs/equipe/reprise.md |
+| Mode construction B4c c1 (06/11) | Reporté après la Première version (avec EX-14, 19, 29 page F5 complète, 36) | docs/decisions/0012 ; docs/equipe/reprise.md |
+| Monde 3D variable (19/11) | Le monde varie en apparence ET en structure : plusieurs bâtiments et pièces entre lesquels sont répartis joueurs, agents, rôles et actions. Chantier juste après l'audit, avant le garde-fou des PNJ. Vision : une équipe d'agents IA (orchestrateur et sous-agents) le conçoit selon paramètres, consigne ou documents, avec génération procédurale. Contraintes : un seul modèle 3b sur 6 Go (agents en série), conception 3 min en médiane et 10 au plus (ADR 0008), le moteur seul calcule les chiffres. **Décidé : ADR 0013 accepté le 21/11** (cadrage fait, rien de livré : tranches T2 à T11, docs/decisions/0013) | docs/decisions/0013 ; docs/equipe/reprise.md |
 | Licence du jeu de référence | L'autrice est dans l'équipe : reprise sans crédit ; les crédits d'assets et de polices de tiers restent | docs/decisions/0010 §7.5 |
 
 ## Fait
@@ -111,7 +111,7 @@ Risques associés :
 - As-tu accès à des supports de formation en supply chain (avec droit d'usage) pour le corpus ?
 - Durée type d'une séance (taille des lobbies tranchée le 06/11 : 3 à 6 joueurs en LAN pour la démo).
 - Quand tester le mode à distance, et sur quel hébergement ? (après la Première version)
-- Quels autres domaines simuler après la supply chain (mécaniques à coder pour chacun) ?
+- Quels autres domaines simuler après la supply chain ? Décidé le 21/11 (ADR 0013 §6.2) : un second domaine jouable avant la Première version, la finance d'entreprise (trésorerie et BFR d'une PME) ; choix fait en D0 (`finance-entreprise`, moteur `factory`) ; reste ouvert : les autres domaines (mécaniques à coder pour chacun).
 - Notion `rupture_de_stock` (ai/simulation.yaml) : elle dit « la vente est perdue », ce que sa fiche ne dit pas (appui : wikipedia-en-safety-stock l. 9). À vérifier par game-designer.
 - Courbe de valeur du stock de l'usine écartée (pas de coût de possession, pas de coût de revient des produits finis) ; à défaut, des quantités en fin de semaine.
 - Le moteur pourrait calculer `history[].starved`, `.down`, `.costs`, `.failures` pour des courbes de causes (non fait).

@@ -1,102 +1,90 @@
 # Jeux conçus par l'IA, relus (exigence n° 1)
-Pack usine (sha256 5202967e1f66134cd9db3084396948aeabffcfc1aabe45c5b28e46859a228674, copie de travail non commitée du
-19/11 09:31, avant la génération de 09:51) · prompt factory.design v3 · modèle qwen2.5:3b · résultats du 19/11/2026
-(ai/evals/results/audit-2026-11-19/) · protocole : docs/audits/protocole-jeux-ia.md (version 1).
+Second tour. Pack usine (sha256 9df8e8894be4b069c2d50d9314dd67cc3d3a36a5f73c6c1c2e2988c5055f1a8e, copie de travail
+non commitée du 21/11 09:42, avant la génération de 09:46) · prompt factory.design v4 · modèle qwen2.5:3b · résultats
+du 21/11/2026 (ai/evals/results/audit-2026-11-21/) · protocole : docs/audits/protocole-jeux-ia.md (version 1).
+Premier tour (19/11, pack 5202967e…, prompt v3) : 10 refusés ; fiches docs/audits/jeux-ia/J01.md à J10.md.
 
-**État : rien à signer.** Les 10 jeux sont refusés (critère bloquant en échec) : 0 conforme, 0 à corriger, 10 refusés.
-Le défaut D1 suffit à refuser chacun d'eux ; il vient du pack (game-designer). Une fois les causes corrigées, chaque
-entrée sera rejouée avec `seed + 1000` (protocole § 4), puis relue en entier.
+**État : rien à signer.** 0 conforme, 5 à corriger, 5 refusés. Aucun jeu n'est « conforme » : D16, un texte du moteur
+commun à tous les jeux, doit d'abord être corrigé. J01 n'attend que D16 et D7 (moteur-jeu) : c'est le premier
+signable, après correction et relance avec la même graine.
 
 | Id | Titre | Secteur | Niveau | Semaines | Aléas | Verdict | Fiche |
 |---|---|---|---|---|---|---|---|
-| J01 | Métallerie du Val · Équipement en acier | industrie | expert | 4 | aucun (forcé s2) | refusé | jeux-ia/J01.md |
-| J02 | Équipements Véloce · Équipement automobile | automobile | expert | 12 | rares, plan s2/s4/s6 | refusé | jeux-ia/J02.md |
-| J03 | Soudures de l'Estuaire · Équipement en acier | industrie | expert | 12 | rares, plan s2/s3/s4 | refusé | jeux-ia/J03.md |
-| J04 | Ateliers Métal Loire · Équipement en acier | industrie | expert | 12 | rares, aucun tiré (forcé s2) | refusé | jeux-ia/J04.md |
-| J05 | Mécasoud Est · Équipement automobile | automobile | découverte | 5 | rares, plan s2/s3/s4 | refusé | jeux-ia/J05.md |
-| J06 | Métallerie du Val · Équipement en acier | industrie | expert | 12 | fréquents, 8 aléas | refusé | jeux-ia/J06.md |
-| J07 | Soudures de l'Estuaire · Équipement en acier | industrie | expert | 12 | = J03 | refusé | jeux-ia/J07.md |
-| J08 | Équipements Véloce · Équipement automobile | automobile | expert | 12 | = J02 | refusé | jeux-ia/J08.md |
-| J09 | Ateliers Métal Loire · Équipement en acier | industrie | expert | 5 | rares, 1 tiré (s3) | refusé | jeux-ia/J09.md |
-| J10 | Mécanique du Bocage · Équipement en acier | industrie | expert | 12 | fréquents, 8 aléas | refusé | jeux-ia/J10.md |
+| J01 | Métallerie du Val · Équipement en acier | industrie | découverte | 4 | aucun (forcé s2) | à corriger (moteur-jeu) | jeux-ia/J01-t2.md |
+| J02 | Équipements Véloce · Équipement automobile | automobile | expert | 12 | rares, aucun tiré | refusé (C9) | jeux-ia/J02-t2.md |
+| J03 | Soudures de l'Estuaire · Équipement en acier | industrie | équilibré | 12 | rares, 1 tiré | à corriger (ia-runtime, moteur-jeu) | jeux-ia/J03-t2.md |
+| J04 | Ateliers Métal Loire · Équipement en acier | industrie | découverte | 12 | rares, aucun tiré (forcé s2) | à corriger (ia-runtime, game-designer, moteur-jeu) | jeux-ia/J04-t2.md |
+| J05 | Mécasoud Est · Équipement automobile | automobile | découverte | 10 | rares, 1 tiré | à corriger (ia-runtime, moteur-jeu) | jeux-ia/J05-t2.md |
+| J06 | Métallerie du Val · Équipement en acier | industrie | expert | 12 | rares, 4 tirés | à corriger (ia-runtime, moteur-jeu) | jeux-ia/J06-t2.md |
+| J07 | Soudures de l'Estuaire · Équipement en acier | industrie | équilibré | 12 | = J03 | refusé (C4, C8) | jeux-ia/J07-t2.md |
+| J08 | Équipements Véloce · Équipement automobile | automobile | expert | 12 | = J02 | refusé (C8, C9) | jeux-ia/J08-t2.md |
+| J09 | Ateliers Métal Loire · Équipement en acier | industrie | expert | 5 | rares, 1 tiré | refusé (C4, C9) | jeux-ia/J09-t2.md |
+| J10 | Mécanique du Bocage · Équipement en acier | industrie | expert | 12 | rares, 2 tirés | refusé (C4) | jeux-ia/J10-t2.md |
 
-## Défauts communs (repris par les fiches)
+## C1 tranché : les sommes non exposées sont justes
+Les 5 « non trouvés » (J03, J04, J05, J07) sont calculés par le moteur (factory_game.py l. 251-281 et 700-716) et
+recalculés ici à partir de debrief-pilote.json : pannes attendues au goulot = heures de marche ÷ MTBF du jeu ; évitées
+= attendues − observées, au dixième ; coût évité = évitées × (MTTR 1 h × 75 €/h + 200 € de dégâts). J03 et J07 :
+11,3 × 275 = 3 107,5 → « environ 3 108 € » ; J04 : 10,7 × 275 = 2 942,5 → « 2 942 € » (arrondi au pair) ; J05 :
+19,2 × 275 = 5 280 € ; « 2,6 attendue(s) » = 3 × 0,867. Les deux coûts sont des calibrages listés dans « Non sourcé »
+(`maintenance.cout_reparation_h`, `maintenance.cout_degats_panne`). C1 n'est bloquant pour aucun jeu.
 
-| N° | Critère | Défaut, citation exacte et preuve | Jeux | Propriétaire | Bloquant |
+## Défauts : état au 21/11
+Corrigés (vérifiés dans les 10 jeux) : D1 (règle camion sans citation), D2 (délai et fiabilité = fiche stock de
+sécurité l. 6), D3 (« délai + 1 jour de révision + 2 jours de sécurité » = mp_safety_days 2), D4 (pitch par fragments
+du profil appliqué), D5 (« Les 3 lignes ont été arrêtées 661 minutes au total »), D10 (TRS hors pauses, cible 80 % :
+J05 à 80,6 %), D11 (OTIF, TRS, PF, MP expliqués), D12 (bienveillant vouvoie), nuance RCM (« pas forcément liées »).
+
+| N° | Critère | Défaut restant, preuve | Jeux | Propriétaire | Bloquant |
 |---|---|---|---|---|---|
-| D1 | C2 | Règle `camion_six_palettes` citée « Cahier §2 : camion de 4 à 6 palettes (values.fournisseur.camion_palettes, exemple). » (textes.md l. 15 ; ai/packs/usine.yaml l. 331-333) : le cahier n'est pas une fiche de knowledge/supply-chain. | 10 | game-designer | oui |
-| D2 | C2 (lu) | Notion `delai_et_fiabilite` : « le prix n'est qu'un critère de choix parmi d'autres » (textes.md l. 98 dans J01). La fiche citée, wikipedia-fr-stock-de-securite (l. 6), parle de demande imprévisible et de délais aléatoires ; ni « prix », ni « fournisseur », ni « critère » n'y figurent, ni ailleurs dans le corpus. | 10 | game-designer | oui |
-| D3 | C4 (g) | Module Pilotage : « MP au point de commande (consommation pendant le délai + 1 jour) » (textes.md l. 24 ; pack l. 1040). Le moteur compte délai + 1 + `mp_safety_days` (factory_game.py l. 143). Exemple J01 : 2 000 u./sem. ÷ 5 j ÷ 120 u./palette = 3,33 palettes/j ; (3 + 1 + 1) j donnent 16,7, soit 17 palettes, valeur de la leçon (« le place à 17 palettes ») ; délai + 1 donnerait 14. La note `stock_mp.stock_securite_jours` (pack l. 449, vue formateur) dit encore « Le moteur code encore délai + 1 jour ». | 9 (sauf J04) | game-designer | oui |
-| D4 | C4 (b) | Pitch « Niveau expert : pannes plus fréquentes, plus de défauts, stocks bas, usine chargée à 92 %, livraison à J+1. » alors que `tunings` remet `mtbf_factor` (et `mp_stock_days`, `pf_stock_days`) au profil découverte : factory_generation.py l. 28-30 change les valeurs, l. 94 garde `detail` du niveau. | J01, J03, J04, J06, J07, J10 | game-designer (fragments) + moteur-jeu (composition) | oui |
-| D5 | C4 | Fait du magasinier MP : « Une ligne s'est arrêtée 1406 minutes faute de matière. » La valeur est la somme des lignes (factory_game.py l. 657-659) : alertes du même écran 445 + 445 + 517 min (J01, briefings-alea.json l. 29 et 107-125). Faux dès deux lignes. | J01, J06, J09 (vus) ; tout jeu à 2 ou 3 lignes | moteur-jeu | oui |
-| D6 | C4 (f), C3 (lu) | `unmet` faux, hors sujet ou dégénéré : il déclare absent ce que le jeu simule (aléas, fournisseurs, soudure, automobile), ou il oublie la vraie demande non couverte (marketing en J09, cibles chiffrées en J10). J10 : « usine chargée à  ubs  ough  ough … » passe le filtre C3. | 9 (sauf J04) | ia-runtime | oui |
-| D7 | C1 (écriture) | Nombres non mis en forme : « TRS de Ligne 1 à 68.268 % », « 13.7 bons par heure mesurés pour 16.0 attendus », « trésorerie finale d'au moins 95400 € », « OTIF moyen >= 95.0 (partiel 90.0) », « TRS moyen de 74.0 % ». Origine juste (voir C1 tranché). | 10 | moteur-jeu (correction en cours) | non |
-| D8 | C1 (outil) | L'outil C1 ne cherche pas le rapport de semaine (`state.snap.report`), d'où les 25 « non trouvés ». Il accepte aussi des coïncidences comme « trouvés » : « 4 » semaines → `pack.placement_rules[1].note` ; « 0 » jour-ligne → `pack.world.spawn[0]` ; « 6 » palettes → `pack.limits.weeks[2]` (J01 controles.json l. 34-76). Un « trouvé » ne prouve donc pas l'origine. | 10 | ia-runtime (outil d'eval) | non |
-| D9 | C9 | Ruptures du pilote en expert. (a) Stock MP de départ de 2,5 j (`difficulties.expert.mp_stock_days`), plus court que les 3 j du fournisseur standard : rupture certaine en semaine 1 (J01 1 406 min, J02 572, J06 1 304, J09 1 544), absente quand le réglage `mp_stock_days` vaut découverte (J03, J04, J10). (b) La marge partielle de 4 jours-ligne, calibrée à 2 lignes (note `criteria.stockouts`), ne tient pas à 3 lignes (J10 : 6 ; J01 : 18 ; J06 : 14). | J01, J06, J09, J10 ; J02 et J08 partiels | game-designer (calibrage) + moteur-jeu (mécanique) | oui |
-| D10 | C9 | Découverte : TRS du pilote à 74,2 % pour une cible de 78 % (J05, 3 lignes). En découverte, tout doit être atteint. À vérifier, voir plus bas. | J05 | game-designer + moteur-jeu (mesure) | oui |
-| D11 | C5 (lu) | Sigles non expliqués à leur première apparition : « OTIF moyen d'au moins 95 %, TRS moyen … » (règle `objectifs`, l. 7, avant les notions) ; « stock PF + encours », « MP au point de commande » (module Pilotage, l. 24). | 10 | game-designer | non |
-| D12 | C5 (latent) | Personnalité `bienveillant` : « style: tutoie, rassure, glisse parfois un conseil » (pack l. 1107), contraire au vouvoiement exigé. Le défaut ne se voit dans aucun des 10 jeux, puisqu'aucun n'a pris ce ton, mais il apparaîtra dès qu'un jeu le prendra (J07 aurait dû). | 0 vu | game-designer | non |
-| D13 | C5 (registre) | Pitch « votre équipe pilote pilotage, production et maintenance » (J05 : « votre équipe pilote pilotage pour livrer »). Le texte vient de factory_generation.py l. 92 ; la copie de travail dit déjà « votre équipe assure les modules », à confirmer au prochain tirage. | 10 | moteur-jeu | non |
-| D14 | C10 / C8 | Le modèle ignore les consignes. Il choisit expert sur les 9 jeux où le niveau n'est pas imposé ou est « à revoir » (dont J01 « découverte, lycéens », J03 « niveau moyen ») ; il prend `agent_tone: exigeant` sur 10 jeux sur 10 (dont J05 « en douceur » et J07 « plus bienveillants ») ; 6 jeux expert reçoivent des `tunings` découverte qui défont le niveau. La régénération ne change rien : la spec de J07 est identique à celle de J03, celle de J08 à celle de J02 (même sha256). | 10 | ia-runtime | C8 oui (J07, J08) |
-| D15 | C6 | Prix des offres arrondis à l'euro : en J05, l'offre rapide (8,4 €/u.) et la standard (7,5 €/u.) s'affichent toutes deux « 8 €/u. » (spec.json l. 115-128), si bien que l'écart de coût disparaît de l'écran. | J05 (vu) ; tout libellé | moteur-jeu | non |
+| D9 (c) | C9 | Fournisseur standard à distance `national` (délai 4 j) en expert à 3 lignes : 9 à 11 jours-ligne sans matière pour 7,5 de partiel (graines 202, 5, 6, 8 ; 1 à la graine 7), contre 0 à 3 en `proche`. Valeurs : `network.sites.fournisseur_standard.distances` (pack l. 128) avec `difficulties.expert.mp_stock_days` 2,5 ; calibrage du 19/11 fait en `proche` seulement | J02, J08 | game-designer (+ moteur-jeu : trace) | oui |
+| D9 (d) | C9 | Marge expert à une ligne : `criteria.stockouts.margin.expert` 5 ÷ `margin_lines` 2 = 2,5 ; J09 perd 3 jours-ligne (280 min sur 3 matins, camion entre 8 h et 10 h) ; graines 5 à 8 : 0 à 1 | J09 | game-designer | oui |
+| D6 | C4 (f) | unmet faux ou muet : « maintenance » (J07, module joué) ; rien sur le marketing digital (J09) ni sur les cibles de 98 % et 20 000 € (J10) | J07, J09, J10 | ia-runtime | oui |
+| D14 | C8, C10 | Régénération sans effet : spec de J07 = J03, de J08 = J02 (même sha256), notes non suivies (ton bienveillant ; indulgent, aléas en fin de partie). Réglages contraires au brief ou qui défont le niveau : J02 (pannes fréquentes → mtbf découverte), J03 (8 clés en découverte), J05 (« en douceur » → mtbf expert sur un module non joué ; directrice demandée, absente), J06 et J02 (« fréquents », « beaucoup d'aléas » → rares), J04 (brief préventif, MTBF × 1,5 : le préventif ne se voit pas). Le choix du niveau suit désormais le brief (J01, J03, J05) | J02 à J08 | ia-runtime | C8 oui (J07, J08) ; C10 non |
+| D16 | C4 (lu) | « Magasin : 5 palettes sur 24 places, 3 libres. » (J05) : « libres » = capacité − stock − en commande (factory_game.py l. 772-782), mais les palettes en commande ne sont pas citées quand le stock dépasse le point de commande : 19 places sont libres au moment dit. Aussi J06, J09, J10 ; gabarit commun. Texte proposé : « …, 3 libres une fois reçues les 16 palettes en commande » | tous (vu : J05, J06, J09, J10) | moteur-jeu | non, mais à corriger avant signature |
+| D7 | écriture | Règle `objectifs` : « trésorerie finale d'au moins 142300 € » (les briefings disent bien « 142 300 € ») | 10 | moteur-jeu | non |
+| D13 | C5 | « votre équipe assure les modules pilotage » pour un seul module | J05 | moteur-jeu | non |
+| D15 | C6 | Offres rapide 8,4 €/u. et standard 7,5 €/u. affichées « 8 €/u. » toutes deux | J05 | moteur-jeu | non |
+| D17 | C9, C10 | Joueur passif de J04 (production et maintenance, pilotage automatique) : TRS 79,9 % pour 80 % (partiel), 675 € de moins que le pilote ; C9 tient à 0,1 point. À mesurer sur les graines 5 à 8 | J04 | game-designer | non |
+| D18 | vue formateur | Note `values.pilotage.objectif_trs` : « 78 % reste la cible » alors que `targets.trs` vaut 80 | 10 (« Non sourcé ») | game-designer | non |
+| D8 | outil | L'outil C1 prend encore des coïncidences pour des origines (« 1.2 » → `spec.world.objects[39].position[1]`, J01) | 10 | ia-runtime | non |
 
-### C1 tranché : ce sont des faux positifs sur l'origine
-Les 25 « non trouvés » (J01 5, J02 3, J04 1, J06 6, J08 3, J09 6, J10 1) sont tous calculés par le moteur à partir
-du rapport de la semaine passée : minutes d'arrêt faute de matière (factory_game.py l. 657-659 ; alertes
-`starved`), TRS par ligne (alerte `trs_low`, gabarit du pack l. 385), produits contrôlés et rebuts (l. 698), cartons
-et palettes (l. 712). Aucun chiffre n'est inventé : C1 n'est bloquant pour aucun jeu. Restent trois écarts : leur
-écriture (D7), une phrase fausse sur 1 406 min (D5, qui relève de C4) et l'outil lui-même (D8).
-
-## Corrections du pack à faire par game-designer (après les relances d'ia-runtime, par priorité)
-1. D1 : retirer `citation` de `game_rules.camion_six_palettes` (pack l. 333). C'est une règle du jeu, comme
-   `matiere_payee_reception` ; sa valeur figure déjà dans « Non sourcé » (`fournisseur.camion_palettes`, exemple).
-2. D2 : réécrire `notions.delai_et_fiabilite`, par exemple « Plus les délais de réapprovisionnement sont aléatoires,
-   plus le stock de sécurité doit être important. » (wikipedia-fr-stock-de-securite, l. 6). Supprimer la clause sur le
-   prix, faute de fiche.
-3. D3 : `modules.pilotage.autopilot` (l. 1040) → « MP au point de commande (consommation pendant le délai + 1 jour de
-   révision + 1 jour de sécurité) » ; mettre à jour la note `stock_mp.stock_securite_jours` (l. 449).
-4. D4 : découper `difficulties.<niveau>.detail` en fragments par clé (`mtbf_factor` : « machines fiables » /
-   « pannes plus fréquentes » ; `defect_factor` ; `mp_stock_days` et `pf_stock_days` : « stocks confortables » /
-   « stocks bas » ; `load` : « usine chargée à {load} % » ; `promised_days` : « livraison à J+{n} »). Mécanique pour
-   moteur-jeu : `_meta` assemble les fragments du profil réellement appliqué à chaque clé. Exemple J03 : « Niveau
-   expert : machines fiables, plus de défauts, stocks confortables, usine chargée à 92 %, livraison à J+1. »
-5. D9 : calibrage des ruptures en expert. (a) Mécanique à spécifier pour moteur-jeu : au départ, une commande standard
-   déjà en route, de min(camion, ⌈conso × (délai + 1) − stock initial⌉) palettes, qui arrive le jour
-   ⌊mp_stock_days⌋. Exemple J01 : ⌈3,33 × 4 − 8⌉ = 6 palettes, arrivée à J+2. Le stock reste bas, mais la rupture
-   n'est plus garantie. (b) `criteria.stockouts.margin` par ligne : partiel = marge × lignes ÷ 2, soit 6 jours-ligne en
-   expert à 3 lignes (règle `apply_rules`, moteur-jeu). (a) et (b) seront mesurés (graines 5 à 8, 1 et 3 lignes)
-   avant d'être adoptés.
-6. D10 : après mesure du TRS du pilote par niveau et par nombre de lignes (moteur-jeu), choisir entre une cible par
-   niveau et le retrait du temps sans commande dans le temps planifié (voir « À vérifier »).
-7. D12 : `personalities.bienveillant.style` → « vouvoie, rassure, glisse parfois un conseil ».
-8. D11 : expliquer OTIF et TRS dans la règle `objectifs` (200 caractères au plus après substitution), et écrire
-   « produits finis » et « matière » en clair dans `modules.pilotage.autopilot`.
-9. Nuance de C2 : dans `notions.pannes_par_usure`, remplacer « la plupart des pannes ne sont pas liées à l'âge » par
-   « … ne sont pas forcément liées à l'âge ». La fiche wikipedia-en-reliability-centered-maintenance écrit « the vast
-   majority of failures are not necessarily linked to the age of the asset ».
+## Corrections du pack à faire par game-designer, par priorité (non faites dans cette mission)
+1. D9 (c) : retirer `national` de `network.sites.fournisseur_standard.distances` (l. 128, garder `[proche]`), ou, si le
+   choix doit rester, le réserver aux niveaux découverte et équilibré (règle de génération à spécifier pour moteur-jeu).
+   Variantes mesurées le 21/11 sur J02 en national (graines 202, 5 à 8), sans succès : `cover_extra_days` 2,
+   marge 6, commande initiale de deux camions, stock de départ de 3,5 j ; 3 j donne 6 partout mais une rupture
+   certaine (arrivée au jour 3, stock vide) et 3 jours-ligne à une ligne (J09, graines 5 et 8). Demander à moteur-jeu
+   une trace jour par jour de J02, graine 5.
+2. D9 (d) : `criteria.stockouts.margin.expert` 5 → 6 (partiel : 3 jours-ligne à une ligne, 9 à trois). Mesuré : J09
+   graine 909 passe en partiel ; J06, J10 et J02 en proche ne changent pas. Mettre à jour la note (« 0 à 3 à une
+   ligne, graine 909 »). Autre voie : seuil partiel arrondi à l'entier supérieur (règle `apply_rules`, moteur-jeu).
+3. Notes `criteria.stockouts` et `stock_mp.commande_initiale` : écrire que le calibrage ne vaut que pour le standard
+   `proche`, avec la mesure en national ci-dessus.
+4. D18 : réduire la note `pilotage.objectif_trs` à la cible actuelle (80 %, mesures du 19/11) et retirer l'historique
+   de la cible de 78 %.
+5. D17 : mesurer le joueur passif de J04 (graines 5 à 8). S'il atteint 80 %, exiger pour un jeu sans pilotage un
+   réglage de pannes qui rende le préventif visible (consigne pour ia-runtime, `tunables.mtbf_factor.teaches`).
 
 ## Hors pack (propriétaires)
-- ia-runtime : D6, D8, D14, le secteur de J10 et la régénération sans effet. La conception doit être refusée (ou
-  relancée) quand une clé de la section régénérée reste identique malgré une `note`, quand `unmet` répète un mot ou
-  contient des mots hors dictionnaire, ou quand `unmet` nie une fonction simulée (aléas, fournisseurs).
-- moteur-jeu : D4 (composition), D5, D7, D9 (mécanique), D13, D15, et la vérification du joueur passif de J04 (fiche
-  J04).
+- ia-runtime : D6, D14 (régénération à refuser ou relancer si la section reste identique malgré une note ; réglages
+  à choisir seulement si leurs `teaches` touchent le brief ; direction quand le brief la demande ; secteur de J10),
+  D8.
+- moteur-jeu : D16 (priorité : il bloque la signature de J01), D7, D13, D15, trace de D9 (c).
+- Après corrections : relancer J01, J03 à J06 avec la même entrée et la même graine ; J02, J07, J08, J09, J10 avec
+  `seed + 1000` (protocole § 4), puis relire en entier.
 
 ## À vérifier (rien n'est tranché par supposition)
-- D10 : le moteur compte-t-il dans le temps planifié du TRS les heures où la ligne attend faute de commande ? La fiche
-  wikipedia-en-overall-equipment-effectiveness (l. 164-170) range « lack of orders » dans l'OOE, pas dans l'OEE.
-  Si c'est le cas, une charge plus faible (0,80 en découverte) fait baisser le TRS atteignable. Indice : le TRS du
-  pilote vaut 74,2 % en J05 (découverte), contre 76,6 % en J06 et 76,8 % en J10 (expert, 3 lignes).
-- J04 : le joueur passif obtient les mêmes verdicts que le pilote (TRS 74,9 % partiel, 3 jours-ligne partiel) et plus
-  de trésorerie (387 931 € contre 386 468 €). Un rôle tenu sans action garde-t-il le préventif par défaut ?
-- Écarts d'exécution par rapport au protocole : le dossier s'appelle `audit-2026-11-19` (au lieu de
-  `jeux-ia-<date>`), il n'y a pas d'`index.md` (un `resume.md` à la place) et aucune réplique d'agent n'a été produite.
+- D9 (c) : cause des ruptures en national hors semaine 1 (graine 5) ; un seul camion par jour, quai ou chariot.
+- D17 : passif de J04 sur d'autres graines.
+- Le rendu des critères dans Godot : les lignes « OTIF moyen >= 95.0 (partiel 90.0) » de textes.md viennent de
+  l'outil d'audit (eval_audit_games.py l. 90), pas d'un texte du jeu ; non relu à l'écran.
 
-Défauts trouvés et corrigés : aucun à ce jour (corrections listées ci-dessus, aucun commit).
-Limites connues : la relecture ne couvre ni les répliques libres des agents (`npc.dialogue`, non produites), ni le
-rendu Godot, ni d'autres graines.
+Défauts trouvés et corrigés : D1 à D5, D10 à D12 (pack et moteur, copie de travail non commitée au 21/11).
+Limites connues : ni les répliques libres des agents (`npc.dialogue`, non produites), ni le rendu Godot, ni d'autres
+graines que celles citées.
 
 Je certifie avoir pris connaissance de ces 10 jeux et de leurs fiches.
 Nom : ____________  Date : ____________  Signature : ____________
 
-Relu par game-designer le 19/11/2026, sur les résultats du 19/11/2026.
+Relu par game-designer le 21/11/2026, sur les résultats du 21/11/2026 (premier tour : 19/11/2026).

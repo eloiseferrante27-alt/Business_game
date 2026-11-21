@@ -1,4 +1,4 @@
-# Reprise de session (après /clear) - état au 19/11/2026 (le détail des tranches date du 06/11)
+# Reprise de session (après /clear) - état au 21/11/2026 (le détail des tranches B date du 06/11)
 
 VS Code s'ouvre sur le dossier parent `G_mix-Generateur-Business_Games` (choix de l'utilisateur, 05/11). L'équipe y vit,
 hors git : `../CLAUDE.md` et `../.claude/` (agents, réglages, `ownership.json`), retirés du dépôt le 05/11 (ils restent
@@ -49,15 +49,30 @@ dans l'historique). Commandes à lancer en `.\Business_game-contribution_Romain\
 - Contraintes à rappeler à l'architecte : un seul modèle 3b sur 6 Go de VRAM, donc agents en série ; conception 3 min en médiane, 10 au plus (ADR 0008, qui avait ramené trois appels à un seul) ; le moteur seul calcule les chiffres.
 - Constat du 19/11 : `layout.place_world` n'utilise pas la graine (ADR 0009) ; hall toujours 48 x 30 m ; décor Godot figé (arbres, graine 42) ; 2 modèles de machine sur environ 8 ; toujours 3 fournisseurs et 1 produit.
 
-## À faire, ordre validé par l'utilisateur le 06/11 (priorité 3 détaillée au 19/11)
+## Session du 21/11 : ADR 0013 accepté, audit T0 au second tour
 
-Priorité 3, dans l'ordre :
-1. Préventif (`docs/audits/preventif-2026-11-19.md`) : P1 pannes évitées et leçons « usure ou hasard » (sourcé, à coder par moteur-jeu) ; P4 séparer les tirages des pannes et des défauts ; puis P2 (`bottleneck_shape` par niveau) et P3 (100 € de dégâts par panne), choix de calibrage à appliquer par game-designer.
-2. Recalibrage par game-designer avec les mesures de moteur-jeu : cible TRS de 78 % trop facile depuis le correctif (pilote à 80-92 %) ; expert à 3 lignes injouable sur 2 graines sur 4 ; J06 à 3 lignes en rupture structurelle.
-3. ia-runtime régénère les 10 jeux (prompt v4), game-designer refait l'audit, puis l'utilisateur signe.
-4. Notés pour plus tard : règle `events: aucun` avec un `event_plan` dans `GameParams` (architecte, après nettoyage des specs existantes) ; page NIST Weibull (§ 8.1.6.2) à ajouter au corpus (rag-knowledge) ; `numbers()` lit « 62.7054 » comme 62705 (garde-fou, priorité 4) ; J10 sort en industrie si le secteur n'est que dans le texte du brief (le formateur peut l'imposer).
+**Décision de l'utilisateur, 21/11** (ADR 0013 §6, `docs/decisions/0013-generation-de-mondes-et-de-jeux-differents.md`) : ADR complet avant la Première version ; second domaine jouable, la finance d'entreprise (trésorerie et BFR d'une PME), en plus de la supply chain (`finance-entreprise`, moteur `factory`, D0 fait le 21/11) ; documents du formateur comme source (chaque passage validé, provenance « formateur », aucun chiffre de document dans le moteur) ; orchestrateur en code et 5 agents IA en série ; budget de conception inchangé (3 min en médiane, 10 au plus) ; 3b partout (interprétation de l'architecte, à confirmer par l'utilisateur : le 7b est un choix fait à l'éval, tâche par tâche, sans bascule en cours de job). Rien de cela n'est livré : le monde reste le hall en U, un seul domaine est jouable, le brief ne produit aucun texte.
 
-Ensuite : chantier monde 3D variable (architecte d'abord, ADR), puis priorité 4.
+**Fait le 21/11, non commité** : préventif P2 et P3 (formes du goulot 3/2/1, 200 € de dégâts, cible TRS 80 %), pannes évitées exposées dans le débrief, textes du préventif ; deux fiches au corpus (TRS fr, Weibull NIST), corpus réingéré, couverture 34/37 ; TRS présenté comme une convention ; champ `damage_per_failure` dans `spec.py` ; affichage `bottlenecks` dans Godot ; C1 de l'audit fiabilisé ; `test.ps1 -Fast` 805 passés.
+
+**Audit T0, second tour** (`docs/audits/liste-a-signer.md`, fiches `jeux-ia/J01-t2.md` à `J10-t2.md`, sorties `ai/evals/results/audit-2026-11-21/`) : 0 conforme, 5 à corriger, 5 refusés.
+
+**Prochaine session : T0, puis T2 selon l'ADR 0013 §5**
+
+| Propriétaire | Défauts restants à corriger avant le troisième tour |
+|---|---|
+| game-designer | fournisseur standard `national` intenable en expert ; marge expert des ruptures de 5 à 6 ; notes de calibrage à restreindre à `proche` ; note TRS 78 % (D18) ; passif de J04 (D17) |
+| moteur-jeu | D16 « palettes sur places libres » oublie les palettes en commande ; D7 (« 142300 € ») ; D13 (« les modules pilotage ») ; D15 (deux offres « 8 €/u. ») |
+| ia-runtime | D6 `unmet` faux ou muet ; D14 régénération sans effet (J07 et J08 ont le même sha256 que J03 et J02, bloquant) ; D8 coïncidences de C1 |
+| rag-knowledge | la question `trs_oee` ne trouve plus son document attendu, sans doute à cause de la nouvelle fiche TRS (à vérifier) |
+| godot-dev | `godot/scenes/tools/flow_test/flow_test.gd` (l. 273-274 et 1203-1207) : le parcours usine s'arrête à l'entrée dans le monde, sans jouer de semaine ; la vérification de la section « Pannes et arrêt des goulots » du débrief est conditionnelle (`if not bottlenecks.is_empty()`), donc jamais exécutée. Correctif : jouer les semaines et ouvrir le débrief dans le parcours usine, ou exiger `bottlenecks` non vide quand le pack est usine (qa-reviewer, 21/11) |
+| architecte | `docs/decisions/0010-refonte-alignee-business-game.md` l. 157 garde « (à choisir) » alors que le second domaine est décidé (finance d'entreprise, ADR 0013) |
+
+Point d'étape du 21/11 (qa-reviewer), verdict bon pour commit : `test.ps1 -Integration` 858 passés ; `-Flow -NoLlm` 686 ; `-Flow -Pack usine` 428 ; `-Tour` 236 écrans, 0 défaut.
+
+Puis : troisième tour d'audit, signature de l'utilisateur (fin de T0). Ensuite, ordre de l'ADR 0013 §5 : T2 (contrats et annexe, architecte), puis T3 (docs, fait le 21/11), T4 et D1, T5 avec T6, T7, T8 et D2, T9, D3, T10, T11 (Première version). D0 (choix du second domaine) est fait le 21/11 ; environ 25 sessions en tout.
+
+Notés pour plus tard : règle `events: aucun` avec un `event_plan` dans `GameParams` (architecte) ; `numbers()` lit « 62.7054 » comme 62705 (T6) ; J10 sort en industrie si le secteur n'est que dans le texte du brief (le formateur peut l'imposer).
 
 Cadre de la démo : LAN, 3 à 6 joueurs ; le jeu à distance vient après la Première version.
 
@@ -65,14 +80,14 @@ Cadre de la démo : LAN, 3 à 6 joueurs ; le jeu à distance vient après la Pre
 |---|---|---|
 | 1 | B4b fait et poussé (06/11) ; palette « ardoise » par défaut, commitée et poussée | ADR 0012 ; EX-08 |
 | 2 | **Préparée le 18/11, commitée et poussée (c218212, push 7c99529..c218212 ; `backend/p.out` supprimé, dépôt propre ; rétro du 18/11 faite, `retro-2026-11-18.md`)** : parcours B de flow_test (`-Flow -NoLlm` 686 vérifications, `-Flow` 813), `test_lobbies_absent_vote.py` (`test.ps1 -Integration` : 829 passés), export `godot.ps1 -Export` (`build/windows/G-mix.exe`, connexion depuis l'exe non essayée à la main). **Reste la répétition réelle** : pare-feu à ouvrir le jour même (TCP 8000, UDP 7000-7049, profil Privé), 3 postes, souris et clavier AZERTY réels, fermer les applications lourdes sur l'hôte (le poste était à 100 % CPU à cause du client Riot) ; le test de budget mesure désormais un rapport à une boucle de référence, robuste à la charge, et ne détecte plus qu'une régression d'environ 2x ; date à fixer par l'utilisateur ([fiche pas à pas](../repetition-lan.md)) | EX-05 (LAN), 22, 23, 25 |
-| 3 | **En cours (19/11)** : exigence n° 1 : audit de 10 jeux conçus par l'IA, tous refusés, 15 défauts ; correctifs faits, reste préventif, recalibrage, régénération, nouvel audit, signature (voir « À faire » ci-dessus) ; notes périmées de ai/packs/usine.yaml (l. 336 et 370, à revérifier) ; notion `rupture_de_stock` | ADR 0010 ; EX-01, EX-16 ; docs/audits/ |
-| 3b | **Monde 3D variable** (décision du 19/11), juste après l'audit, avant le garde-fou : ADR à écrire par l'architecte (voir « À faire ») | docs/blocages.md |
-| 4 | Garde-fou des nombres de `npc.py` : décision OUI, à activer avant la démo (inclut `numbers()` : « 62.7054 » lu 62705) | EX-33 |
-| 5 | Dette « À corriger » de l'annexe 0010 | ADR 0010 annexe |
-| 6 | Passe finale `-Tour` | EX-34 ; ADR 0012 c2 |
-| 7 | Docs, puis **Première version** : commit et push de chaque tranche (`git push`), LICENSE.md non commercial inclus | décision du 06/11 |
+| 3 | **En cours (21/11), = T0 de l'ADR 0013** : exigence n° 1 : second tour fait (0 conforme, 5 à corriger, 5 refusés) ; reste les défauts listés dans « Session du 21/11 », troisième tour, signature ; notes périmées de ai/packs/usine.yaml (l. 336 et 370, à revérifier) ; notion `rupture_de_stock` | ADR 0010 ; EX-01, EX-16 ; docs/audits/ |
+| 3b | **ADR 0013 accepté le 21/11** (mondes et jeux variés, second domaine, documents du formateur) : l'ordre des chantiers après T0 est celui de la § 5 de l'ADR (T2 à T11, environ 25 sessions) ; le garde-fou des nombres (ligne 4) devient T6, la dette de l'annexe 0010 (ligne 5), la passe `-Tour` (ligne 6) et la Première version (ligne 7) deviennent T10 et T11 | docs/decisions/0013 ; docs/blocages.md |
+| 4 | Garde-fou des nombres de `npc.py` : décision OUI (T6 de l'ADR 0013, inclut `numbers()` : « 62.7054 » lu 62705) | EX-33 |
+| 5 | Dette « À corriger » de l'annexe 0010 (T10) | ADR 0010 annexe |
+| 6 | Passe finale `-Tour` (T10) | EX-34 ; ADR 0012 c2 |
+| 7 | Docs, puis **Première version** (T11) : commit et push de chaque tranche (`git push`), LICENSE.md non commercial inclus | décision du 06/11 |
 
-Après la Première version : mode construction (B4c c1), EX-12, 14, 19, 29 (page F5 complète), 36, EX-05 à distance.
+Après la Première version : mode construction (B4c c1), EX-14, 19, 29 (page F5 complète), 36, EX-05 à distance. EX-12 (documents du formateur) passe avant la Première version (T8, ADR 0013).
 
 ## Hors G-mix
 

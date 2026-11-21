@@ -109,6 +109,18 @@ static func _criterion(box: Control, criterion: Dictionary, entries: Array) -> v
 		box.add_child(Ui.label("Aléas : " + " · ".join(weeks.map(func(w: int) -> String: return "S%d : %s" % [w, events[w]])), 0, Ui.WARN, true))
 
 
+## « M3 · Soudage : 4 pannes (8 attendues), 12 h d'arrêt, entretien préventif fait » ; `avoided` null sous le seuil de signification.
+static func _bottleneck_line(b: Dictionary) -> String:
+	var failures := int(b.get("failures", 0))
+	var line := "%s : %s %s (%s attendues), %s h d'arrêt" % [b.get("label", ""), GameText.number(failures), "panne" if failures <= 1 else "pannes", GameText.number(b.get("expected")), GameText.number(b.get("down_h"))]
+	if b.get("avoided") != null:
+		line += ", dont environ %s évitées" % GameText.number(b["avoided"])
+	line += ", entretien préventif %s" % ("fait" if b.get("with_preventive", int(b.get("preventive", 0)) > 0) else "non fait")
+	if absf(float(b.get("shape", 0.0)) - 1.0) < 0.15:
+		line += " (pannes au hasard)"
+	return line
+
+
 static func _find(criteria: Array, id: String) -> Dictionary:
 	for item: Dictionary in criteria:
 		if item.get("id") == id:
@@ -135,6 +147,11 @@ static func _body(box: Control, report: Dictionary) -> void:
 				if cause[0] == "decision" and e.get("name") != null:
 					who = "%s (%s) : " % [e["name"], e.get("by", "")]
 				column.add_child(Ui.label("S%d · %s%s" % [int(e["week"]), who, e["summary"]], 0, Ui.TEXT, true))
+	var bottlenecks: Array = report.get("bottlenecks", [])
+	if not bottlenecks.is_empty():
+		box.add_child(Ui.label("Pannes et arrêt des goulots", 24))
+		for b: Dictionary in bottlenecks:
+			box.add_child(Ui.label(_bottleneck_line(b), 0, Ui.TEXT, true))
 	var text := Ui.rich()
 	text.text = GameText.debrief_bbcode(report, false)
 	box.add_child(text)

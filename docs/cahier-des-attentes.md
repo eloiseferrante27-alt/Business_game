@@ -12,11 +12,11 @@ commande de test n'a été relancée pour ce document.
 
 G-mix génère des business games en mini open world 3D, dans la direction artistique des Sims. Le formateur décrit
 ce qu'il veut (paramètres, brief, documents) ; une IA locale conçoit le jeu ; un moteur déterministe calcule la
-partie. Les joueurs jouent en équipe dans l'usine, avec des personnages (PNJ) qui disent les faits calculés.
+partie. Les joueurs jouent en équipe dans le monde du jeu (aujourd'hui une usine en hall unique ; cible ADR 0013, T5 : un à trois bâtiments, hall, entrepôt, bureaux…), avec des personnages (PNJ) qui disent les faits calculés.
 
 **Exigence n° 1 : les connaissances transmises sont vraies et sourcées.** Conséquences : chaque valeur du jeu porte une
 provenance (`source`, `calibre` ou `exemple`) ; aucune source n'est inventée ; ce qui n'est pas sourcé est affiché au
-formateur et au débrief. Décisions prises : domaine prioritaire supply chain ; comptes locaux (ADR 0004) ;
+formateur et au débrief. Décisions prises : domaine prioritaire supply chain, plus un second domaine jouable avant la Première version (finance d'entreprise, ADR 0013 §6) ; comptes locaux (ADR 0004) ;
 parties en réseau local et à distance (ADR 0005) ; tout est local, aucun LLM externe ; référence de jeu : le
 Business_game d'une collègue de l'équipe (ADR 0010) ; interfaces ergonomiques, chaleureuses, au vouvoiement.
 
@@ -78,20 +78,31 @@ complète (F5) vient après la Première version (décision du 06/11, EX-29) ; l
 ## 4. Parcours du joueur
 
 1. Se connecter (compte local). 2. Saisir le code du lobby. 3. Choisir un département libre et prendre
-connaissance des règles. 4. Entrer dans l'usine 3D. 5. Lire alertes et KPI, ouvrir la page de son département
+connaissance des règles. 4. Entrer dans le monde 3D du jeu. 5. Lire alertes et KPI, ouvrir la page de son département
 (tablette ou clic sur un bloc), décider, parler aux PNJ. 6. Se déclarer « prêt ». 7. Voir la semaine se jouer, puis le
 débrief. Les pages des autres départements sont en lecture seule.
 
 ## 5. Génération des mondes
 
+Cible ADR 0013 (§2) : deux demandes différentes donnent deux mondes et deux jeux différents. État livré au 21/11 : la
+demande règle des chiffres d'une usine unique ; le plan en U, les 3 fournisseurs et les textes ne changent pas.
+
+| Qui décide | Quoi | État |
+|---|---|---|
+| Données sourcées du pack | faits et chiffres (catalogue fermé, provenance par valeur), archétypes de bâtiment, zonage | pack usine livré ; archétypes et second domaine : cible (T4, T5, D2) |
+| Procédural à graine | dispositions : tailles dans des bornes, positions, variantes d'assets, décor ; mêmes paramètres, même graine, mêmes retouches = même monde | cible T4 ; aujourd'hui le placeur ne lit pas la graine |
+| Agents IA (schéma fermé) | choix du domaine, des mécaniques, du programme de bâtiments, des rôles et PNJ, textes sans chiffre | cible T9 : cinq tâches en série ; aujourd'hui un appel `factory.design` et aucun texte conçu |
+| Moteur seul | effets, durées, coûts, délais, trajets, indicateurs, verdict, faits dits par un PNJ | livré (trajets entre bâtiments : cible T5) |
+| Documents du formateur | passages validés par le formateur, provenance `formateur` ; aucun chiffre dans le moteur | cible T8 |
+
 | Élément | Règle |
 |---|---|
-| Pack | Un domaine = un fichier `ai/packs/<id>.yaml` + des assets, pas du code. Pack actif : usine (`ai/packs/usine.yaml`) ; atelier gelé (repli sans IA) |
+| Pack | Un domaine = un fichier `ai/packs/<id>.yaml` + des assets, pas du code. Pack actif : usine (`ai/packs/usine.yaml`) ; atelier gelé (repli sans IA) ; second domaine à venir (D2) |
 | Paramètres | `GameParams` (spec.py) : modules, difficulté, durée, aléas, joueurs, graine ; mêmes paramètres = même spec |
-| Conception par l'IA | Concept -> personnages -> parcours ; l'IA **choisit** dans les catalogues du pack, n'écrit ni chiffre, ni coordonnée, ni lien (ADR 0008) |
-| Documents du formateur | Interrogés par le RAG pour nourrir le choix et les textes ; une notion hors pack ou hors document cité est interdite |
+| Conception par l'IA | Aujourd'hui un appel ; cible T9 : domaine, mécaniques, monde, personnages, parcours + contrôle ; l'IA **choisit** dans les catalogues du pack, n'écrit ni chiffre, ni coordonnée, ni lien (ADR 0008, 0013) |
+| Documents du formateur | Cible T8 : interrogés par le RAG pour nourrir le choix et les textes, chaque passage validé par le formateur ; une notion hors pack ou hors document cité est interdite |
 | Assets | Prédéfinis (`ai/assets.yaml`, `godot/assets/`) ; un pack n'est proposé que si tous ses assets sont importés |
-| Placement | Placeur déterministe (`backend/gmix/game/layout.py`) sur grilles carte, site, bloc ; règles d'implantation avec provenance |
+| Placement | Placeur déterministe (`backend/gmix/game/layout.py`) sur grilles carte, site, bloc ; règles d'implantation avec provenance ; cible T4 et T5 : à graine, plusieurs bâtiments |
 | Chiffres | Ceux du pack, chacun avec `source`, `calibre` ou `exemple` ; les non sourcés sont listés |
 | Justesse | Validation `SimSpec` -> `check_design` -> essai en pilote automatique ; 2 réparations au plus, puis repli déterministe |
 | Parties de code simples | Connexions déclaratives choisies dans les énumérations du pack (P1 A, ADR 0011 §3) |
@@ -144,13 +155,13 @@ Détail : docs/architecture.md, docs/kafka.md.
 | EX-06 | Tout local, aucun LLM externe | Appels via tâches de `ai/models.yaml` vers Ollama | fait | docs/ai-runtime.md ; ai/models.yaml |
 | EX-07 | Génération paramétrée instantanée sans IA | `POST /api/v1/games` répond en moins d'une seconde | fait (route présente ; budget mesuré non revérifié) | ADR 0006 ; backend/gmix/api/routes/games.py |
 | EX-08 | Conception par l'IA (concept, personnages, parcours) | `POST /games/designs` 202, job suivi par `GET /games/{id}/job`, médiane 3 min | livré en version courte (06/11) : API et worker (étapes 5 et 6), régénération de section, écran de brouillon, `-Flow -Design` (B4b ; ADR 0012) ; mode construction (B4c c1) reporté ; prompt v4 le 19/11 : respect des consignes 42/50 (qwen2.5:3b), comparatif ai/evals/results/design-consignes-2026-11-19/ | ADR 0008 ; ADR 0010 §3 ; backend/gmix/workers/generation.py |
-| EX-09 | L'IA conçoit seulement l'usine ; atelier = repli sans IA | 422 hors usine ; « Générer sans IA » reste | partiel : 422 prévu (annexe §7), repli présent côté accueil | ADR 0010 §7.3 |
+| EX-09 | L'IA conçoit seulement l'usine ; atelier = repli sans IA | 422 hors usine ; « Générer sans IA » reste | partiel : 422 prévu (annexe §7), repli présent côté accueil ; cible ADR 0013 §6.2 : l'IA conçoit aussi le second domaine (D2, T9) | ADR 0010 §7.3 ; ADR 0013 |
 | EX-10 | Brief libre de 20 à 2000 caractères | Brief trop court refusé avec message lisible | fait | backend/gmix/api/routes/games.py ; godot/scenes/main/home_screen.gd |
 | EX-11 | Paramètres et brief ensemble | Un même formulaire envoie paramètres et brief | partiel : onglet « Concevoir avec l'IA » (Secteur, Durée, Niveau avec « Imposer » ; options avancées) envoie paramètres imposés (`fixed`) et brief ensemble ; le formulaire manuel reste séparé dans home_screen.gd | ADR 0010 §4 F1 |
-| EX-12 | Documents du formateur alimentent la génération (RAG) | Un document déposé est ingéré et cité dans le jeu conçu | à faire, après la Première version : aucune route de dépôt par jeu | knowledge/ ; point P4 |
+| EX-12 | Documents du formateur alimentent la génération (RAG) | Un document déposé est ingéré et cité dans le jeu conçu | à faire, avant la Première version (ADR 0013, T8) : chaque passage cité est validé par le formateur, provenance `formateur`, aucun chiffre d'un document dans le moteur ; aujourd'hui aucune route de dépôt par jeu | knowledge/ ; point P4 ; ADR 0013 §6.3 |
 | EX-13 | Parties de code simples pour les connexions | Connexions produites, validées, jamais exécutées telles quelles | à faire : forme déclarative retenue (P1 A) | ADR 0011 §3 |
 | EX-14 | Mode de saisie des décisions choisi par le formateur | Un paramètre par jeu ou module ; client le respecte | à faire, après la Première version : seuls `choice` et `int` existent | spec.py `ActionField` ; section 3.1 |
-| EX-15 | Monde posé sur grilles, déterministe | Même spec, même monde ; `check_placement` sans erreur | partiel : moteur et tests présents, `test.ps1 -Fast` 772 passés le 2026-11-06 (reprise.md) ; `check_placement` du pack usine non rejoué à part | ADR 0009 ; backend/gmix/game/layout.py |
+| EX-15 | Monde posé sur grilles, déterministe | Même spec, même monde ; `check_placement` sans erreur | partiel (cible ADR 0013, T4 : déterministe à graine, mêmes paramètres et même graine = même monde) : moteur et tests présents, `test.ps1 -Fast` 772 passés le 2026-11-06 (reprise.md) ; `check_placement` du pack usine non rejoué à part | ADR 0009 ; backend/gmix/game/layout.py |
 | EX-16 | Placement fondé sur le métier, règles sourcées | Chaque règle a une provenance ; violation refusée | partiel : règles `calibre` sans source, règles `protected_path` de la voie PL manquantes ; audit du 19/11 : source retirée du pack, textes alignés sur le moteur (défauts D1 à D15) | ADR 0010 annexe §12 ; docs/blocages.md |
 | EX-17 | Assets prédéfinis, pack proposé si couvert à 100 % | `pack_coverage("usine")["ratio"] == 1.0` | partiel : à relancer, assets en cours de modification | ADR 0009 d.7 ; ai/assets.yaml |
 | EX-18 | Mode créateur : ajuster assets, modules, activités | Éditeur utilisable dans le client avant publication | partiel, écran après la Première version (B4c c1 reporté le 06/11) : routes `/layout` et `/params` existent, aucun écran client trouvé | ADR 0009 d.8 ; section 3.2 |
@@ -174,10 +185,14 @@ Détail : docs/architecture.md, docs/kafka.md.
 | EX-36 | Capacité d'une séance réelle (une vingtaine de joueurs) | Dialogues simultanés tenus | à trancher, après la Première version : GPU insuffisant pour une vingtaine ; la démo vise 3 à 6 joueurs | docs/blocages.md 4 |
 | EX-37 | Licence du jeu de référence | Reprise sans crédit décidée (autrice dans l'équipe) | fait : décision prise ; blocages.md et prompt-projet.md alignés le 06/11 | ADR 0010 §7.5 |
 | EX-38 | Docs et QA du chantier 0010 | Étapes 8 (docs) et 9 (QA) faites | à faire | ADR 0010 §6 |
+| EX-39 | Variété mesurée | Série V : 12 briefs supply chain -> 8 structures distinctes au moins | à faire (ADR 0013, T9) : aujourd'hui le monde reste le même hall en U | ADR 0013 §3.3 |
+| EX-40 | Bâtiments et pièces, trajets calculés | 1 à 3 bâtiments, `travel_min` calculé entre pièces, `pack_coverage` 100 %, 45 images/s | à faire (ADR 0013, T5) | ADR 0013 §2, §6.7 |
+| EX-41 | Équipe d'agents de conception | Cinq tâches IA en série et un contrôle ; 3 min en médiane, 10 au plus | à faire (ADR 0013, T9) | ADR 0013 §3.2 |
+| EX-42 | Second domaine jouable et audité | Pack du second domaine (finance d'entreprise), `-Flow -Pack <slug>` vert, liste à signer signée | à faire (ADR 0013, D1 à D3) | ADR 0013 §6.2 |
 
-Décompte au 2026-11-06 (recompté sur le tableau ci-dessus) : 38 attentes ; fait 15, partiel 17, à faire 4, à trancher 2.
+Décompte au 2026-11-06 (EX-01 à EX-38, recompté sur le tableau) : 38 attentes ; fait 15, partiel 17, à faire 4, à trancher 2. Ajoutées le 21/11 : EX-39 à EX-42, toutes « à faire » (ADR 0013) ; le décompte des états n'est pas refait.
 
-Après la Première version (décision du 06/11) : mode construction B4c c1 (EX-18), EX-05 à distance, EX-12, 14, 19, 29 (page F5 complète) et 36.
+Après la Première version (décision du 06/11) : mode construction B4c c1 (EX-18), EX-05 à distance, EX-14, 19, 29 (page F5 complète) et 36.
 
 ## 10. Points à trancher
 

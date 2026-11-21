@@ -1,6 +1,7 @@
 # 0010 : refonte alignée sur Business_game (génération, lobby, jeu, débrief)
 
 Date : 2026-11-04. Statut : **accepté** (décisions de l'utilisateur du 04/11, §7). Réordonne les chantiers des ADR 0008 et 0009 sans changer leurs contrats.
+Amendé par l'[ADR 0013](0013-generation-de-mondes-et-de-jeux-differents.md) (21/11) : §3 (§ 2) et §7.3 (§ 6.2).
 Référence : `eloiseferrante27-alt/Business_game`, branche `contribution_amine`. Captures `-Tour` 1280x720 : 06 à 24.
 Contexte : selon l'utilisateur, G-mix « ne fait pas ce qui est attendu » (générer avec l'IA des jeux de ce type), et
 trois moments ne sont pas ergonomiques : générer, créer un lobby, jouer.
@@ -55,6 +56,9 @@ pack usine ; elle n'écrit aucun nombre (ADR 0008, inchangé).
 | 4 à 6 KPI d'accueil ; critères de réussite (KPI, profil de seuil, semaine) | Verdict (atteint, partiel, non) ; partie de référence |
 | 0 à 3 aléas prévus (type, semaine) | Tirage des aléas ; journal des causes (décision, règle, aléa) |
 | Personnages, didacticiel, questions de débrief | Faits que disent les PNJ (`briefings`) |
+
+**Amendé par 0013 § 2** (21/11) : produits, fournisseurs et clients sont livrés en 0013 T4 ; l'IA choisit en plus les
+bâtiments et pièces (T5) et le découpage des rôles (T7).
 
 Chiffres : ceux du pack, avec leur provenance ; ceux de `default.json` y entrent en `exemple` jusqu'à leur sourçage.
 **Écarté** : reprendre la stack web de la référence (on perdrait Godot, le multijoueur, la caméra ; elle n'a ni formateur
@@ -150,6 +154,8 @@ mentionne encore l'accord de l'autrice, à aligner sur la décision 5 du §7 (é
 2. **La semaine avance automatiquement** quand tous les joueurs sont « prêts » ; le formateur peut forcer l'avance ou
    mettre en pause (contrat à l'étape 3, API à l'étape 5).
 3. **L'IA ne conçoit que l'usine de type Business_game.** Le pack atelier est gelé, gardé comme repli « Générer sans IA ».
+   **Amendé par 0013 § 6.2** (21/11) : l'IA conçoit l'usine variée et un second domaine jouable (à choisir) ;
+   l'atelier reste gelé, sauf s'il est ce second domaine.
 4. **L'étape 1 (godot-dev) démarre maintenant**, en parallèle de l'étape 0.
 5. **Licence** (décision de l'utilisateur, redite le 29/10 et le 03/11) : l'autrice de la référence est une collègue de
    son équipe ; la reprise du code ne demande pas de crédit. Les crédits d'assets et de polices de tiers restent.

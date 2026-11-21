@@ -3,6 +3,8 @@
 Les briefs de délégation renvoient à ce texte (ADR 0008). Les noms Python sont en anglais ; les codes de contenu
 (profils, emplacements, verbes) restent en français. Une divergence d'implémentation se signale à l'architecte
 avant d'être codée. Ce contrat s'ajoute à celui de `0007-annexe-contrat-usine.md`, qu'il ne change pas.
+Amendé par l'[ADR 0013](0013-generation-de-mondes-et-de-jeux-differents.md) (21/11) : §4.1 et §5 remplacés par 0013
+§ 3.2 (contrat détaillé : annexe 0013, tranche T2) ; §8 complété par 0013 § 3.3 ; §9 et §10 complétés par 0013 § 5.
 
 ## 1. Spec : ajouts à `backend/gmix/game/spec.py` (tous facultatifs ; `version` reste 2)
 
@@ -341,6 +343,9 @@ Le worker s'arrête après 4 appels, puis passe au repli du concept. Chaque cran
 
 ### 4.1 Tâches de `ai/models.yaml` (le modèle par défaut est remplacé par le résultat de l'éval, §8)
 
+> **Remplacé par 0013 § 3.2** (21/11) : tâches `design.domain`, `design.concept`, `design.world`, `design.cast`,
+> `design.journey`, `design.fact_check` ; 3b par défaut, 7b par tâche seulement si l'éval du 3b échoue (0013 § 3.3).
+
 ```yaml
   game.design.concept:
     description: "Conception du scénario et des mécaniques depuis la demande du formateur ; JSON contraint par un schéma construit depuis le pack, aucun chiffre libre."
@@ -404,6 +409,9 @@ Règles écrites dans chaque prompt :
 - une demande hors du pack va dans `unmet`.
 
 ## 5. Kafka et worker (propriétaire pipeline-kafka ; `topics.py` délégué par l'architecte)
+
+> **Remplacé par 0013 § 3.2 et § 3.5** (21/11) : orchestrateur en code `gmix.game.design_pipeline`, étapes
+> `domaine` … `controle` ; aucun topic nouveau.
 
 > Livraison réduite sur l'usine (05/11, [annexe 0010](0010-annexe-contrats.md) §7 et §12) : le worker fait un seul
 > appel `factory.design` ; étapes `brief`, `concept`, `simulation`, `checks`, `done` ; `attempt` = 1 ;
@@ -589,6 +597,9 @@ Exemple minimal pour les jeux de test, avant que l'étape 5 soit livrée :
 
 ## 8. Évaluation (propriétaire ia-runtime)
 
+> **Complété par 0013 § 3.3** (21/11) : série V (12 briefs supply chain -> 8 structures au moins ; 4 briefs du second
+> domaine), critères par étape.
+
 - `ai/evals/game.design.jsonl` : 24 cas, une ligne par cas : `{id, series: R|C, pack, audience, brief, fixed,
   expect: {modules_include, modules_exclude, notions_any, difficulty_in, weeks: [min, max], unmet_nonempty}}`.
   - 12 cas de réglage (R) et 12 de contrôle (C), jamais retouchés après mesure. Seize sont sur l'atelier et huit sur
@@ -618,6 +629,8 @@ Exemple minimal pour les jeux de test, avant que l'étape 5 soit livrée :
   graine et sans cache est rapporté, sans servir de seuil : on reproduit une partie avec la spec, pas en régénérant.
 
 ## 9. Tranches et critères de fin
+
+> **Complété par 0013 § 5** (21/11) : la suite des tranches (T2 à T11, D0 à D3) est dans l'ADR 0013.
 
 **Tranche 1 (verticale)** : les sections concept, cast et journey, sur l'atelier et sur l'usine (dès que l'étape 6 de
 0007 est livrée) ; réglages, plan d'aléas, contrôles, jouabilité et `relax` ; repli ; worker, Kafka et progression ;
@@ -682,6 +695,8 @@ choix du modèle. Fin quand :
 valeurs `a_sourcer`. Il n'est jamais jouable avant la relecture par game-designer.
 
 ## 10. Plan d'exécution (tranche 1)
+
+> **Suite : 0013 § 5** (21/11). Ce plan reste l'historique de la tranche 1.
 
 | # | Agent | Fichiers | Contrat | Fin | Après |
 |---|---|---|---|---|---|

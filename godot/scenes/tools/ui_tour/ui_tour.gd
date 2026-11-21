@@ -517,6 +517,10 @@ func _debrief_fixtures() -> void:
 	]
 	var report := {
 		"kpis": [], "history": [], "lessons": ["Exemple de leçon."], "notions": [], "unsourced": [{}, {}], "log": log,
+		"bottlenecks": [
+			{"label": "M3 · Soudage", "shape": 2.2, "failures": 4, "expected": 8.0, "avoided": 4.0, "down_h": 12.0, "preventive": 6, "with_preventive": true, "lines": 1},
+			{"label": "M5 · Convoyage (2 lignes)", "shape": 1.0, "failures": 3, "expected": 3.4, "avoided": null, "down_h": 7.5, "preventive": 0, "with_preventive": false, "lines": 2},
+		],
 		"events": [{"week": 3, "title": "Panne L2"}],
 		"criteria": [
 			{"id": "otif", "label": "OTIF moyen", "unit": "%", "op": ">=", "target": 95.0, "partial": 85.0, "final": 90.0, "verdict": "partiel", "worst_week": 3, "event": "Panne L2", "series": [96.0, 94.0, 88.0, 89.0, 90.0]},

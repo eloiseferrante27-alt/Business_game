@@ -592,3 +592,15 @@ def test_no_truck_event_without_a_site_on_the_map() -> None:
         == []
         == events(timelines[1], "camion_arrive", "camion_part")
     )
+
+
+def test_defects_do_not_depend_on_the_breakdown_draws() -> None:
+    """P4 : un préventif tire un nouveau seuil de panne ; les défauts, eux, ont leur propre générateur : avec ou sans
+    préventif (donc pilote ou passif), les mêmes pièces sont défectueuses."""
+    spec = no_failure()
+    defects = {}
+    for mode in ("aucune", "toutes"):
+        _, _, _, reports = play(spec, 2, lots=20, setting={"preventive": {"l1": mode}})
+        defects[mode] = {mid: [r["machines"][mid]["defects"] for r in reports] for mid in reports[0]["machines"]}
+    assert sum(sum(v) for v in defects["aucune"].values()) > 0
+    assert defects["aucune"] == defects["toutes"]
