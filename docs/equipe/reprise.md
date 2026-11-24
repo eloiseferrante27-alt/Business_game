@@ -57,20 +57,33 @@ dans l'historique). Commandes à lancer en `.\Business_game-contribution_Romain\
 
 **Audit T0, second tour** (`docs/audits/liste-a-signer.md`, fiches `jeux-ia/J01-t2.md` à `J10-t2.md`, sorties `ai/evals/results/audit-2026-11-21/`) : 0 conforme, 5 à corriger, 5 refusés.
 
-**Prochaine session : T0, puis T2 selon l'ADR 0013 §5**
+**T0 clos le 21/11 (non commité depuis 2920a79)**
 
-| Propriétaire | Défauts restants à corriger avant le troisième tour |
+Troisième tour (`ai/evals/results/audit-2026-11-21-t3/`, fiches `docs/audits/jeux-ia/J0x-t3.md`) : aucun échec automatique ; 3 jeux conformes, J05, J08 et J09, **signés par l'utilisateur le 21/11** ; 7 jeux « exacts, respect de la demande à améliorer », repris en T9 ; aucun refusé. Liste : `docs/audits/liste-a-signer.md` (tenue par game-designer).
+
+| Correction | Résultat |
 |---|---|
-| game-designer | fournisseur standard `national` intenable en expert ; marge expert des ruptures de 5 à 6 ; notes de calibrage à restreindre à `proche` ; note TRS 78 % (D18) ; passif de J04 (D17) |
-| moteur-jeu | D16 « palettes sur places libres » oublie les palettes en commande ; D7 (« 142300 € ») ; D13 (« les modules pilotage ») ; D15 (deux offres « 8 €/u. ») |
-| ia-runtime | D6 `unmet` faux ou muet ; D14 régénération sans effet (J07 et J08 ont le même sha256 que J03 et J02, bloquant) ; D8 coïncidences de C1 |
-| rag-knowledge | la question `trs_oee` ne trouve plus son document attendu, sans doute à cause de la nouvelle fiche TRS (à vérifier) |
-| godot-dev | `godot/scenes/tools/flow_test/flow_test.gd` (l. 273-274 et 1203-1207) : le parcours usine s'arrête à l'entrée dans le monde, sans jouer de semaine ; la vérification de la section « Pannes et arrêt des goulots » du débrief est conditionnelle (`if not bottlenecks.is_empty()`), donc jamais exécutée. Correctif : jouer les semaines et ouvrir le débrief dans le parcours usine, ou exiger `bottlenecks` non vide quand le pack est usine (qa-reviewer, 21/11) |
-| architecte | `docs/decisions/0010-refonte-alignee-business-game.md` l. 157 garde « (à choisir) » alors que le second domaine est décidé (finance d'entreprise, ADR 0013) |
+| Prompt `factory.design` v5 (`current=`, `clean_unmet`), le worker passe `current=` | régénérations changées 6 fois sur 6, `unmet` justes 30 fois sur 30 (`ai/evals/results/design-consignes-2026-11-21/`) |
+| Pack usine | fournisseur standard limité à `proche`, marge expert 6, notes de calibrage |
+| Moteur | textes D16, D7, D13, D15 ; avertissement `passive_wins` ; D19 (bilan non chiffrable) en cours de correction |
+| Godot | avertissements dans la relecture et le brouillon ; le parcours usine joue les semaines et vérifie les goulots (bug « margin » corrigé) |
+| ADR 0010 | second domaine décidé |
 
-Point d'étape du 21/11 (qa-reviewer), verdict bon pour commit : `test.ps1 -Integration` 858 passés ; `-Flow -NoLlm` 686 ; `-Flow -Pack usine` 428 ; `-Tour` 236 écrans, 0 défaut.
+Reporté : D17 (critère « pannes évitées au goulot », refus si le passif gagne, tranche T3 de l'audit) ; D8 (coïncidences de C1) ; couverture RAG `trs_oee` (rag-knowledge) ; interprétation « 3b partout » (7b, à confirmer par l'utilisateur). Vérifications chiffrées du T0 : point d'étape qa-reviewer du 21/11 (avant les corrections du 3e tour) `test.ps1 -Integration` 858 passés, `-Flow -NoLlm` 686, `-Flow -Pack usine` 428, `-Tour` 236 écrans 0 défaut ; **à relancer avant commit** (non relancé depuis les corrections v5).
 
-Puis : troisième tour d'audit, signature de l'utilisateur (fin de T0). Ensuite, ordre de l'ADR 0013 §5 : T2 (contrats et annexe, architecte), puis T3 (docs, fait le 21/11), T4 et D1, T5 avec T6, T7, T8 et D2, T9, D3, T10, T11 (Première version). D0 (choix du second domaine) est fait le 21/11 ; environ 25 sessions en tout.
+Écarts de propriété pour la prochaine rétro : ia-runtime a encore modifié docs/ai-runtime.md ; godot-dev a relancé la pile (`start.ps1 -NoGame`), réservé à devops ; trois agents interrompus le 21/11 par la limite d'API.
+
+**Prochaine session : T2 (ADR 0013 §5, ligne T2)**
+
+| Point | Contenu |
+|---|---|
+| Propriétaire | `architecte` (seul) |
+| Travail | fixer les contrats de la § 3.5 : `Building`, `Room`, `TrainerExcerpt` et le reste de la § 3.5 dans `backend/gmix/game/spec.py` (champs facultatifs, `version` reste 2) ; `topics.py` si besoin ; `docs/kafka.md` ; écrire `docs/decisions/0013-annexe-contrats.md` (absent aujourd'hui) ; `ai/domains.yaml` gagne `audit: signe` seulement à la signature de D3 |
+| Critère de fin | `test.ps1 -Fast` vert ; les specs v2 existantes restent valides |
+| Taille | 1 session ; conditions (T1, D0) remplies |
+| Ensuite | qa-reviewer ; devops commite T0 et T2 ; puis T3 (docs, documentaliste) en parallèle de T4 (moteur-jeu, game-designer, godot-dev) et D1 (rag-knowledge, game-designer) |
+
+Ordre complet : T2, (T3, T4, D1), T5 avec T6, T7, (T8, D2), T9, D3, T10, T11 (Première version), environ 25 sessions.
 
 Notés pour plus tard : règle `events: aucun` avec un `event_plan` dans `GameParams` (architecte) ; `numbers()` lit « 62.7054 » comme 62705 (T6) ; J10 sort en industrie si le secteur n'est que dans le texte du brief (le formateur peut l'imposer).
 
@@ -80,7 +93,7 @@ Cadre de la démo : LAN, 3 à 6 joueurs ; le jeu à distance vient après la Pre
 |---|---|---|
 | 1 | B4b fait et poussé (06/11) ; palette « ardoise » par défaut, commitée et poussée | ADR 0012 ; EX-08 |
 | 2 | **Préparée le 18/11, commitée et poussée (c218212, push 7c99529..c218212 ; `backend/p.out` supprimé, dépôt propre ; rétro du 18/11 faite, `retro-2026-11-18.md`)** : parcours B de flow_test (`-Flow -NoLlm` 686 vérifications, `-Flow` 813), `test_lobbies_absent_vote.py` (`test.ps1 -Integration` : 829 passés), export `godot.ps1 -Export` (`build/windows/G-mix.exe`, connexion depuis l'exe non essayée à la main). **Reste la répétition réelle** : pare-feu à ouvrir le jour même (TCP 8000, UDP 7000-7049, profil Privé), 3 postes, souris et clavier AZERTY réels, fermer les applications lourdes sur l'hôte (le poste était à 100 % CPU à cause du client Riot) ; le test de budget mesure désormais un rapport à une boucle de référence, robuste à la charge, et ne détecte plus qu'une régression d'environ 2x ; date à fixer par l'utilisateur ([fiche pas à pas](../repetition-lan.md)) | EX-05 (LAN), 22, 23, 25 |
-| 3 | **En cours (21/11), = T0 de l'ADR 0013** : exigence n° 1 : second tour fait (0 conforme, 5 à corriger, 5 refusés) ; reste les défauts listés dans « Session du 21/11 », troisième tour, signature ; notes périmées de ai/packs/usine.yaml (l. 336 et 370, à revérifier) ; notion `rupture_de_stock` | ADR 0010 ; EX-01, EX-16 ; docs/audits/ |
+| 3 | **Clos le 21/11, = T0 de l'ADR 0013** : exigence n° 1 : troisième tour sans échec, 3 jeux signés (J05, J08, J09), 7 repris en T9 ; reste D17, D8, `trs_oee`, notion `rupture_de_stock` | ADR 0010 ; EX-01, EX-16 ; docs/audits/ |
 | 3b | **ADR 0013 accepté le 21/11** (mondes et jeux variés, second domaine, documents du formateur) : l'ordre des chantiers après T0 est celui de la § 5 de l'ADR (T2 à T11, environ 25 sessions) ; le garde-fou des nombres (ligne 4) devient T6, la dette de l'annexe 0010 (ligne 5), la passe `-Tour` (ligne 6) et la Première version (ligne 7) deviennent T10 et T11 | docs/decisions/0013 ; docs/blocages.md |
 | 4 | Garde-fou des nombres de `npc.py` : décision OUI (T6 de l'ADR 0013, inclut `numbers()` : « 62.7054 » lu 62705) | EX-33 |
 | 5 | Dette « À corriger » de l'annexe 0010 (T10) | ADR 0010 annexe |

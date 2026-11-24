@@ -274,7 +274,7 @@ def bottleneck_wear(spec: dict[str, Any], state: dict[str, Any]) -> list[dict[st
         costs = spec["factory"]["costs"]
         counted = g["shape"] > 1 and g["with_preventive"] and g["avoided"] is not None
         per_failure = g["mttr_h"] * costs["repair_per_h"] + costs.get("damage_per_failure", 0.0)
-        g["avoided_cost"] = g["avoided"] * per_failure if counted else 0.0
+        g["avoided_cost"] = g["avoided"] * per_failure if counted else None
         g["expected"], g["down_h"] = round(g["expected"], 1), round(g["down_h"], 1)
         g["expected_without_preventive"] = g["expected"]  # pannes attendues sans entretien, telles qu'affichées
         g["label"] = " / ".join(g["names"]) + (f" ({g['lines']} lignes)" if g["lines"] > 1 else "")
@@ -700,8 +700,13 @@ def _wear_lessons(spec: dict[str, Any], state: dict[str, Any]) -> list[str]:
     b = preventive_balance(spec, state)
     if b["done"]:
         lessons.append(
-            f"Préventif : {money(b['cost'])} ; réparations et dégâts évités : environ "
-            f"{money(b['avoided_cost'])} ; ventes perdues : {b['lost']} produit(s)."
+            f"Préventif : {money(b['cost'])} ; réparations et dégâts évités : "
+            + (
+                "non chiffrables (écart dans les variations du hasard)"
+                if b["avoided_cost"] is None
+                else f"environ {money(b['avoided_cost'])}"
+            )
+            + f" ; ventes perdues : {b['lost']} produit(s)."
         )
     return lessons
 
@@ -709,9 +714,11 @@ def _wear_lessons(spec: dict[str, Any], state: dict[str, Any]) -> list[str]:
 def preventive_balance(spec: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
     """Bilan du préventif, valeurs avant arrondi (le texte arrondit à l'affichage)."""
     done = sum(h.get("preventive", 0) for h in state["history"])
+    costs = [w["avoided_cost"] for w in bottleneck_wear(spec, state) if w["avoided_cost"] is not None]
+    avoided = sum(costs) if costs else None  # None : pannes évitées non chiffrables (sous le seuil du hasard)
     return {
         "done": done, "cost": done * spec["factory"]["costs"]["preventive_per_intervention"],
-        "avoided_cost": sum(w["avoided_cost"] for w in bottleneck_wear(spec, state)),
+        "avoided_cost": avoided,
         "lost": sum(h["lost"] for h in state["history"]),
     }  # fmt: skip
 
@@ -779,7 +786,7 @@ def _facts_stock_mp(spec: dict[str, Any], state: dict[str, Any], view: dict[str,
         (
             False,
             f"Magasin : {num(mp['pallets'], 0)} palettes sur {num(mp['capacity_pallets'], 0)} places, "
-            f"{num(max(left, 0), 0)} libres.",
+            f"{num(max(left, 0), 0)} libres une fois comptées les {num(mp['pending'], 0)} en commande.",
         )
     )
     return facts

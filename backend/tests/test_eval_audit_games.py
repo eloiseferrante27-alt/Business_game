@@ -13,7 +13,9 @@ from .test_factory_design import GOOD, ScriptedOllama
 async def test_two_games_are_written_with_checks(tmp_path: Path) -> None:
     entries = {e["id"]: e for e in load_entries()}
     assert len(entries) == 10
-    llm = LLMService(load_catalog(), ScriptedOllama([GOOD, GOOD]))  # type: ignore[arg-type]
+    llm = LLMService(
+        load_catalog(), ScriptedOllama([GOOD, GOOD | {"event_plan": [{"week": 7, "event_id": "vague_de_chaleur"}]}])
+    )  # type: ignore[arg-type]
     done = {}
     done["J02"] = await run_game(llm, entries["J02"], done, tmp_path / "J02")
     done["J08"] = await run_game(llm, entries["J08"], done, tmp_path / "J08")

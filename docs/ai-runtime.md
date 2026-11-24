@@ -208,3 +208,15 @@ Un orchestrateur en code (`gmix.game.design_pipeline`, worker `generation`) ench
 | `design.fact_check` | contrôle d'exactitude, après les contrôles en code | 5 s + 20 s | section fautive repliée |
 
 Règles : qwen2.5:3b pour toutes ; le 7b seulement pour une tâche dont le 3b échoue à l'éval (choix à l'éval, jamais à l'exécution) ; conception refusée (409) pendant un lobby en cours si une tâche sert le 7b ; budget inchangé, 3 min en médiane, 10 au plus ; 2 réparations par section, puis repli. Estimation nominale de l'ADR : environ 1 min 30, non mesurée. Série d'éval V : 12 briefs -> 8 structures au moins (`ai/evals/game.design.jsonl`, à étendre).
+
+### factory.design v5 : régénération effective et unmet vrai (2026-11-21, audit T0 D14, D6)
+
+- D14 : `design_factory(..., current=)` donne au modèle les valeurs actuelles de la section ; une sortie identique à
+  elles avec une note est réparée (« la valeur actuelle est X, la consigne demande Y »), puis le schéma interdit la
+  valeur actuelle des énumérations scalaires (ton, niveau, fréquence), puis repli. Note « dernières semaines » :
+  semaine minimale du plan = dernier tiers (`design_schema(late=True)`). Le worker doit passer `current` (clés de la
+  section produites par le modèle, valeurs de `spec.params`).
+- D6 : `clean_unmet` retire les modules joués, ajoute marketing, RH, comptabilité demandés dans le brief, et une phrase
+  fixe si le brief cite des cibles chiffrées (% ou euros).
+- Mesure `eval_design_consignes --runs 3` (3b) : respect 136/150, unmet 30/30, régénérations J07 et J08 qui changent la
+  section 6/6, aucun repli. Résidus : J08 reste `expert` malgré « plus indulgent » (3 fois sur 3), J10 secteur.

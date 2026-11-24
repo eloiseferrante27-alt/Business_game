@@ -1,0 +1,11 @@
+{
+ "id": "J06",
+ "seed": 606,
+ "brief": "Cours de gestion des stocks en master : le stock de sécurité face à une demande qui varie beaucoup, aléas fréquents, une partie longue sur une grande usine.",
+ "fixed": {
+  "options": {
+   "lines": 3
+  },
+  "agent_tone": "exigeant"
+ }
+}

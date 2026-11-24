@@ -40,11 +40,15 @@ def load_entries(path: Path = PROTOCOL) -> list[dict]:
     return [json.loads(line) for line in block.group(1).splitlines() if line.strip()]  # type: ignore[union-attr]
 
 
-async def design_with_retries(llm: LLMService, entry: dict, keep: dict, note: str | None) -> list[FactoryDesign]:
+async def design_with_retries(
+    llm: LLMService, entry: dict, keep: dict, note: str | None, current: dict | None = None
+) -> list[FactoryDesign]:
     """Conception, puis jusqu'à deux relances en repli avec seed + 100 (protocole §2, étape 1)."""
     tries: list[FactoryDesign] = []
     for step in range(3):
-        d = await design_factory(llm, entry["brief"], seed=entry["seed"] + 100 * step, keep=keep, note=note)
+        d = await design_factory(
+            llm, entry["brief"], seed=entry["seed"] + 100 * step, keep=keep, note=note, current=current
+        )
         if d.fallback and any("OllamaError" in r or "ModelUnavailable" in r for r in d.reasons):
             raise RuntimeError("Ollama a échoué : " + " | ".join(d.reasons))
         tries.append(d)
@@ -221,9 +225,10 @@ async def run_game(llm: LLMService, entry: dict, done: dict[str, dict], out: Pat
         produced = set(design_schema(load_pack("usine"))["properties"])
         redo = FACTORY_SECTIONS[regen["section"]] & produced
         keep, note = {k: v for k, v in origin.items() if k not in redo}, regen["note"]
+        current = {k: origin[k] for k in redo}  # comme le worker (D14)
     else:
-        keep, note = dict(entry.get("fixed") or {}), None
-    tries = await design_with_retries(llm, entry, keep, note)
+        keep, note, current = dict(entry.get("fixed") or {}), None, None
+    tries = await design_with_retries(llm, entry, keep, note, current)
     design = tries[-1]
     spec = generate(GameParams(**design.params))
     review = {"autopilot": autopilot_check(spec), "unsourced": unsourced(spec)}

@@ -1,0 +1,103 @@
+{
+ "week": 1,
+ "event": null,
+ "briefings": {
+  "agent_fournisseur": {
+   "facts": [
+    "1 commande(s) de matière en route, soit 5 palettes."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_reception": {
+   "facts": [
+    "Prochaine livraison attendue dans 2 jour(s)."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_stock_mp": {
+   "facts": [
+    "9 palettes en stock et 5 en commande, sous le point de commande de 20 : il faut commander.",
+    "Magasin : 9 palettes sur 24 places, 10 libres une fois comptées les 5 en commande."
+   ],
+   "urgent": true,
+   "line": "Il faut agir : 9 palettes en stock et 5 en commande, sous le point de commande de 20 : il faut commander."
+  },
+  "agent_production": {
+   "facts": [
+    "0 ordre(s) de fabrication ouvert(s)."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_qualite": {
+   "facts": [
+    "Aucun produit contrôlé pour l'instant."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_emballage": {
+   "facts": [
+    "Entrepôt PF : 8 palettes sur 20."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_maintenance": {
+   "facts": [
+    "Aucune panne depuis le début de la partie."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_pilotage": {
+   "facts": [
+    "0 commande(s) ouverte(s), dont 0 en retard.",
+    "Stock fini et en-cours à 174, sous le minimum de 348 : lancer des ordres."
+   ],
+   "urgent": true,
+   "line": "Vite : Stock fini et en-cours à 174, sous le minimum de 348 : lancer des ordres."
+  },
+  "agent_entrepot_pf": {
+   "facts": [
+    "8 palettes en stock sur 20 places."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_client": {
+   "facts": [
+    "0 commande(s) attendue(s) chez nous."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_direction": {
+   "facts": [
+    "Il reste 12 semaine(s) ; objectifs : OTIF 95 %, TRS 80 %, trésorerie d'au moins 206 600 €."
+   ],
+   "urgent": false,
+   "line": null
+  }
+ },
+ "alerts": [
+  {
+   "id": "reorder:c1",
+   "level": "warning",
+   "department_id": "stock_mp",
+   "module_id": "pilotage",
+   "text": "Matière : 9 palettes en stock, 5 en commande, point de commande 20.",
+   "ref": "mp:c1",
+   "action": {
+    "module_id": "pilotage",
+    "action_id": "commander_mp",
+    "values": {
+     "offer": "o2",
+     "pallets": 6
+    }
+   }
+  }
+ ]
+}

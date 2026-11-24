@@ -198,8 +198,8 @@ def apply_rules(spec: dict[str, Any], source: dict[str, Any]) -> dict[str, Any]:
             partial = start + share * gain if gain > 0 else None
         criteria.append({"id": cid, "label": labels[cid], "op": op, "target": target, "partial": partial})
     values = {"weeks": spec["meta"]["weeks"], "company": spec["meta"]["company"], "otif": t["otif"], "trs": t["trs"],
-              "stockouts": t["stockouts"], "cash_final": round(t["cash_final"]),
-              "initial_cash": round(spec["economy"]["initial_cash"])}  # fmt: skip
+              "stockouts": t["stockouts"], "cash_final": engine.num(t["cash_final"], 0),
+              "initial_cash": engine.num(spec["economy"]["initial_cash"], 0)}  # fmt: skip
     rules = [{"id": r["id"], "text": r["text"].format_map(values), "citation": r.get("citation")}
              for r in source.get("game_rules") or []]  # fmt: skip
     return SimSpec.model_validate(spec | {"criteria": criteria, "game_rules": rules}).model_dump(mode="json")
@@ -217,6 +217,12 @@ def unsourced(spec: dict[str, Any]) -> list[dict[str, Any]]:
 _AUTOPILOT_CACHE: dict[str, dict[str, Any]] = {}  # shortcut: en mémoire du processus, 8 entrées
 
 
+PASSIVE_WINS_WARNING = (
+    "Attention : un joueur qui ne fait rien atteint les objectifs de ce jeu (le pilotage tourne en automatique). "
+    "Ajoutez le module Pilotage ou durcissez les objectifs."
+)
+
+
 def autopilot_check(spec: dict[str, Any]) -> dict[str, Any]:
     """Partie jouée par le pilote automatique sur tous les modules (règles simples : point de commande, plan à
     trois semaines de couverture, entretien préventif) : prouve que le jeu se gagne avec une gestion sensée et
@@ -229,11 +235,16 @@ def autopilot_check(spec: dict[str, Any]) -> dict[str, Any]:
         if len(_AUTOPILOT_CACHE) >= 8:
             _AUTOPILOT_CACHE.pop(next(iter(_AUTOPILOT_CACHE)))
         _AUTOPILOT_CACHE[key] = _play_autopilot(spec)
+        _AUTOPILOT_CACHE[key]["passive"] = _play_autopilot(spec, held={r["id"] for r in spec["roles"]})
     state = _AUTOPILOT_CACHE[key]
     history = state["history"]
     verdicts = [{"id": c["id"], "final": c["final"], "verdict": c["verdict"]}
                 for c in engine.debrief(spec, state)["criteria"]]  # fmt: skip
+    # D17 : un joueur qui ne fait rien (tous les rôles tenus, aucune décision) atteint tous les critères.
+    passive_wins = all(c["verdict"] == "atteint" for c in engine.debrief(spec, state["passive"])["criteria"])
     return {
+        "passive_wins": passive_wins,
+        "warnings": [PASSIVE_WINS_WARNING] if passive_wins else [],
         "weeks": len(history),
         "otif_mean": round(sum(h["otif"] for h in history) / len(history), 1),
         "trs_mean": round(sum(h["trs"] for h in history) / len(history), 1),
@@ -244,10 +255,11 @@ def autopilot_check(spec: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _play_autopilot(spec: dict[str, Any]) -> dict[str, Any]:
+def _play_autopilot(spec: dict[str, Any], held: set[str] | None = None) -> dict[str, Any]:
+    """`held` : rôles tenus par des joueurs inactifs (passif) ; sinon pilote automatique sur tous les modules."""
     state = engine.start(spec, engine.initial_state(spec))
     while state["status"] == "running":
-        state = engine.advance(spec, state, autopilot_all=True)
+        state = engine.advance(spec, state, autopilot_all=held is None, held_roles=held)
     return state
 
 

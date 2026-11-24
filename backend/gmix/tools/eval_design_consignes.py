@@ -21,7 +21,7 @@ import httpx
 
 from gmix.game.spec import FACTORY_SECTIONS, load_pack
 from gmix.llm import factory_design
-from gmix.llm.factory_design import TASK, FactoryDesign, degenerate, design_factory
+from gmix.llm.factory_design import TASK, FactoryDesign, degenerate, design_factory, design_schema
 from gmix.llm.service import LLMService
 from gmix.settings import get_settings
 
@@ -90,6 +90,7 @@ async def main() -> None:
     if args.model:
         llm.catalog.tasks[TASK].model = args.model
     rows: list[tuple[dict, FactoryDesign, dict[str, bool], dict]] = []
+    changed: list[bool] = []
     try:
         await design_factory(llm, "Un atelier de soudure pour des BTS.", seed=0)  # chauffe : chargement hors mesure
         for run in range(args.runs):
@@ -98,8 +99,13 @@ async def main() -> None:
                 seed = case["seed"] + run
                 if regen := case.get("regen"):  # keep = paramètres du jeu d'origine moins la section (comme le worker)
                     origin = done[regen["from"]].params
-                    keep = {k: v for k, v in origin.items() if k not in FACTORY_SECTIONS[regen["section"]]}
-                    d = await design_factory(llm, case["brief"], seed=seed, keep=keep, note=regen["note"])
+                    redo = FACTORY_SECTIONS[regen["section"]] & set(design_schema(pack)["properties"])
+                    keep = {k: v for k, v in origin.items() if k not in redo}
+                    current = {k: origin[k] for k in redo}  # comme le worker, après correction D14
+                    d = await design_factory(
+                        llm, case["brief"], seed=seed, keep=keep, note=regen["note"], current=current
+                    )
+                    changed.append(not d.fallback and any(d.params[k] != v for k, v in current.items()))
                 else:
                     keep = case.get("fixed", {})
                     d = await design_factory(llm, case["brief"], seed=seed, keep=keep)
@@ -122,6 +128,7 @@ async def main() -> None:
         f"{sum(d.load_ms for _, d, _, _ in rows)} ms au total",
         f"- Tokens par conception : entrée médiane {statistics.median(d.prompt_tokens for _, d, _, _ in rows):.0f}, "
         f"sortie médiane {statistics.median(d.completion_tokens for _, d, _, _ in rows):.0f}",
+        f"- Régénérations qui changent la section : {sum(changed)}/{len(changed)}",
         f"- Replis : {sum(d.fallback for _, d, _, _ in rows)} ; essais > 1 : "
         f"{sum(d.attempts > 1 for _, d, _, _ in rows)}",
         f"- Ollama /api/ps après la série : {json.dumps(ps)}\n",

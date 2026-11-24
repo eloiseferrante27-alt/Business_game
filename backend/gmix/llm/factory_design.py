@@ -24,6 +24,15 @@ from gmix.llm.service import BudgetExceeded, LLMService, ModelUnavailable
 TASK = "factory.design"
 MAX_REPAIRS = 2
 MAX_UNMET = 2
+LATE = re.compile(r"derni[èe]res? semaines?", re.I)  # note « aléas dans les dernières semaines » : contrainte du schéma
+# Fonctions que l'usine ne simule jamais (D6). shortcut: liste fermée, à étendre si une demande récurrente manque.
+OUT_OF_SCOPE = {
+    r"marketing|publicit|r[ée]seaux sociaux|campagnes?": "Le marketing n'est pas simulé dans cette usine.",
+    r"recrut|ressources humaines|RH": "Les ressources humaines ne sont pas simulées dans cette usine.",
+    r"comptabilit|finance": "La comptabilité et la finance ne sont pas simulées dans cette usine.",
+}
+TARGETS = re.compile(r"\d\s*(?:%|€|euros?)", re.I)
+TARGETS_UNMET = "Les cibles chiffrées de la demande sont fixées par le pack, pas par la demande."
 
 
 @dataclass(slots=True)
@@ -56,7 +65,11 @@ def _kept_lines(keep: dict[str, Any]) -> str:
 
 
 def _variables(
-    pack: dict[str, Any], brief: str, keep: dict[str, Any] | None = None, note: str | None = None
+    pack: dict[str, Any],
+    brief: str,
+    keep: dict[str, Any] | None = None,
+    note: str | None = None,
+    current: dict[str, Any] | None = None,
 ) -> dict[str, str]:
     sites = _network_sites(pack)
     tunables = "\n".join(f"- {k} : {v['label']}" for k, v in pack["tunables"].items())
@@ -64,6 +77,7 @@ def _variables(
     return {
         "brief": brief.replace("<<<", "").replace(">>>", ""),
         "kept": _kept_lines(keep or {}).replace("<<<", "").replace(">>>", ""),
+        "current": (_kept_lines(current) if current and note else "aucune"),
         "note": (note or "aucune").replace("<<<", "").replace(">>>", ""),
         "themes": _lines(pack["themes"]),
         "modules": _lines(pack["modules"]),
@@ -84,8 +98,9 @@ def _network_sites(pack: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in pack.get("network", {}).get("sites", {}).items() if len(v["distances"]) > 1}
 
 
-def design_schema(pack: dict[str, Any], keep: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Schéma JSON du format contraint, construit depuis le pack (aucune valeur en dur), sans les clés gardées."""
+def design_schema(pack: dict[str, Any], keep: dict[str, Any] | None = None, late: bool = False) -> dict[str, Any]:
+    """Schéma JSON du format contraint, construit depuis le pack (aucune valeur en dur), sans les clés gardées.
+    `late` : le plan d'aléas tient dans le dernier tiers de la partie (si `weeks` est gardé)."""
 
     def enum(values: Any) -> dict[str, Any]:
         return {"type": "string", "enum": list(values)}
@@ -94,6 +109,9 @@ def design_schema(pack: dict[str, Any], keep: dict[str, Any] | None = None) -> d
         return {"type": "object", "properties": props, "required": list(props), "additionalProperties": False}
 
     low, high, _ = pack["limits"]["weeks"]
+    first = 2
+    if late and (weeks := (keep or {}).get("weeks")):
+        first = max(first, weeks * 2 // 3 + 1)
     props: dict[str, Any] = {
         "on_topic": {"type": "boolean"},
         "theme": enum(pack["themes"]),
@@ -108,7 +126,7 @@ def design_schema(pack: dict[str, Any], keep: dict[str, Any] | None = None) -> d
             "type": "array",
             "maxItems": 3,
             "items": obj(
-                {"week": {"type": "integer", "minimum": 2, "maximum": high}, "event_id": enum(pack["events"])}
+                {"week": {"type": "integer", "minimum": first, "maximum": high}, "event_id": enum(pack["events"])}
             ),
         },  # fmt: skip
         "unmet": {
@@ -152,6 +170,19 @@ def degenerate(text: str) -> bool:
     )
 
 
+def clean_unmet(unmet: list[str], brief: str, params: GameParams, pack: dict[str, Any]) -> list[str]:
+    """`unmet` vrai (D6) : sans ce que le jeu fait déjà (modules joués), avec les fonctions hors périmètre et les
+    cibles chiffrées que la demande cite (le schéma interdit les chiffres au modèle)."""
+    played = [w for m in params.modules for w in (m, pack["modules"][m]["title"].lower())]
+    out = [u for u in unmet if not any(w in u.lower() for w in played)]
+    for pattern, sentence in OUT_OF_SCOPE.items():
+        if re.search(pattern, brief, re.I) and not any(re.search(pattern, u, re.I) for u in out):
+            out.append(sentence)
+    if TARGETS.search(brief):
+        out.append(TARGETS_UNMET)
+    return out[: MAX_UNMET + 1]
+
+
 def _errors(
     pack_id: str, pack: dict[str, Any], data: dict[str, Any], seed: int, keep: dict[str, Any]
 ) -> tuple[GameParams | None, list[str]]:
@@ -172,11 +203,14 @@ async def design_factory(
     pack_id: str = "usine",
     keep: dict[str, Any] | None = None,
     note: str | None = None,
+    current: dict[str, Any] | None = None,
 ) -> FactoryDesign:
     """Paramètres d'usine depuis le brief d'un formateur, toujours valides (repli `fallback=True` sinon).
 
     `keep` : clés de `GameParams` imposées (hors schéma, identiques en sortie, repli compris) ;
-    `note` : consigne libre du formateur pour une régénération (ignorée si elle ressemble à une injection).
+    `note` : consigne libre du formateur pour une régénération (ignorée si elle ressemble à une injection) ;
+    `current` : valeurs actuelles de la section régénérée (clés de `GameParams`) : le modèle les voit et une sortie
+    identique à elles, avec une note, est réparée puis écartée (D14).
 
     Appelable par un worker : `FactoryDesign.params` s'envoie tel quel à `GameParams(**params)`.
     """
@@ -203,8 +237,8 @@ async def design_factory(
         note = None
     prompt = load_prompt(TASK)
     out.prompt_version = prompt.version
-    schema = design_schema(pack, keep)
-    base = prompt.render(**_variables(pack, brief, keep, note))
+    schema = design_schema(pack, keep, late=bool(note and LATE.search(note)))
+    base = prompt.render(**_variables(pack, brief, keep, note, current))
     messages = base
     for attempt in range(MAX_REPAIRS + 1):
         out.attempts = attempt + 1
@@ -224,12 +258,23 @@ async def design_factory(
             errors = [f"JSON {result.error}"]
         else:
             params, errors = _errors(pack_id, pack, result.data, seed, keep)
+            if not errors and params is not None and note and current:
+                dump = params.model_dump(mode="json")
+                if all(dump.get(k) == v for k, v in current.items()):
+                    errors = [
+                        f"la valeur actuelle est {_kept_lines(current)} ; la consigne demande : {note} ; "
+                        "propose des valeurs différentes qui la suivent"
+                    ]
+                    for k, v in current.items():  # le modèle s'obstine : le schéma interdit la valeur actuelle
+                        enum = schema["properties"].get(k, {}).get("enum", [])
+                        if v in enum and len(enum) > 1:
+                            enum.remove(v)
             if not errors and params is not None:
                 if result.data.get("on_topic") is False:
                     out.reasons.append("brief hors sujet (usine, chaîne logistique) : paramètres par défaut")
                     out.unmet = [u for u in result.data.get("unmet", []) if not forbidden_in_text(u)]
                     return finish(None)
-                out.unmet = list(result.data.get("unmet", []))
+                out.unmet = clean_unmet(list(result.data.get("unmet", [])), brief, params, pack)
                 return finish(params)
         out.reasons.append(f"tentative {attempt + 1} : " + " | ".join(errors))
         messages = prompt.render_repair(base, "\n".join(f"- {e}" for e in errors))

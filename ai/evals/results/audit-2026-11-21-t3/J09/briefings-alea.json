@@ -1,0 +1,120 @@
+{
+ "week": 2,
+ "event": {
+  "id": "retard_transport",
+  "title": "Perturbations routières",
+  "description": "Travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière."
+ },
+ "briefings": {
+  "agent_fournisseur": {
+   "facts": [
+    "Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière.",
+    "1 commande(s) de matière en route, soit 6 palettes."
+   ],
+   "urgent": true,
+   "line": "Vite : Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière."
+  },
+  "agent_reception": {
+   "facts": [
+    "Semaine passée : 2 camion(s) déchargé(s), 8 palettes.",
+    "Prochaine livraison attendue dans 1 jour(s)."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_stock_mp": {
+   "facts": [
+    "La ligne a été arrêtée 280 minutes faute de matière.",
+    "Magasin : 5 palettes sur 24 places, 13 libres une fois comptées les 6 en commande."
+   ],
+   "urgent": true,
+   "line": "Attention : La ligne a été arrêtée 280 minutes faute de matière."
+  },
+  "agent_production": {
+   "facts": [
+    "Ligne 1 : 16,6 bons par heure mesurés pour 15,8 attendus.",
+    "1 ordre(s) de fabrication ouvert(s)."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_qualite": {
+   "facts": [
+    "Semaine passée : 660 produits contrôlés, 59 rebuts."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_emballage": {
+   "facts": [
+    "Semaine passée : 150 cartons et 24 palettes.",
+    "Entrepôt PF : 2 palettes sur 20."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_maintenance": {
+   "facts": [
+    "M2 · Pliage a perdu 33 minutes en panne.",
+    "Semaine passée : 1 panne(s) au total.",
+    "M3 · Soudage des renforts : 0 panne(s) depuis le début, 0,9 attendue(s) sans entretien d'après son MTBF.",
+    "Préventif : 1 fait(s), 0 non fait(s)."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_pilotage": {
+   "facts": [
+    "Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière.",
+    "0 commande(s) ouverte(s), dont 0 en retard.",
+    "Stock fini et en-cours à 96, sous le minimum de 116 : lancer des ordres.",
+    "OTIF à 100 % (objectif 95 %), TRS à 83 % (objectif 80 %)."
+   ],
+   "urgent": true,
+   "line": "Il faut agir : Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière."
+  },
+  "agent_entrepot_pf": {
+   "facts": [
+    "2 palettes en stock sur 20 places."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_client": {
+   "facts": [
+    "0 commande(s) attendue(s) chez nous."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_direction": {
+   "facts": [
+    "Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière.",
+    "Il reste 4 semaine(s) ; objectifs : OTIF 95 %, TRS 80 %, trésorerie d'au moins 41 300 €."
+   ],
+   "urgent": true,
+   "line": "Il faut agir : Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière."
+  }
+ },
+ "alerts": [
+  {
+   "id": "starved:l1",
+   "level": "critical",
+   "department_id": "stock_mp",
+   "module_id": "pilotage",
+   "text": "Ligne 1 arrêtée 280 min faute de matière.",
+   "ref": "line:l1",
+   "action": null
+  },
+  {
+   "id": "event:retard_transport",
+   "level": "info",
+   "department_id": null,
+   "module_id": null,
+   "text": "Aléa annoncé pour la semaine qui vient : Perturbations routières.",
+   "ref": null,
+   "action": null
+  }
+ ],
+ "forced": true
+}

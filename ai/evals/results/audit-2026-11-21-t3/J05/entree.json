@@ -1,0 +1,12 @@
+{
+ "id": "J05",
+ "seed": 505,
+ "brief": "Premier cours d'approvisionnement chez un sous-traitant automobile : point de commande et choix du fournisseur, en douceur, avec la directrice du site pour guider.",
+ "fixed": {
+  "theme": "automobile",
+  "modules": [
+   "pilotage"
+  ],
+  "difficulty": "decouverte"
+ }
+}

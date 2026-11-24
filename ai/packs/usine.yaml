@@ -125,7 +125,10 @@ network:
     route: {label: Route, speed_kmh: 70, vehicle: veh_box_truck}
   sites:
     fournisseur_rapide: {kind: fournisseur, side: ouest, link: route, distances: [proche], default: proche, prep_days: 0, supplier_profile: rapide, building: bld_warehouse}
-    fournisseur_standard: {kind: fournisseur, side: ouest, link: route, distances: [proche, national], default: proche, prep_days: 2, supplier_profile: standard, building: bld_factory_plant}
+    # Standard en `proche` seulement (21/11/2026, D9 c) : en `national` (délai 4 j), le pilote, qui commande au
+    # standard, manque le critère ruptures en équilibré (2 jours-ligne à 1 ligne, 6 à 3) et en expert à 3 lignes
+    # (9 à 11), graines 5 à 8 ; aucune variante essayée (couverture, marge, stock de départ) ne le rattrapait.
+    fournisseur_standard: {kind: fournisseur, side: ouest, link: route, distances: [proche], default: proche, prep_days: 2, supplier_profile: standard, building: bld_factory_plant}
     fournisseur_economique: {kind: fournisseur, side: ouest, link: route, distances: [national, import], default: national, prep_days: 3, supplier_profile: economique, building: bld_warehouse_hangar}
     client: {kind: client, side: est, link: route, distances: [proche], default: proche, prep_days: 0, building: bld_distribution_center}
 
@@ -334,19 +337,24 @@ criteria:
     status: calibre
     note: "Partiel de 75 à 80 %. Mesure du 19/11/2026 (TRS hors pauses, graines 5 à 8, 1 et 3 lignes) : pilote 82,7-92,0 % à une ligne, 79,5-82,3 % à trois lignes (partiel seulement en équilibré à 3 lignes) ; joueur qui lance un OF par jour sans campagne : 78,5-83 % (partiel ou atteint) ; passif : 0 %."
   stockouts:
-    margin: {decouverte: 2, equilibre: 2, expert: 5}
+    margin: {decouverte: 2, equilibre: 2, expert: 6}
     # D9 (b), codé (apply_rules) : marge donnée pour `margin_lines` lignes ; partiel = cible + marge x nombre de
-    # lignes ÷ margin_lines (expert : 2,5 jours-ligne à 1 ligne, 7,5 à 3 lignes). Expert 4 -> 5 le 19/11/2026.
+    # lignes ÷ margin_lines (expert : 3 jours-ligne à 1 ligne, 9 à 3 lignes). Expert 4 -> 5 le 19/11/2026, 5 -> 6
+    # le 21/11/2026 (D9 d : J09, graine 909, 3 jours-ligne à une ligne, un matin de camion sur trois jours).
     margin_lines: 2
     status: calibre
     note: >-
       Compte attendu de moteur-jeu : somme de history[].stockouts sur toute la partie (jours-ligne arrêtés faute de
       matière), et non plus la dernière semaine ; non atteint si aucun produit n'est sorti de la partie (good_share
       None chaque semaine), sinon le joueur passif, qui n'a jamais lancé d'OF, l'atteindrait. Partiel : 2 jours-ligne
-      (un jour sur les deux lignes), 5 en expert, pour 2 lignes. Pilote mesuré le 19/11/2026 (graines 5 à 8, 1 et 3
-      lignes, partie de référence et jeux J01 à J10 de l'audit) : 0 à 1 en découverte et en équilibré ; en expert,
-      0 à 2 à une ligne, 0 à 7 à trois lignes (semaine 1 : stock de départ et commande initiale couvrent 4 jours
-      pour un délai de 3 jours, souvent tenu à un jour près), partiel au pire.
+      (un jour sur les deux lignes), 6 en expert, pour 2 lignes. Calibrage valable pour le fournisseur standard à la
+      distance proche (délai 3 j), seule permise (network.sites.fournisseur_standard) ; la distance de l'économique
+      (national ou import) ne change rien, le pilote ne commande qu'au standard. Pilote mesuré le 21/11/2026
+      (graines 5 à 8, 1 et 3 lignes, partie de référence et jeux J01 à J10 du second tour) : 0 en découverte, 0 à 1
+      en équilibré ; en expert, 0 à 3 à une ligne (3 = J02 et J08, graine 5, partiel avec 6 et non atteint avec 5),
+      0 à 7 à trois lignes (semaine 1 : stock de départ et commande initiale couvrent 4 jours pour un délai de 3
+      jours, souvent tenu à un jour près), partiel au pire ; J09, graine 909 : 3 à une ligne. En national (4 j),
+      retiré : 2 à une ligne et 6 à trois en équilibré, 9 à 11 à trois lignes en expert.
   cash:
     partial_share: 0
     status: calibre
@@ -425,7 +433,7 @@ alerts:
     threshold: 73
     text: "TRS de {line} à {trs} % la semaine passée, sous le seuil d'attention de 73 %."
     status: calibre
-    note: "73 = seuil d'attention d'une semaine, 7 points sous la cible de 80 et sous la zone partielle du critère TRS (75-80, moyenne de la partie) : l'alerte signale une chute nette d'une semaine, pas un écart ordinaire. Avant le 19/11 : cible 78 moins 5. Sans action : la cause (panne, rupture, défauts) a sa propre alerte."
+    note: "73 = seuil d'attention d'une semaine, 7 points sous la cible de 80 et sous la zone partielle du critère TRS (75-80, moyenne de la partie) : l'alerte signale une chute nette d'une semaine, pas un écart ordinaire. Sans action : la cause (panne, rupture, défauts) a sa propre alerte."
   - id: late
     level: warning
     department_id: client
@@ -493,6 +501,9 @@ values:
     status: calibre
     note: >-
       D9 (a), codé (factory_generation._initial_order) et mesuré le 19/11/2026 ; choix de calibrage, non sourcé.
+      Calibrage valable pour le fournisseur standard à la distance proche (délai 3 j), seule permise depuis le
+      21/11/2026 : en national (4 j), ni cover_extra_days 2, ni deux camions au départ, ni 3,5 j de stock en expert
+      ne gardaient le pilote sous le partiel des ruptures (J02, graines 202 et 5 à 8 : 9 à 11 jours-ligne à 3 lignes).
       cover_extra_days 2 a été essayé : il supprime les ruptures de semaine 1 en expert, mais donne à l'équilibré
       (4 j < 3 + 2) une commande qui arrive au jour 4, quand le stock s'épuise, et qui retarde la première commande
       du pilote (ruptures en équilibré) : 1 gardé. Seulement si mp_stock_days < délai + cover_extra_days (comparaison en jours, sans arrondi) : au
@@ -509,7 +520,7 @@ values:
       Pilote automatique : point de commande = consommation pendant (délai du fournisseur standard + période de
       révision de 1 jour + ce stock de sécurité). En révision périodique, la couverture vaut délai + période de
       révision (wikipedia-en-safety-stock, § Inventory policy). Le moteur lit cette valeur (factory.mp_safety_days) :
-      point = délai + 1 + 2 jours. 1 jour jusqu'au 19/11/2026 ; 2 mesurés ce jour-là : en expert à 3 lignes, 0 à 7
+      point = délai + 1 + 2 jours. 1 jour jusqu'au 19/11/2026 ; 2 mesurés ce jour-là (standard proche) : en expert à 3 lignes, 0 à 7
       jours-ligne sans matière au lieu de 0 à 27 (partie de référence et jeux J01 à J10, graines 5 à 8) ; 1,5 laisse des ruptures en équilibré à une ligne. La formule de la
       fiche (l. 31, SS = z x racine(E(L) sigma_D² + E(D)² sigma_L²)) donne environ 0,6 jour en expert à 95 % (z = 1,65 ;
       393 unités par jour, ± 15 % ; délai 3 jours, en retard d'un jour 13 fois sur 100) : l'écart couvre ce que la
@@ -687,17 +698,8 @@ values:
       mesure 82,7-92,0 % à une ligne et 79,5-82,3 % à trois lignes (graines 5 à 8, partie de référence et jeux
       J01 à J10) ; 80 est atteint partout sauf l'équilibré à trois lignes (partiel, 79,5-80,5 %), le passif est à
       0 %. Une cible unique reste plus basse que le TRS à une ligne : la sous-charge des trois lignes (charge
-      répartie, magasin PF borné) baisse le TRS sans faute du joueur. Historique, cible de 78 : TRS attendu au goulot (factory.trs_factors : pauses x pannes de M3 avec trajet x bons) = 87,0 % en découverte,
-      83,1 % en équilibré, 78,8 % en expert, avant les attentes de matière. Celles-ci sont des pertes de
-      disponibilité sur le temps planifié (machine « No Input », wikipedia-en-overall-equipment-effectiveness).
-      Pilote corrigé (commandes au jour simulé, délai réel, trésorerie bornée), graines 5 à 8, 6 semaines :
-      72,9-74,7 % ; 72,2-72,9 % ; 72,2-74,5 %, faute de lancement par campagne : l'OF quotidien d'environ un jour
-      de demande vide la ligne chaque après-midi et la redémarre chaque matin (attente matière au goulot). Avec
-      le lancement par campagne demandé à moteur-jeu (pilotage.pf_max_jours) et le point de commande à délai +
-      révision + sécurité (stock_mp.stock_securite_jours), mesuré sur le moteur réel le 05/11/2026 : 80,4-81,6 % ;
-      77,0-78,0 % ; 74,4-75,6 %. 78 % reste la cible : atteinte en découverte, à la limite en équilibré (atteint
-      ou partiel), partielle en expert (zone partielle 73-78, criteria.trs). L'émulation (79-80 % en équilibré)
-      lançait des campagnes plus courtes que le moteur, dont le plafond tombe sur le magasin PF.
+      répartie, magasin PF borné) baisse le TRS sans faute du joueur. Les attentes de matière comptent comme pertes
+      de disponibilité sur le temps planifié (machine « No Input », wikipedia-en-overall-equipment-effectiveness).
   pilotage.tresorerie_initiale_semaines: {status: calibre, note: "difficulties.cash_weeks (6, 4, 3 semaines d'achats de MP), comme l'atelier. Expert porté de 2,5 à 3 le 19/11/2026 : à une ligne (J02, graine 5), le pilote, qui n'achète que dans la limite de sa trésorerie, ne pouvait plus recommander en semaine 2 (2 jours-ligne sans matière) ; mesure : docs/audits/preventif-2026-11-19.md § 5."}
   pilotage.taux_possession_semaine: {value: 0.0048, unit: part de la valeur du stock par semaine, status: calibre, note: "25 % par an, ordre de grandeur usuel du coût de possession, repris de l'atelier ; indicatif, non sourcé."}
   pilotage.taux_interet_semaine: {value: 0.004, unit: part du solde négatif par semaine, status: calibre, note: "Agios repris de l'atelier ; indicatif."}
@@ -725,7 +727,7 @@ values:
   reseau.distance.national: {value: 800, unit: km, status: calibre, note: "Autre bout du pays : 800 / 70 = 11,4 h, au-delà des 9 h de l'art. 6 du règlement 561/2006, donc 2 jours. Indicatif."}
   reseau.distance.import: {value: 1300, unit: km, status: calibre, note: "Pays voisin d'Europe : 1 300 / 70 = 18,6 h, 3 jours à 9 h par jour. Indicatif."}
   reseau.preparation.fournisseur_rapide: {value: 0, unit: jour, status: calibre, note: "Expédition le jour de la commande : avec la classe proche, 0 + 1 = 1 jour, délai du profil rapide."}
-  reseau.preparation.fournisseur_standard: {value: 2, unit: jour, status: calibre, note: "Préparation et chargement : avec la classe proche, 2 + 1 = 3 jours, délai du fournisseur du cahier (exemple). Classe national : 4 jours."}
+  reseau.preparation.fournisseur_standard: {value: 2, unit: jour, status: calibre, note: "Préparation et chargement : avec la classe proche, seule permise, 2 + 1 = 3 jours, délai du fournisseur du cahier (exemple). Classe national (4 jours) retirée le 21/11/2026 : voir network.sites.fournisseur_standard."}
   reseau.preparation.fournisseur_economique: {value: 3, unit: jour, status: calibre, note: "Commandes groupées par 4 palettes : avec la classe national, 3 + 2 = 5 jours, délai du profil économique. Classe import : 6 jours."}
   reseau.preparation.client: {value: 0, unit: jour, status: calibre, note: "Le client enlève lui-même (client.pickup_window_min) : la distance du client ne change aucun calcul du moteur, elle place seulement son site sur la carte."}
 

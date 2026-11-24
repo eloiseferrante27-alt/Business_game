@@ -154,8 +154,8 @@ mentionne encore l'accord de l'autrice, à aligner sur la décision 5 du §7 (é
 2. **La semaine avance automatiquement** quand tous les joueurs sont « prêts » ; le formateur peut forcer l'avance ou
    mettre en pause (contrat à l'étape 3, API à l'étape 5).
 3. **L'IA ne conçoit que l'usine de type Business_game.** Le pack atelier est gelé, gardé comme repli « Générer sans IA ».
-   **Amendé par 0013 § 6.2** (21/11) : l'IA conçoit l'usine variée et un second domaine jouable (à choisir) ;
-   l'atelier reste gelé, sauf s'il est ce second domaine.
+   **Amendé par 0013 § 6.2** (21/11) : l'IA conçoit l'usine variée et un second domaine jouable, la finance
+   d'entreprise (`finance-entreprise`, moteur `factory` ; **amendé par 0013 § 6**, 21/11) ; l'atelier reste gelé.
 4. **L'étape 1 (godot-dev) démarre maintenant**, en parallèle de l'étape 0.
 5. **Licence** (décision de l'utilisateur, redite le 29/10 et le 03/11) : l'autrice de la référence est une collègue de
    son équipe ; la reprise du code ne demande pas de crédit. Les crédits d'assets et de polices de tiers restent.

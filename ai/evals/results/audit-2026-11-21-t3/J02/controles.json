@@ -1,0 +1,2031 @@
+{
+ "C1": {
+  "ok": true,
+  "trouves": 154,
+  "non_trouves": [],
+  "chemins": [
+   {
+    "nombre": "1",
+    "chemin": "spec.params.products",
+    "candidats": [
+     "spec.params.products",
+     "spec.offers[0].lead_time",
+     "spec.offers[0].min_order",
+     "spec.offers[1].min_order",
+     "spec.modules[0].actions[0].fields[1].min"
+    ],
+    "texte_libre": false,
+    "texte": "Un sous-traitant soude des pièces de structure pour la centrale d'achat d'un réseau de garages. Pend"
+   },
+   {
+    "nombre": "12",
+    "chemin": "spec.meta.weeks",
+    "candidats": [
+     "spec.meta.weeks",
+     "spec.params.weeks",
+     "spec.world.objects[1].cell[1]",
+     "spec.world.objects[2].cell[1]",
+     "spec.world.objects[11].cell[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Un sous-traitant soude des pièces de structure pour la centrale d'achat d'un réseau de garages. Pend"
+   },
+   {
+    "nombre": "2.5",
+    "chemin": "spec.world.objects[20].position[0]",
+    "candidats": [
+     "spec.world.objects[20].position[0]",
+     "spec.world.objects[29].position[0]",
+     "spec.world.objects[38].position[0]",
+     "rapport[1].machines.l2-m3.minutes.arret",
+     "rapport[3].machines.l3-m3.minutes.arret"
+    ],
+    "texte_libre": false,
+    "texte": "Un sous-traitant soude des pièces de structure pour la centrale d'achat d'un réseau de garages. Pend"
+   },
+   {
+    "nombre": "92",
+    "chemin": "etat.history[3].wear.l2-m3.expected",
+    "candidats": [
+     "etat.history[3].wear.l2-m3.expected",
+     "etat.history[5].wear.l1-m3.expected",
+     "etat.history[11].wear.l1-m3.expected",
+     "etat.history[11].wear.l2-m3.expected",
+     "etat.history[11].wear.l3-m3.expected"
+    ],
+    "texte_libre": false,
+    "texte": "Un sous-traitant soude des pièces de structure pour la centrale d'achat d'un réseau de garages. Pend"
+   },
+   {
+    "nombre": "0",
+    "chemin": "spec.agents[3].route[1][0]",
+    "candidats": [
+     "spec.agents[3].route[1][0]",
+     "spec.world.spawn[0]",
+     "spec.world.objects[0].rotation",
+     "spec.world.objects[1].cell[0]",
+     "spec.world.objects[5].rotation"
+    ],
+    "texte_libre": false,
+    "texte": "En 12 semaines : OTIF (à l'heure et complet) moyen d'au moins 95 %, TRS (rendement des lignes) moyen"
+   },
+   {
+    "nombre": "12",
+    "chemin": "spec.meta.weeks",
+    "candidats": [
+     "spec.meta.weeks",
+     "spec.params.weeks",
+     "spec.world.objects[1].cell[1]",
+     "spec.world.objects[2].cell[1]",
+     "spec.world.objects[11].cell[1]"
+    ],
+    "texte_libre": false,
+    "texte": "En 12 semaines : OTIF (à l'heure et complet) moyen d'au moins 95 %, TRS (rendement des lignes) moyen"
+   },
+   {
+    "nombre": "206600",
+    "chemin": "spec.targets.cash_final",
+    "candidats": [
+     "spec.targets.cash_final",
+     "spec.criteria[3].target",
+     "vue.targets.cash_final",
+     "vue_alea.targets.cash_final",
+     "vue_alea.factory.flow.nodes[2].count"
+    ],
+    "texte_libre": false,
+    "texte": "En 12 semaines : OTIF (à l'heure et complet) moyen d'au moins 95 %, TRS (rendement des lignes) moyen"
+   },
+   {
+    "nombre": "80",
+    "chemin": "spec.targets.trs",
+    "candidats": [
+     "spec.targets.trs",
+     "spec.panels[11].min",
+     "spec.criteria[1].target",
+     "etat.history[4].trs",
+     "etat.history[5].trs"
+    ],
+    "texte_libre": false,
+    "texte": "En 12 semaines : OTIF (à l'heure et complet) moyen d'au moins 95 %, TRS (rendement des lignes) moyen"
+   },
+   {
+    "nombre": "95",
+    "chemin": "spec.targets.otif",
+    "candidats": [
+     "spec.targets.otif",
+     "spec.criteria[0].target",
+     "etat.history[0].wear.l2-m3.expected",
+     "etat.last.timeline.frames[19][0]",
+     "etat.last.timeline.frames[467][3][1]"
+    ],
+    "texte_libre": false,
+    "texte": "En 12 semaines : OTIF (à l'heure et complet) moyen d'au moins 95 %, TRS (rendement des lignes) moyen"
+   },
+   {
+    "nombre": "6",
+    "chemin": "spec.meta.players.max",
+    "candidats": [
+     "spec.meta.players.max",
+     "spec.params.players_max",
+     "spec.modules[0].actions[1].fields[1].max",
+     "spec.agents[7].route[1][0]",
+     "spec.agents[10].route[1][0]"
+    ],
+    "texte_libre": false,
+    "texte": "Une commande de matière est un camion de 6 palettes au plus."
+   },
+   {
+    "nombre": "90",
+    "chemin": "spec.world.objects[10].rotation",
+    "candidats": [
+     "spec.world.objects[10].rotation",
+     "spec.world.objects[11].rotation",
+     "spec.world.objects[13].rotation",
+     "spec.world.objects[14].rotation",
+     "spec.world.objects[15].rotation"
+    ],
+    "texte_libre": false,
+    "texte": "OTIF moyen >= 95.0 (partiel 90.0)"
+   },
+   {
+    "nombre": "95",
+    "chemin": "spec.targets.otif",
+    "candidats": [
+     "spec.targets.otif",
+     "spec.criteria[0].target",
+     "etat.history[0].wear.l2-m3.expected",
+     "etat.last.timeline.frames[19][0]",
+     "etat.last.timeline.frames[467][3][1]"
+    ],
+    "texte_libre": false,
+    "texte": "OTIF moyen >= 95.0 (partiel 90.0)"
+   },
+   {
+    "nombre": "75",
+    "chemin": "spec.agents[5].route[1][1]",
+    "candidats": [
+     "spec.agents[5].route[1][1]",
+     "spec.stations[6].position[0]",
+     "spec.stations[10].position[0]",
+     "spec.stations[11].position[1]",
+     "spec.stations[12].position[1]"
+    ],
+    "texte_libre": false,
+    "texte": "TRS moyen >= 80.0 (partiel 75.0)"
+   },
+   {
+    "nombre": "80",
+    "chemin": "spec.targets.trs",
+    "candidats": [
+     "spec.targets.trs",
+     "spec.panels[11].min",
+     "spec.criteria[1].target",
+     "etat.history[4].trs",
+     "etat.history[5].trs"
+    ],
+    "texte_libre": false,
+    "texte": "TRS moyen >= 80.0 (partiel 75.0)"
+   },
+   {
+    "nombre": "0",
+    "chemin": "spec.agents[3].route[1][0]",
+    "candidats": [
+     "spec.agents[3].route[1][0]",
+     "spec.world.spawn[0]",
+     "spec.world.objects[0].rotation",
+     "spec.world.objects[1].cell[0]",
+     "spec.world.objects[5].rotation"
+    ],
+    "texte_libre": false,
+    "texte": "Jours-ligne arrêtés faute de matière (sur la partie) <= 0.0 (partiel 9.0)"
+   },
+   {
+    "nombre": "9",
+    "chemin": "spec.components[0].unit_cost",
+    "candidats": [
+     "spec.components[0].unit_cost",
+     "spec.offers[1].unit_cost",
+     "spec.agents[8].route[2][1]",
+     "spec.world.objects[2].cell[0]",
+     "spec.world.objects[43].cell[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Jours-ligne arrêtés faute de matière (sur la partie) <= 0.0 (partiel 9.0)"
+   },
+   {
+    "nombre": "206600",
+    "chemin": "spec.targets.cash_final",
+    "candidats": [
+     "spec.targets.cash_final",
+     "spec.criteria[3].target",
+     "vue.targets.cash_final",
+     "vue_alea.targets.cash_final",
+     "vue_alea.factory.flow.nodes[2].count"
+    ],
+    "texte_libre": false,
+    "texte": "Trésorerie finale >= 206600.0 (partiel 53100.0)"
+   },
+   {
+    "nombre": "53100",
+    "chemin": "spec.economy.initial_cash",
+    "candidats": [
+     "spec.economy.initial_cash",
+     "spec.criteria[3].partial",
+     "vue.cash",
+     "vue.kpis.cash",
+     "debrief.criteria[3].partial"
+    ],
+    "texte_libre": false,
+    "texte": "Trésorerie finale >= 206600.0 (partiel 53100.0)"
+   },
+   {
+    "nombre": "1",
+    "chemin": "spec.params.products",
+    "candidats": [
+     "spec.params.products",
+     "spec.offers[0].lead_time",
+     "spec.offers[0].min_order",
+     "spec.offers[1].min_order",
+     "spec.modules[0].actions[0].fields[1].min"
+    ],
+    "texte_libre": false,
+    "texte": "Pilote automatique : ordre de fabrication (OF) quand le stock de produits finis (PF) plus l'encours "
+   },
+   {
+    "nombre": "2",
+    "chemin": "spec.version",
+    "candidats": [
+     "spec.version",
+     "spec.meta.players.min",
+     "spec.params.players_min",
+     "spec.params.event_plan[0].week",
+     "spec.agents[7].route[0][0]"
+    ],
+    "texte_libre": false,
+    "texte": "Pilote automatique : ordre de fabrication (OF) quand le stock de produits finis (PF) plus l'encours "
+   },
+   {
+    "nombre": "4",
+    "chemin": "spec.params.event_plan[2].week",
+    "candidats": [
+     "spec.params.event_plan[2].week",
+     "spec.offers[2].min_order",
+     "spec.modules[0].actions[1].fields[1].default",
+     "spec.world.objects[3].cells[1]",
+     "spec.world.objects[13].cells[1]"
+    ],
+    "texte_libre": false,
+    "texte": "mettre 4 produits par carton"
+   },
+   {
+    "nombre": "1",
+    "chemin": "spec.params.products",
+    "candidats": [
+     "spec.params.products",
+     "spec.offers[0].lead_time",
+     "spec.offers[0].min_order",
+     "spec.offers[1].min_order",
+     "spec.modules[0].actions[0].fields[1].min"
+    ],
+    "texte_libre": false,
+    "texte": "Selon l'approximation de Kingman, l'attente devant un poste croît avec u ÷ (1 − u), u étant son taux"
+   },
+   {
+    "nombre": "100",
+    "chemin": "spec.params.products",
+    "candidats": [
+     "spec.params.products",
+     "spec.offers[0].lead_time",
+     "spec.offers[0].min_order",
+     "spec.offers[1].min_order",
+     "spec.modules[0].actions[0].fields[1].min"
+    ],
+    "texte_libre": false,
+    "texte": "Selon l'approximation de Kingman, l'attente devant un poste croît avec u ÷ (1 − u), u étant son taux"
+   },
+   {
+    "nombre": "100",
+    "chemin": "spec.params.products",
+    "candidats": [
+     "spec.params.products",
+     "spec.offers[0].lead_time",
+     "spec.offers[0].min_order",
+     "spec.offers[1].min_order",
+     "spec.modules[0].actions[0].fields[1].min"
+    ],
+    "texte_libre": false,
+    "texte": "Le TRS (OEE en anglais) multiplie trois taux : disponibilité (temps de marche ÷ temps d'ouverture), "
+   },
+   {
+    "nombre": "10",
+    "chemin": "spec.offers[0].unit_cost",
+    "candidats": [
+     "spec.offers[0].unit_cost",
+     "spec.stations[2].position[0]",
+     "spec.stations[19].position[0]",
+     "spec.stations[19].position[1]",
+     "spec.world.objects[0].position[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Le SMED réduit le temps de changement de série pour pouvoir produire en petits lots ; « single minut"
+   },
+   {
+    "nombre": "1960",
+    "chemin": "etat.last.timeline.frames[392][0]",
+    "candidats": [
+     "etat.last.timeline.frames[392][0]",
+     "etat.last.timeline.events[816][3].until",
+     "etat.last.timeline.events[819][0]",
+     "etat.last.timeline.events[820][0]",
+     "etat.last.timeline.events[821][0]"
+    ],
+    "texte_libre": false,
+    "texte": "Réviser ou remplacer à date fixe ne se justifie que si l'équipement s'use avec l'usage : son risque "
+   },
+   {
+    "nombre": "1",
+    "chemin": "spec.params.products",
+    "candidats": [
+     "spec.params.products",
+     "spec.offers[0].lead_time",
+     "spec.offers[0].min_order",
+     "spec.offers[1].min_order",
+     "spec.modules[0].actions[0].fields[1].min"
+    ],
+    "texte_libre": false,
+    "texte": "La carte p suit la part de produits non conformes d'un échantillon ; sa limite haute vaut p + 3 × ra"
+   },
+   {
+    "nombre": "3",
+    "chemin": "spec.params.options.lines",
+    "candidats": [
+     "spec.params.options.lines",
+     "spec.params.event_plan[1].week",
+     "spec.offers[1].lead_time",
+     "spec.agents[5].route[2][1]",
+     "spec.world.objects[4].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "La carte p suit la part de produits non conformes d'un échantillon ; sa limite haute vaut p + 3 × ra"
+   },
+   {
+    "nombre": "25",
+    "chemin": "spec.agents[3].route[1][0]",
+    "candidats": [
+     "spec.agents[3].route[1][0]",
+     "spec.world.forklift_route[2][0]",
+     "spec.world.forklift_route[6][0]",
+     "spec.world.sites[1].area[1]",
+     "spec.world.sites[1].gate[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livr"
+   },
+   {
+    "nombre": "10",
+    "chemin": "spec.offers[0].unit_cost",
+    "candidats": [
+     "spec.offers[0].unit_cost",
+     "spec.stations[2].position[0]",
+     "spec.stations[19].position[0]",
+     "spec.stations[19].position[1]",
+     "spec.world.objects[0].position[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Les prix d'achat de la matière augmentent de 10 %."
+   },
+   {
+    "nombre": "15",
+    "chemin": "spec.agents[4].route[0][0]",
+    "candidats": [
+     "spec.agents[4].route[0][0]",
+     "spec.agents[4].route[1][0]",
+     "spec.agents[4].route[2][0]",
+     "spec.agents[5].route[0][0]",
+     "spec.agents[5].route[1][0]"
+    ],
+    "texte_libre": false,
+    "texte": "Le client ajoute des commandes : la demande grimpe de 15 % sur la semaine."
+   },
+   {
+    "nombre": "15",
+    "chemin": "spec.agents[4].route[0][0]",
+    "candidats": [
+     "spec.agents[4].route[0][0]",
+     "spec.agents[4].route[1][0]",
+     "spec.agents[4].route[2][0]",
+     "spec.agents[5].route[0][0]",
+     "spec.agents[5].route[1][0]"
+    ],
+    "texte_libre": false,
+    "texte": "Le client commande moins cette semaine : la demande baisse de 15 %."
+   },
+   {
+    "nombre": "10",
+    "chemin": "spec.offers[0].unit_cost",
+    "candidats": [
+     "spec.offers[0].unit_cost",
+     "spec.stations[2].position[0]",
+     "spec.stations[19].position[0]",
+     "spec.stations[19].position[1]",
+     "spec.world.objects[0].position[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Un lot du fournisseur est défectueux ; le taux de palettes reçues non conformes, mises en quarantain"
+   },
+   {
+    "nombre": "40",
+    "chemin": "spec.modules[0].actions[0].fields[1].max",
+    "candidats": [
+     "spec.modules[0].actions[0].fields[1].max",
+     "spec.world.objects[40].cell[0]",
+     "spec.world.objects[70].position[0]",
+     "spec.world.sites[4].gate[0]",
+     "spec.world.links[3].points[0][0]"
+    ],
+    "texte_libre": false,
+    "texte": "Les fortes chaleurs fatiguent les machines ; elles tombent en panne environ 40 % plus souvent cette "
+   },
+   {
+    "nombre": "1",
+    "chemin": "spec.params.products",
+    "candidats": [
+     "spec.params.products",
+     "spec.offers[0].lead_time",
+     "spec.offers[0].min_order",
+     "spec.offers[1].min_order",
+     "spec.modules[0].actions[0].fields[1].min"
+    ],
+    "texte_libre": false,
+    "texte": "Tubes et platines de support · Forges de Bourgogne (Dijon) · 1 j · 89 % à l'heure · 10,08 €/u. · min"
+   },
+   {
+    "nombre": "10.08",
+    "chemin": "spec.offers[0].unit_cost",
+    "candidats": [
+     "spec.offers[0].unit_cost"
+    ],
+    "texte_libre": false,
+    "texte": "Tubes et platines de support · Forges de Bourgogne (Dijon) · 1 j · 89 % à l'heure · 10,08 €/u. · min"
+   },
+   {
+    "nombre": "89",
+    "chemin": "spec.offers[0].reliability",
+    "candidats": [
+     "spec.offers[0].reliability",
+     "etat.history[3].good_share",
+     "etat.history[6].wear.l2-m3.expected",
+     "etat.history[6].wear.l3-m3.expected",
+     "etat.history[7].good_share"
+    ],
+    "texte_libre": false,
+    "texte": "Tubes et platines de support · Forges de Bourgogne (Dijon) · 1 j · 89 % à l'heure · 10,08 €/u. · min"
+   },
+   {
+    "nombre": "1",
+    "chemin": "spec.params.products",
+    "candidats": [
+     "spec.params.products",
+     "spec.offers[0].lead_time",
+     "spec.offers[0].min_order",
+     "spec.offers[1].min_order",
+     "spec.modules[0].actions[0].fields[1].min"
+    ],
+    "texte_libre": false,
+    "texte": "Tubes et platines de support · Aciers de Franche-Comté (Besançon) · 3 j · 87 % à l'heure · 9,00 €/u."
+   },
+   {
+    "nombre": "3",
+    "chemin": "spec.params.options.lines",
+    "candidats": [
+     "spec.params.options.lines",
+     "spec.params.event_plan[1].week",
+     "spec.offers[1].lead_time",
+     "spec.agents[5].route[2][1]",
+     "spec.world.objects[4].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "Tubes et platines de support · Aciers de Franche-Comté (Besançon) · 3 j · 87 % à l'heure · 9,00 €/u."
+   },
+   {
+    "nombre": "87",
+    "chemin": "spec.offers[1].reliability",
+    "candidats": [
+     "spec.offers[1].reliability",
+     "etat.history[1].trs",
+     "etat.history[2].trs",
+     "etat.fs.ofs[11].good",
+     "etat.fs.ofs[12].good"
+    ],
+    "texte_libre": false,
+    "texte": "Tubes et platines de support · Aciers de Franche-Comté (Besançon) · 3 j · 87 % à l'heure · 9,00 €/u."
+   },
+   {
+    "nombre": "9",
+    "chemin": "spec.components[0].unit_cost",
+    "candidats": [
+     "spec.components[0].unit_cost",
+     "spec.offers[1].unit_cost",
+     "spec.agents[8].route[2][1]",
+     "spec.world.objects[2].cell[0]",
+     "spec.world.objects[43].cell[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Tubes et platines de support · Aciers de Franche-Comté (Besançon) · 3 j · 87 % à l'heure · 9,00 €/u."
+   },
+   {
+    "nombre": "4",
+    "chemin": "spec.params.event_plan[2].week",
+    "candidats": [
+     "spec.params.event_plan[2].week",
+     "spec.offers[2].min_order",
+     "spec.modules[0].actions[1].fields[1].default",
+     "spec.world.objects[3].cells[1]",
+     "spec.world.objects[13].cells[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Tubes et platines de support · Bracket Parts Import (Le Havre) · 5 j · 77 % à l'heure · 7,92 €/u. · "
+   },
+   {
+    "nombre": "5",
+    "chemin": "spec.offers[2].lead_time",
+    "candidats": [
+     "spec.offers[2].lead_time",
+     "spec.modules[0].actions[0].fields[1].default",
+     "spec.world.objects[13].cells[0]",
+     "spec.world.objects[14].cell[0]",
+     "spec.world.objects[15].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "Tubes et platines de support · Bracket Parts Import (Le Havre) · 5 j · 77 % à l'heure · 7,92 €/u. · "
+   },
+   {
+    "nombre": "7.92",
+    "chemin": "spec.offers[2].unit_cost",
+    "candidats": [
+     "spec.offers[2].unit_cost"
+    ],
+    "texte_libre": false,
+    "texte": "Tubes et platines de support · Bracket Parts Import (Le Havre) · 5 j · 77 % à l'heure · 7,92 €/u. · "
+   },
+   {
+    "nombre": "77",
+    "chemin": "spec.offers[2].reliability",
+    "candidats": [
+     "spec.offers[2].reliability",
+     "etat.history[6].trs",
+     "etat.last.timeline.frames[90][3][1]",
+     "etat.last.timeline.frames[181][3][5]",
+     "etat.last.timeline.frames[182][3][5]"
+    ],
+    "texte_libre": false,
+    "texte": "Tubes et platines de support · Bracket Parts Import (Le Havre) · 5 j · 77 % à l'heure · 7,92 €/u. · "
+   },
+   {
+    "nombre": "1",
+    "chemin": "spec.params.products",
+    "candidats": [
+     "spec.params.products",
+     "spec.offers[0].lead_time",
+     "spec.offers[0].min_order",
+     "spec.offers[1].min_order",
+     "spec.modules[0].actions[0].fields[1].min"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 1 · Support de roue de secours · 800 u./sem. à 100 %"
+   },
+   {
+    "nombre": "100",
+    "chemin": "spec.params.products",
+    "candidats": [
+     "spec.params.products",
+     "spec.offers[0].lead_time",
+     "spec.offers[0].min_order",
+     "spec.offers[1].min_order",
+     "spec.modules[0].actions[0].fields[1].min"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 1 · Support de roue de secours · 800 u./sem. à 100 %"
+   },
+   {
+    "nombre": "800",
+    "chemin": "spec.lines[0].capacity",
+    "candidats": [
+     "spec.lines[0].capacity",
+     "spec.lines[1].capacity",
+     "spec.lines[2].capacity",
+     "spec.world.objects[1].cells[0]",
+     "spec.world.objects[2].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 1 · Support de roue de secours · 800 u./sem. à 100 %"
+   },
+   {
+    "nombre": "100",
+    "chemin": "spec.params.products",
+    "candidats": [
+     "spec.params.products",
+     "spec.offers[0].lead_time",
+     "spec.offers[0].min_order",
+     "spec.offers[1].min_order",
+     "spec.modules[0].actions[0].fields[1].min"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 2 · Support de roue de secours · 800 u./sem. à 100 %"
+   },
+   {
+    "nombre": "2",
+    "chemin": "spec.version",
+    "candidats": [
+     "spec.version",
+     "spec.meta.players.min",
+     "spec.params.players_min",
+     "spec.params.event_plan[0].week",
+     "spec.agents[7].route[0][0]"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 2 · Support de roue de secours · 800 u./sem. à 100 %"
+   },
+   {
+    "nombre": "800",
+    "chemin": "spec.lines[0].capacity",
+    "candidats": [
+     "spec.lines[0].capacity",
+     "spec.lines[1].capacity",
+     "spec.lines[2].capacity",
+     "spec.world.objects[1].cells[0]",
+     "spec.world.objects[2].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 2 · Support de roue de secours · 800 u./sem. à 100 %"
+   },
+   {
+    "nombre": "100",
+    "chemin": "spec.params.products",
+    "candidats": [
+     "spec.params.products",
+     "spec.offers[0].lead_time",
+     "spec.offers[0].min_order",
+     "spec.offers[1].min_order",
+     "spec.modules[0].actions[0].fields[1].min"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 3 · Support de roue de secours · 800 u./sem. à 100 %"
+   },
+   {
+    "nombre": "3",
+    "chemin": "spec.params.options.lines",
+    "candidats": [
+     "spec.params.options.lines",
+     "spec.params.event_plan[1].week",
+     "spec.offers[1].lead_time",
+     "spec.agents[5].route[2][1]",
+     "spec.world.objects[4].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 3 · Support de roue de secours · 800 u./sem. à 100 %"
+   },
+   {
+    "nombre": "800",
+    "chemin": "spec.lines[0].capacity",
+    "candidats": [
+     "spec.lines[0].capacity",
+     "spec.lines[1].capacity",
+     "spec.lines[2].capacity",
+     "spec.world.objects[1].cells[0]",
+     "spec.world.objects[2].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 3 · Support de roue de secours · 800 u./sem. à 100 %"
+   },
+   {
+    "nombre": "1",
+    "chemin": "spec.params.products",
+    "candidats": [
+     "spec.params.products",
+     "spec.offers[0].lead_time",
+     "spec.offers[0].min_order",
+     "spec.offers[1].min_order",
+     "spec.modules[0].actions[0].fields[1].min"
+    ],
+    "texte_libre": false,
+    "texte": "1 commande(s) de matière en route, soit 5 palettes."
+   },
+   {
+    "nombre": "5",
+    "chemin": "spec.offers[2].lead_time",
+    "candidats": [
+     "spec.offers[2].lead_time",
+     "spec.modules[0].actions[0].fields[1].default",
+     "spec.world.objects[13].cells[0]",
+     "spec.world.objects[14].cell[0]",
+     "spec.world.objects[15].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "1 commande(s) de matière en route, soit 5 palettes."
+   },
+   {
+    "nombre": "2",
+    "chemin": "spec.version",
+    "candidats": [
+     "spec.version",
+     "spec.meta.players.min",
+     "spec.params.players_min",
+     "spec.params.event_plan[0].week",
+     "spec.agents[7].route[0][0]"
+    ],
+    "texte_libre": false,
+    "texte": "Prochaine livraison attendue dans 2 jour(s)."
+   },
+   {
+    "nombre": "20",
+    "chemin": "spec.world.spawn[1]",
+    "candidats": [
+     "spec.world.spawn[1]",
+     "spec.world.objects[45].position[0]",
+     "spec.world.objects[60].cell[0]",
+     "spec.world.objects[62].cell[0]",
+     "spec.world.links[0].points[1][1]"
+    ],
+    "texte_libre": false,
+    "texte": "9 palettes en stock et 5 en commande, sous le point de commande de 20 : il faut commander."
+   },
+   {
+    "nombre": "5",
+    "chemin": "spec.offers[2].lead_time",
+    "candidats": [
+     "spec.offers[2].lead_time",
+     "spec.modules[0].actions[0].fields[1].default",
+     "spec.world.objects[13].cells[0]",
+     "spec.world.objects[14].cell[0]",
+     "spec.world.objects[15].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "9 palettes en stock et 5 en commande, sous le point de commande de 20 : il faut commander."
+   },
+   {
+    "nombre": "9",
+    "chemin": "spec.components[0].unit_cost",
+    "candidats": [
+     "spec.components[0].unit_cost",
+     "spec.offers[1].unit_cost",
+     "spec.agents[8].route[2][1]",
+     "spec.world.objects[2].cell[0]",
+     "spec.world.objects[43].cell[1]"
+    ],
+    "texte_libre": false,
+    "texte": "9 palettes en stock et 5 en commande, sous le point de commande de 20 : il faut commander."
+   },
+   {
+    "nombre": "10",
+    "chemin": "spec.offers[0].unit_cost",
+    "candidats": [
+     "spec.offers[0].unit_cost",
+     "spec.stations[2].position[0]",
+     "spec.stations[19].position[0]",
+     "spec.stations[19].position[1]",
+     "spec.world.objects[0].position[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Magasin : 9 palettes sur 24 places, 10 libres une fois comptées les 5 en commande."
+   },
+   {
+    "nombre": "24",
+    "chemin": "spec.world.objects[9].cell[1]",
+    "candidats": [
+     "spec.world.objects[9].cell[1]",
+     "spec.world.objects[44].position[0]",
+     "spec.world.objects[48].position[0]",
+     "spec.world.sites[0].area[2]",
+     "spec.departments[0].grid.reserved[121][0]"
+    ],
+    "texte_libre": false,
+    "texte": "Magasin : 9 palettes sur 24 places, 10 libres une fois comptées les 5 en commande."
+   },
+   {
+    "nombre": "5",
+    "chemin": "spec.offers[2].lead_time",
+    "candidats": [
+     "spec.offers[2].lead_time",
+     "spec.modules[0].actions[0].fields[1].default",
+     "spec.world.objects[13].cells[0]",
+     "spec.world.objects[14].cell[0]",
+     "spec.world.objects[15].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "Magasin : 9 palettes sur 24 places, 10 libres une fois comptées les 5 en commande."
+   },
+   {
+    "nombre": "9",
+    "chemin": "spec.components[0].unit_cost",
+    "candidats": [
+     "spec.components[0].unit_cost",
+     "spec.offers[1].unit_cost",
+     "spec.agents[8].route[2][1]",
+     "spec.world.objects[2].cell[0]",
+     "spec.world.objects[43].cell[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Magasin : 9 palettes sur 24 places, 10 libres une fois comptées les 5 en commande."
+   },
+   {
+    "nombre": "20",
+    "chemin": "spec.world.spawn[1]",
+    "candidats": [
+     "spec.world.spawn[1]",
+     "spec.world.objects[45].position[0]",
+     "spec.world.objects[60].cell[0]",
+     "spec.world.objects[62].cell[0]",
+     "spec.world.links[0].points[1][1]"
+    ],
+    "texte_libre": false,
+    "texte": "Il faut agir : 9 palettes en stock et 5 en commande, sous le point de commande de 20 : il faut comma"
+   },
+   {
+    "nombre": "5",
+    "chemin": "spec.offers[2].lead_time",
+    "candidats": [
+     "spec.offers[2].lead_time",
+     "spec.modules[0].actions[0].fields[1].default",
+     "spec.world.objects[13].cells[0]",
+     "spec.world.objects[14].cell[0]",
+     "spec.world.objects[15].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "Il faut agir : 9 palettes en stock et 5 en commande, sous le point de commande de 20 : il faut comma"
+   },
+   {
+    "nombre": "9",
+    "chemin": "spec.components[0].unit_cost",
+    "candidats": [
+     "spec.components[0].unit_cost",
+     "spec.offers[1].unit_cost",
+     "spec.agents[8].route[2][1]",
+     "spec.world.objects[2].cell[0]",
+     "spec.world.objects[43].cell[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Il faut agir : 9 palettes en stock et 5 en commande, sous le point de commande de 20 : il faut comma"
+   },
+   {
+    "nombre": "0",
+    "chemin": "spec.agents[3].route[1][0]",
+    "candidats": [
+     "spec.agents[3].route[1][0]",
+     "spec.world.spawn[0]",
+     "spec.world.objects[0].rotation",
+     "spec.world.objects[1].cell[0]",
+     "spec.world.objects[5].rotation"
+    ],
+    "texte_libre": false,
+    "texte": "0 ordre(s) de fabrication ouvert(s)."
+   },
+   {
+    "nombre": "20",
+    "chemin": "spec.world.spawn[1]",
+    "candidats": [
+     "spec.world.spawn[1]",
+     "spec.world.objects[45].position[0]",
+     "spec.world.objects[60].cell[0]",
+     "spec.world.objects[62].cell[0]",
+     "spec.world.links[0].points[1][1]"
+    ],
+    "texte_libre": false,
+    "texte": "Entrepôt PF : 8 palettes sur 20."
+   },
+   {
+    "nombre": "8",
+    "chemin": "spec.products[0].unit_cost",
+    "candidats": [
+     "spec.products[0].unit_cost",
+     "spec.offers[2].unit_cost",
+     "spec.agents[8].route[1][1]",
+     "spec.world.objects[1].cells[0]",
+     "spec.world.objects[2].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "Entrepôt PF : 8 palettes sur 20."
+   },
+   {
+    "nombre": "0",
+    "chemin": "spec.agents[3].route[1][0]",
+    "candidats": [
+     "spec.agents[3].route[1][0]",
+     "spec.world.spawn[0]",
+     "spec.world.objects[0].rotation",
+     "spec.world.objects[1].cell[0]",
+     "spec.world.objects[5].rotation"
+    ],
+    "texte_libre": false,
+    "texte": "0 commande(s) ouverte(s), dont 0 en retard."
+   },
+   {
+    "nombre": "174",
+    "chemin": "spec.products[0].initial_stock",
+    "candidats": [
+     "spec.products[0].initial_stock",
+     "etat.last.timeline.frames[41][3][3]",
+     "etat.last.timeline.frames[114][3][1]",
+     "etat.last.timeline.frames[140][3][1]",
+     "etat.last.timeline.frames[236][3][1]"
+    ],
+    "texte_libre": false,
+    "texte": "Stock fini et en-cours à 174, sous le minimum de 348 : lancer des ordres."
+   },
+   {
+    "nombre": "348",
+    "chemin": "spec.products[0].safety_stock",
+    "candidats": [
+     "spec.products[0].safety_stock",
+     "spec.factory.pf_min",
+     "spec.factory.customer.demand_per_day",
+     "etat.fs.orders[5].quantity",
+     "etat.last.timeline.frames[91][3][8]"
+    ],
+    "texte_libre": false,
+    "texte": "Stock fini et en-cours à 174, sous le minimum de 348 : lancer des ordres."
+   },
+   {
+    "nombre": "174",
+    "chemin": "spec.products[0].initial_stock",
+    "candidats": [
+     "spec.products[0].initial_stock",
+     "etat.last.timeline.frames[41][3][3]",
+     "etat.last.timeline.frames[114][3][1]",
+     "etat.last.timeline.frames[140][3][1]",
+     "etat.last.timeline.frames[236][3][1]"
+    ],
+    "texte_libre": false,
+    "texte": "Vite : Stock fini et en-cours à 174, sous le minimum de 348 : lancer des ordres."
+   },
+   {
+    "nombre": "348",
+    "chemin": "spec.products[0].safety_stock",
+    "candidats": [
+     "spec.products[0].safety_stock",
+     "spec.factory.pf_min",
+     "spec.factory.customer.demand_per_day",
+     "etat.fs.orders[5].quantity",
+     "etat.last.timeline.frames[91][3][8]"
+    ],
+    "texte_libre": false,
+    "texte": "Vite : Stock fini et en-cours à 174, sous le minimum de 348 : lancer des ordres."
+   },
+   {
+    "nombre": "20",
+    "chemin": "spec.world.spawn[1]",
+    "candidats": [
+     "spec.world.spawn[1]",
+     "spec.world.objects[45].position[0]",
+     "spec.world.objects[60].cell[0]",
+     "spec.world.objects[62].cell[0]",
+     "spec.world.links[0].points[1][1]"
+    ],
+    "texte_libre": false,
+    "texte": "8 palettes en stock sur 20 places."
+   },
+   {
+    "nombre": "8",
+    "chemin": "spec.products[0].unit_cost",
+    "candidats": [
+     "spec.products[0].unit_cost",
+     "spec.offers[2].unit_cost",
+     "spec.agents[8].route[1][1]",
+     "spec.world.objects[1].cells[0]",
+     "spec.world.objects[2].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "8 palettes en stock sur 20 places."
+   },
+   {
+    "nombre": "0",
+    "chemin": "spec.agents[3].route[1][0]",
+    "candidats": [
+     "spec.agents[3].route[1][0]",
+     "spec.world.spawn[0]",
+     "spec.world.objects[0].rotation",
+     "spec.world.objects[1].cell[0]",
+     "spec.world.objects[5].rotation"
+    ],
+    "texte_libre": false,
+    "texte": "0 commande(s) attendue(s) chez nous."
+   },
+   {
+    "nombre": "12",
+    "chemin": "spec.meta.weeks",
+    "candidats": [
+     "spec.meta.weeks",
+     "spec.params.weeks",
+     "spec.world.objects[1].cell[1]",
+     "spec.world.objects[2].cell[1]",
+     "spec.world.objects[11].cell[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Il reste 12 semaine(s) ; objectifs : OTIF 95 %, TRS 80 %, trésorerie d'au moins 206 600 €."
+   },
+   {
+    "nombre": "206600",
+    "chemin": "spec.targets.cash_final",
+    "candidats": [
+     "spec.targets.cash_final",
+     "spec.criteria[3].target",
+     "vue.targets.cash_final",
+     "vue_alea.targets.cash_final",
+     "vue_alea.factory.flow.nodes[2].count"
+    ],
+    "texte_libre": false,
+    "texte": "Il reste 12 semaine(s) ; objectifs : OTIF 95 %, TRS 80 %, trésorerie d'au moins 206 600 €."
+   },
+   {
+    "nombre": "80",
+    "chemin": "spec.targets.trs",
+    "candidats": [
+     "spec.targets.trs",
+     "spec.panels[11].min",
+     "spec.criteria[1].target",
+     "etat.history[4].trs",
+     "etat.history[5].trs"
+    ],
+    "texte_libre": false,
+    "texte": "Il reste 12 semaine(s) ; objectifs : OTIF 95 %, TRS 80 %, trésorerie d'au moins 206 600 €."
+   },
+   {
+    "nombre": "95",
+    "chemin": "spec.targets.otif",
+    "candidats": [
+     "spec.targets.otif",
+     "spec.criteria[0].target",
+     "etat.history[0].wear.l2-m3.expected",
+     "etat.last.timeline.frames[19][0]",
+     "etat.last.timeline.frames[467][3][1]"
+    ],
+    "texte_libre": false,
+    "texte": "Il reste 12 semaine(s) ; objectifs : OTIF 95 %, TRS 80 %, trésorerie d'au moins 206 600 €."
+   },
+   {
+    "nombre": "25",
+    "chemin": "spec.agents[3].route[1][0]",
+    "candidats": [
+     "spec.agents[3].route[1][0]",
+     "spec.world.forklift_route[2][0]",
+     "spec.world.forklift_route[6][0]",
+     "spec.world.sites[1].area[1]",
+     "spec.world.sites[1].gate[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % "
+   },
+   {
+    "nombre": "11",
+    "chemin": "spec.agents[3].route[2][0]",
+    "candidats": [
+     "spec.agents[3].route[2][0]",
+     "spec.agents[7].route[2][0]",
+     "spec.agents[10].route[2][0]",
+     "spec.world.objects[6].cells[0]",
+     "spec.world.objects[7].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "2 commande(s) de matière en route, soit 11 palettes."
+   },
+   {
+    "nombre": "2",
+    "chemin": "spec.version",
+    "candidats": [
+     "spec.version",
+     "spec.meta.players.min",
+     "spec.params.players_min",
+     "spec.params.event_plan[0].week",
+     "spec.agents[7].route[0][0]"
+    ],
+    "texte_libre": false,
+    "texte": "2 commande(s) de matière en route, soit 11 palettes."
+   },
+   {
+    "nombre": "25",
+    "chemin": "spec.agents[3].route[1][0]",
+    "candidats": [
+     "spec.agents[3].route[1][0]",
+     "spec.world.forklift_route[2][0]",
+     "spec.world.forklift_route[6][0]",
+     "spec.world.sites[1].area[1]",
+     "spec.world.sites[1].gate[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Attention : Cette semaine, perturbations routières : travaux et bouchons sur les routes des fourniss"
+   },
+   {
+    "nombre": "120",
+    "chemin": "spec.factory.clock.breaks[0][0]",
+    "candidats": [
+     "spec.factory.clock.breaks[0][0]",
+     "spec.factory.logistics.units_per_pallet_mp",
+     "spec.factory.logistics.delivery_window_min[1]",
+     "etat.snap.report.machines.l3-m1.minutes.sortie_pleine",
+     "etat.snap.report.reception.quarantined"
+    ],
+    "texte_libre": false,
+    "texte": "120 produits de matière mis en quarantaine : palettes non conformes."
+   },
+   {
+    "nombre": "20",
+    "chemin": "spec.world.spawn[1]",
+    "candidats": [
+     "spec.world.spawn[1]",
+     "spec.world.objects[45].position[0]",
+     "spec.world.objects[60].cell[0]",
+     "spec.world.objects[62].cell[0]",
+     "spec.world.links[0].points[1][1]"
+    ],
+    "texte_libre": false,
+    "texte": "Semaine passée : 4 camion(s) déchargé(s), 20 palettes."
+   },
+   {
+    "nombre": "4",
+    "chemin": "spec.params.event_plan[2].week",
+    "candidats": [
+     "spec.params.event_plan[2].week",
+     "spec.offers[2].min_order",
+     "spec.modules[0].actions[1].fields[1].default",
+     "spec.world.objects[3].cells[1]",
+     "spec.world.objects[13].cells[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Semaine passée : 4 camion(s) déchargé(s), 20 palettes."
+   },
+   {
+    "nombre": "1",
+    "chemin": "spec.params.products",
+    "candidats": [
+     "spec.params.products",
+     "spec.offers[0].lead_time",
+     "spec.offers[0].min_order",
+     "spec.offers[1].min_order",
+     "spec.modules[0].actions[0].fields[1].min"
+    ],
+    "texte_libre": false,
+    "texte": "Prochaine livraison attendue dans 1 jour(s)."
+   },
+   {
+    "nombre": "120",
+    "chemin": "spec.factory.clock.breaks[0][0]",
+    "candidats": [
+     "spec.factory.clock.breaks[0][0]",
+     "spec.factory.logistics.units_per_pallet_mp",
+     "spec.factory.logistics.delivery_window_min[1]",
+     "etat.snap.report.machines.l3-m1.minutes.sortie_pleine",
+     "etat.snap.report.reception.quarantined"
+    ],
+    "texte_libre": false,
+    "texte": "Vite : 120 produits de matière mis en quarantaine : palettes non conformes."
+   },
+   {
+    "nombre": "109",
+    "chemin": "etat.last.timeline.frames[83][3][1]",
+    "candidats": [
+     "etat.last.timeline.frames[83][3][1]",
+     "etat.last.timeline.frames[227][3][5]",
+     "etat.last.timeline.frames[228][3][5]",
+     "etat.last.timeline.frames[229][3][5]",
+     "etat.last.timeline.frames[230][3][5]"
+    ],
+    "texte_libre": false,
+    "texte": "Les 3 lignes ont été arrêtées 109 minutes au total faute de matière."
+   },
+   {
+    "nombre": "3",
+    "chemin": "spec.params.options.lines",
+    "candidats": [
+     "spec.params.options.lines",
+     "spec.params.event_plan[1].week",
+     "spec.offers[1].lead_time",
+     "spec.agents[5].route[2][1]",
+     "spec.world.objects[4].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "Les 3 lignes ont été arrêtées 109 minutes au total faute de matière."
+   },
+   {
+    "nombre": "11",
+    "chemin": "spec.agents[3].route[2][0]",
+    "candidats": [
+     "spec.agents[3].route[2][0]",
+     "spec.agents[7].route[2][0]",
+     "spec.agents[10].route[2][0]",
+     "spec.world.objects[6].cells[0]",
+     "spec.world.objects[7].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "Magasin : 9 palettes sur 24 places, 4 libres une fois comptées les 11 en commande."
+   },
+   {
+    "nombre": "24",
+    "chemin": "spec.world.objects[9].cell[1]",
+    "candidats": [
+     "spec.world.objects[9].cell[1]",
+     "spec.world.objects[44].position[0]",
+     "spec.world.objects[48].position[0]",
+     "spec.world.sites[0].area[2]",
+     "spec.departments[0].grid.reserved[121][0]"
+    ],
+    "texte_libre": false,
+    "texte": "Magasin : 9 palettes sur 24 places, 4 libres une fois comptées les 11 en commande."
+   },
+   {
+    "nombre": "4",
+    "chemin": "spec.params.event_plan[2].week",
+    "candidats": [
+     "spec.params.event_plan[2].week",
+     "spec.offers[2].min_order",
+     "spec.modules[0].actions[1].fields[1].default",
+     "spec.world.objects[3].cells[1]",
+     "spec.world.objects[13].cells[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Magasin : 9 palettes sur 24 places, 4 libres une fois comptées les 11 en commande."
+   },
+   {
+    "nombre": "9",
+    "chemin": "spec.components[0].unit_cost",
+    "candidats": [
+     "spec.components[0].unit_cost",
+     "spec.offers[1].unit_cost",
+     "spec.agents[8].route[2][1]",
+     "spec.world.objects[2].cell[0]",
+     "spec.world.objects[43].cell[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Magasin : 9 palettes sur 24 places, 4 libres une fois comptées les 11 en commande."
+   },
+   {
+    "nombre": "109",
+    "chemin": "etat.last.timeline.frames[83][3][1]",
+    "candidats": [
+     "etat.last.timeline.frames[83][3][1]",
+     "etat.last.timeline.frames[227][3][5]",
+     "etat.last.timeline.frames[228][3][5]",
+     "etat.last.timeline.frames[229][3][5]",
+     "etat.last.timeline.frames[230][3][5]"
+    ],
+    "texte_libre": false,
+    "texte": "Il faut agir : Les 3 lignes ont été arrêtées 109 minutes au total faute de matière."
+   },
+   {
+    "nombre": "3",
+    "chemin": "spec.params.options.lines",
+    "candidats": [
+     "spec.params.options.lines",
+     "spec.params.event_plan[1].week",
+     "spec.offers[1].lead_time",
+     "spec.agents[5].route[2][1]",
+     "spec.world.objects[4].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "Il faut agir : Les 3 lignes ont été arrêtées 109 minutes au total faute de matière."
+   },
+   {
+    "nombre": "1",
+    "chemin": "spec.params.products",
+    "candidats": [
+     "spec.params.products",
+     "spec.offers[0].lead_time",
+     "spec.offers[0].min_order",
+     "spec.offers[1].min_order",
+     "spec.modules[0].actions[0].fields[1].min"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 1 : 16,6 bons par heure mesurés pour 15,8 attendus."
+   },
+   {
+    "nombre": "15.8",
+    "chemin": "spec.world.objects[61].position[0]",
+    "candidats": [
+     "spec.world.objects[61].position[0]",
+     "spec.world.objects[63].position[0]",
+     "etat.snap.report.lines.l1.expected_h",
+     "etat.snap.report.lines.l2.expected_h",
+     "etat.snap.report.lines.l3.expected_h"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 1 : 16,6 bons par heure mesurés pour 15,8 attendus."
+   },
+   {
+    "nombre": "16.6",
+    "chemin": "etat.snap.lines.l1.real_h",
+    "candidats": [
+     "etat.snap.lines.l1.real_h",
+     "vue_alea.factory.lines[0].real_h"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 1 : 16,6 bons par heure mesurés pour 15,8 attendus."
+   },
+   {
+    "nombre": "15.8",
+    "chemin": "spec.world.objects[61].position[0]",
+    "candidats": [
+     "spec.world.objects[61].position[0]",
+     "spec.world.objects[63].position[0]",
+     "etat.snap.report.lines.l1.expected_h",
+     "etat.snap.report.lines.l2.expected_h",
+     "etat.snap.report.lines.l3.expected_h"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 2 : 16,8 bons par heure mesurés pour 15,8 attendus."
+   },
+   {
+    "nombre": "16.8",
+    "chemin": "vue_alea.factory.lines[1].real_h",
+    "candidats": [
+     "vue_alea.factory.lines[1].real_h",
+     "vue_alea.factory.lines[2].real_h"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 2 : 16,8 bons par heure mesurés pour 15,8 attendus."
+   },
+   {
+    "nombre": "2",
+    "chemin": "spec.version",
+    "candidats": [
+     "spec.version",
+     "spec.meta.players.min",
+     "spec.params.players_min",
+     "spec.params.event_plan[0].week",
+     "spec.agents[7].route[0][0]"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 2 : 16,8 bons par heure mesurés pour 15,8 attendus."
+   },
+   {
+    "nombre": "15.8",
+    "chemin": "spec.world.objects[61].position[0]",
+    "candidats": [
+     "spec.world.objects[61].position[0]",
+     "spec.world.objects[63].position[0]",
+     "etat.snap.report.lines.l1.expected_h",
+     "etat.snap.report.lines.l2.expected_h",
+     "etat.snap.report.lines.l3.expected_h"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 3 : 16,8 bons par heure mesurés pour 15,8 attendus."
+   },
+   {
+    "nombre": "16.8",
+    "chemin": "vue_alea.factory.lines[1].real_h",
+    "candidats": [
+     "vue_alea.factory.lines[1].real_h",
+     "vue_alea.factory.lines[2].real_h"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 3 : 16,8 bons par heure mesurés pour 15,8 attendus."
+   },
+   {
+    "nombre": "3",
+    "chemin": "spec.params.options.lines",
+    "candidats": [
+     "spec.params.options.lines",
+     "spec.params.event_plan[1].week",
+     "spec.offers[1].lead_time",
+     "spec.agents[5].route[2][1]",
+     "spec.world.objects[4].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 3 : 16,8 bons par heure mesurés pour 15,8 attendus."
+   },
+   {
+    "nombre": "3",
+    "chemin": "spec.params.options.lines",
+    "candidats": [
+     "spec.params.options.lines",
+     "spec.params.event_plan[1].week",
+     "spec.offers[1].lead_time",
+     "spec.agents[5].route[2][1]",
+     "spec.world.objects[4].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "3 ordre(s) de fabrication ouvert(s)."
+   },
+   {
+    "nombre": "2066",
+    "chemin": "vue_alea.factory.flow.nodes[2].count",
+    "candidats": [
+     "vue_alea.factory.flow.nodes[2].count",
+     "rapport[0].machines.l1-m3.minutes.marche",
+     "rapport[0].controlled"
+    ],
+    "texte_libre": false,
+    "texte": "Semaine passée : 2 066 produits contrôlés, 249 rebuts."
+   },
+   {
+    "nombre": "249",
+    "chemin": "etat.last.timeline.frames[105][3][7]",
+    "candidats": [
+     "etat.last.timeline.frames[105][3][7]",
+     "etat.last.timeline.frames[106][3][7]",
+     "etat.last.timeline.frames[107][3][7]",
+     "etat.last.timeline.frames[110][3][3]",
+     "etat.last.timeline.frames[225][3][3]"
+    ],
+    "texte_libre": false,
+    "texte": "Semaine passée : 2 066 produits contrôlés, 249 rebuts."
+   },
+   {
+    "nombre": "454",
+    "chemin": "rapport[0].packed.cases",
+    "candidats": [
+     "rapport[0].packed.cases"
+    ],
+    "texte_libre": false,
+    "texte": "Semaine passée : 454 cartons et 75 palettes."
+   },
+   {
+    "nombre": "75",
+    "chemin": "spec.agents[5].route[1][1]",
+    "candidats": [
+     "spec.agents[5].route[1][1]",
+     "spec.stations[6].position[0]",
+     "spec.stations[10].position[0]",
+     "spec.stations[11].position[1]",
+     "spec.stations[12].position[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Semaine passée : 454 cartons et 75 palettes."
+   },
+   {
+    "nombre": "20",
+    "chemin": "spec.world.spawn[1]",
+    "candidats": [
+     "spec.world.spawn[1]",
+     "spec.world.objects[45].position[0]",
+     "spec.world.objects[60].cell[0]",
+     "spec.world.objects[62].cell[0]",
+     "spec.world.links[0].points[1][1]"
+    ],
+    "texte_libre": false,
+    "texte": "Entrepôt PF : 9 palettes sur 20."
+   },
+   {
+    "nombre": "9",
+    "chemin": "spec.components[0].unit_cost",
+    "candidats": [
+     "spec.components[0].unit_cost",
+     "spec.offers[1].unit_cost",
+     "spec.agents[8].route[2][1]",
+     "spec.world.objects[2].cell[0]",
+     "spec.world.objects[43].cell[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Entrepôt PF : 9 palettes sur 20."
+   },
+   {
+    "nombre": "1",
+    "chemin": "spec.params.products",
+    "candidats": [
+     "spec.params.products",
+     "spec.offers[0].lead_time",
+     "spec.offers[0].min_order",
+     "spec.offers[1].min_order",
+     "spec.modules[0].actions[0].fields[1].min"
+    ],
+    "texte_libre": false,
+    "texte": "M1 · Découpe des tubes a perdu 126 minutes en panne."
+   },
+   {
+    "nombre": "126",
+    "chemin": "etat.fs.ofs[3].good",
+    "candidats": [
+     "etat.fs.ofs[3].good",
+     "etat.fs.ofs[8].good",
+     "etat.fs.ofs[9].good",
+     "etat.snap.machines.l3-m1.downtime_min",
+     "etat.snap.report.machines.l3-m1.minutes.panne"
+    ],
+    "texte_libre": false,
+    "texte": "M1 · Découpe des tubes a perdu 126 minutes en panne."
+   },
+   {
+    "nombre": "7",
+    "chemin": "spec.agents[1].route[0][1]",
+    "candidats": [
+     "spec.agents[1].route[0][1]",
+     "spec.agents[1].route[1][1]",
+     "spec.agents[1].route[2][1]",
+     "spec.agents[8].route[0][1]",
+     "spec.world.objects[11].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "Semaine passée : 7 panne(s) au total."
+   },
+   {
+    "nombre": "2.9",
+    "chemin": "vue_alea.factory.machines[2].age_h",
+    "candidats": [
+     "vue_alea.factory.machines[2].age_h",
+     "vue_alea.usure[0].expected",
+     "vue_alea.usure[0].expected_without_preventive",
+     "rapport[10].machines.l3-m3.minutes.arret"
+    ],
+    "texte_libre": false,
+    "texte": "M3 · Soudage des platines (3 lignes) : 4 panne(s) depuis le début, 2,9 attendue(s) sans entretien d'"
+   },
+   {
+    "nombre": "3",
+    "chemin": "spec.params.options.lines",
+    "candidats": [
+     "spec.params.options.lines",
+     "spec.params.event_plan[1].week",
+     "spec.offers[1].lead_time",
+     "spec.agents[5].route[2][1]",
+     "spec.world.objects[4].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "M3 · Soudage des platines (3 lignes) : 4 panne(s) depuis le début, 2,9 attendue(s) sans entretien d'"
+   },
+   {
+    "nombre": "4",
+    "chemin": "spec.params.event_plan[2].week",
+    "candidats": [
+     "spec.params.event_plan[2].week",
+     "spec.offers[2].min_order",
+     "spec.modules[0].actions[1].fields[1].default",
+     "spec.world.objects[3].cells[1]",
+     "spec.world.objects[13].cells[1]"
+    ],
+    "texte_libre": false,
+    "texte": "M3 · Soudage des platines (3 lignes) : 4 panne(s) depuis le début, 2,9 attendue(s) sans entretien d'"
+   },
+   {
+    "nombre": "0",
+    "chemin": "spec.agents[3].route[1][0]",
+    "candidats": [
+     "spec.agents[3].route[1][0]",
+     "spec.world.spawn[0]",
+     "spec.world.objects[0].rotation",
+     "spec.world.objects[1].cell[0]",
+     "spec.world.objects[5].rotation"
+    ],
+    "texte_libre": false,
+    "texte": "Préventif : 3 fait(s), 0 non fait(s)."
+   },
+   {
+    "nombre": "3",
+    "chemin": "spec.params.options.lines",
+    "candidats": [
+     "spec.params.options.lines",
+     "spec.params.event_plan[1].week",
+     "spec.offers[1].lead_time",
+     "spec.agents[5].route[2][1]",
+     "spec.world.objects[4].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "Préventif : 3 fait(s), 0 non fait(s)."
+   },
+   {
+    "nombre": "25",
+    "chemin": "spec.agents[3].route[1][0]",
+    "candidats": [
+     "spec.agents[3].route[1][0]",
+     "spec.world.forklift_route[2][0]",
+     "spec.world.forklift_route[6][0]",
+     "spec.world.sites[1].area[1]",
+     "spec.world.sites[1].gate[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % "
+   },
+   {
+    "nombre": "0",
+    "chemin": "spec.agents[3].route[1][0]",
+    "candidats": [
+     "spec.agents[3].route[1][0]",
+     "spec.world.spawn[0]",
+     "spec.world.objects[0].rotation",
+     "spec.world.objects[1].cell[0]",
+     "spec.world.objects[5].rotation"
+    ],
+    "texte_libre": false,
+    "texte": "0 commande(s) ouverte(s), dont 0 en retard."
+   },
+   {
+    "nombre": "100",
+    "chemin": "spec.params.products",
+    "candidats": [
+     "spec.params.products",
+     "spec.offers[0].lead_time",
+     "spec.offers[0].min_order",
+     "spec.offers[1].min_order",
+     "spec.modules[0].actions[0].fields[1].min"
+    ],
+    "texte_libre": false,
+    "texte": "OTIF à 100 % (objectif 95 %), TRS à 84 % (objectif 80 %)."
+   },
+   {
+    "nombre": "80",
+    "chemin": "spec.targets.trs",
+    "candidats": [
+     "spec.targets.trs",
+     "spec.panels[11].min",
+     "spec.criteria[1].target",
+     "etat.history[4].trs",
+     "etat.history[5].trs"
+    ],
+    "texte_libre": false,
+    "texte": "OTIF à 100 % (objectif 95 %), TRS à 84 % (objectif 80 %)."
+   },
+   {
+    "nombre": "84",
+    "chemin": "spec.world.objects[67].position[1]",
+    "candidats": [
+     "spec.world.objects[67].position[1]",
+     "spec.world.objects[68].position[1]",
+     "etat.history[0].trs",
+     "etat.history[10].wear.l3-m3.expected",
+     "etat.last.timeline.frames[192][3][5]"
+    ],
+    "texte_libre": false,
+    "texte": "OTIF à 100 % (objectif 95 %), TRS à 84 % (objectif 80 %)."
+   },
+   {
+    "nombre": "95",
+    "chemin": "spec.targets.otif",
+    "candidats": [
+     "spec.targets.otif",
+     "spec.criteria[0].target",
+     "etat.history[0].wear.l2-m3.expected",
+     "etat.last.timeline.frames[19][0]",
+     "etat.last.timeline.frames[467][3][1]"
+    ],
+    "texte_libre": false,
+    "texte": "OTIF à 100 % (objectif 95 %), TRS à 84 % (objectif 80 %)."
+   },
+   {
+    "nombre": "25",
+    "chemin": "spec.agents[3].route[1][0]",
+    "candidats": [
+     "spec.agents[3].route[1][0]",
+     "spec.world.forklift_route[2][0]",
+     "spec.world.forklift_route[6][0]",
+     "spec.world.sites[1].area[1]",
+     "spec.world.sites[1].gate[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Vite : Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs "
+   },
+   {
+    "nombre": "20",
+    "chemin": "spec.world.spawn[1]",
+    "candidats": [
+     "spec.world.spawn[1]",
+     "spec.world.objects[45].position[0]",
+     "spec.world.objects[60].cell[0]",
+     "spec.world.objects[62].cell[0]",
+     "spec.world.links[0].points[1][1]"
+    ],
+    "texte_libre": false,
+    "texte": "9 palettes en stock sur 20 places."
+   },
+   {
+    "nombre": "9",
+    "chemin": "spec.components[0].unit_cost",
+    "candidats": [
+     "spec.components[0].unit_cost",
+     "spec.offers[1].unit_cost",
+     "spec.agents[8].route[2][1]",
+     "spec.world.objects[2].cell[0]",
+     "spec.world.objects[43].cell[1]"
+    ],
+    "texte_libre": false,
+    "texte": "9 palettes en stock sur 20 places."
+   },
+   {
+    "nombre": "0",
+    "chemin": "spec.agents[3].route[1][0]",
+    "candidats": [
+     "spec.agents[3].route[1][0]",
+     "spec.world.spawn[0]",
+     "spec.world.objects[0].rotation",
+     "spec.world.objects[1].cell[0]",
+     "spec.world.objects[5].rotation"
+    ],
+    "texte_libre": false,
+    "texte": "0 commande(s) attendue(s) chez nous."
+   },
+   {
+    "nombre": "25",
+    "chemin": "spec.agents[3].route[1][0]",
+    "candidats": [
+     "spec.agents[3].route[1][0]",
+     "spec.world.forklift_route[2][0]",
+     "spec.world.forklift_route[6][0]",
+     "spec.world.sites[1].area[1]",
+     "spec.world.sites[1].gate[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % "
+   },
+   {
+    "nombre": "11",
+    "chemin": "spec.agents[3].route[2][0]",
+    "candidats": [
+     "spec.agents[3].route[2][0]",
+     "spec.agents[7].route[2][0]",
+     "spec.agents[10].route[2][0]",
+     "spec.world.objects[6].cells[0]",
+     "spec.world.objects[7].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "Il reste 11 semaine(s) ; objectifs : OTIF 95 %, TRS 80 %, trésorerie d'au moins 206 600 €."
+   },
+   {
+    "nombre": "206600",
+    "chemin": "spec.targets.cash_final",
+    "candidats": [
+     "spec.targets.cash_final",
+     "spec.criteria[3].target",
+     "vue.targets.cash_final",
+     "vue_alea.targets.cash_final",
+     "vue_alea.factory.flow.nodes[2].count"
+    ],
+    "texte_libre": false,
+    "texte": "Il reste 11 semaine(s) ; objectifs : OTIF 95 %, TRS 80 %, trésorerie d'au moins 206 600 €."
+   },
+   {
+    "nombre": "80",
+    "chemin": "spec.targets.trs",
+    "candidats": [
+     "spec.targets.trs",
+     "spec.panels[11].min",
+     "spec.criteria[1].target",
+     "etat.history[4].trs",
+     "etat.history[5].trs"
+    ],
+    "texte_libre": false,
+    "texte": "Il reste 11 semaine(s) ; objectifs : OTIF 95 %, TRS 80 %, trésorerie d'au moins 206 600 €."
+   },
+   {
+    "nombre": "95",
+    "chemin": "spec.targets.otif",
+    "candidats": [
+     "spec.targets.otif",
+     "spec.criteria[0].target",
+     "etat.history[0].wear.l2-m3.expected",
+     "etat.last.timeline.frames[19][0]",
+     "etat.last.timeline.frames[467][3][1]"
+    ],
+    "texte_libre": false,
+    "texte": "Il reste 11 semaine(s) ; objectifs : OTIF 95 %, TRS 80 %, trésorerie d'au moins 206 600 €."
+   },
+   {
+    "nombre": "25",
+    "chemin": "spec.agents[3].route[1][0]",
+    "candidats": [
+     "spec.agents[3].route[1][0]",
+     "spec.world.forklift_route[2][0]",
+     "spec.world.forklift_route[6][0]",
+     "spec.world.sites[1].area[1]",
+     "spec.world.sites[1].gate[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Vite : Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs "
+   },
+   {
+    "nombre": "20",
+    "chemin": "spec.world.spawn[1]",
+    "candidats": [
+     "spec.world.spawn[1]",
+     "spec.world.objects[45].position[0]",
+     "spec.world.objects[60].cell[0]",
+     "spec.world.objects[62].cell[0]",
+     "spec.world.links[0].points[1][1]"
+    ],
+    "texte_libre": false,
+    "texte": "Matière : 9 palettes en stock, 5 en commande, point de commande 20."
+   },
+   {
+    "nombre": "5",
+    "chemin": "spec.offers[2].lead_time",
+    "candidats": [
+     "spec.offers[2].lead_time",
+     "spec.modules[0].actions[0].fields[1].default",
+     "spec.world.objects[13].cells[0]",
+     "spec.world.objects[14].cell[0]",
+     "spec.world.objects[15].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "Matière : 9 palettes en stock, 5 en commande, point de commande 20."
+   },
+   {
+    "nombre": "9",
+    "chemin": "spec.components[0].unit_cost",
+    "candidats": [
+     "spec.components[0].unit_cost",
+     "spec.offers[1].unit_cost",
+     "spec.agents[8].route[2][1]",
+     "spec.world.objects[2].cell[0]",
+     "spec.world.objects[43].cell[1]"
+    ],
+    "texte_libre": false,
+    "texte": "Matière : 9 palettes en stock, 5 en commande, point de commande 20."
+   },
+   {
+    "nombre": "2",
+    "chemin": "spec.version",
+    "candidats": [
+     "spec.version",
+     "spec.meta.players.min",
+     "spec.params.players_min",
+     "spec.params.event_plan[0].week",
+     "spec.agents[7].route[0][0]"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 2 arrêtée 82 min faute de matière."
+   },
+   {
+    "nombre": "82",
+    "chemin": "etat.history[3].trs",
+    "candidats": [
+     "etat.history[3].trs",
+     "etat.history[11].trs",
+     "etat.fs.ofs[10].good",
+     "etat.last.kpis.trs",
+     "etat.last.timeline.frames[190][3][5]"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 2 arrêtée 82 min faute de matière."
+   },
+   {
+    "nombre": "27",
+    "chemin": "spec.departments[0].grid.reserved[136][0]",
+    "candidats": [
+     "spec.departments[0].grid.reserved[136][0]",
+     "spec.departments[0].grid.reserved[137][0]",
+     "spec.departments[0].grid.reserved[138][0]",
+     "spec.departments[0].grid.reserved[139][0]",
+     "spec.departments[0].grid.reserved[140][0]"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 3 arrêtée 27 min faute de matière."
+   },
+   {
+    "nombre": "3",
+    "chemin": "spec.params.options.lines",
+    "candidats": [
+     "spec.params.options.lines",
+     "spec.params.event_plan[1].week",
+     "spec.offers[1].lead_time",
+     "spec.agents[5].route[2][1]",
+     "spec.world.objects[4].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "Ligne 3 arrêtée 27 min faute de matière."
+   },
+   {
+    "nombre": "1",
+    "chemin": "spec.params.products",
+    "candidats": [
+     "spec.params.products",
+     "spec.offers[0].lead_time",
+     "spec.offers[0].min_order",
+     "spec.offers[1].min_order",
+     "spec.modules[0].actions[0].fields[1].min"
+    ],
+    "texte_libre": false,
+    "texte": "2 jour(s)-ligne arrêté(s) faute de matière, sur 1 semaine(s). Repère : recommandez quand stock et pa"
+   },
+   {
+    "nombre": "2",
+    "chemin": "spec.version",
+    "candidats": [
+     "spec.version",
+     "spec.meta.players.min",
+     "spec.params.players_min",
+     "spec.params.event_plan[0].week",
+     "spec.agents[7].route[0][0]"
+    ],
+    "texte_libre": false,
+    "texte": "2 jour(s)-ligne arrêté(s) faute de matière, sur 1 semaine(s). Repère : recommandez quand stock et pa"
+   },
+   {
+    "nombre": "20",
+    "chemin": "spec.world.spawn[1]",
+    "candidats": [
+     "spec.world.spawn[1]",
+     "spec.world.objects[45].position[0]",
+     "spec.world.objects[60].cell[0]",
+     "spec.world.objects[62].cell[0]",
+     "spec.world.links[0].points[1][1]"
+    ],
+    "texte_libre": false,
+    "texte": "2 jour(s)-ligne arrêté(s) faute de matière, sur 1 semaine(s). Repère : recommandez quand stock et pa"
+   },
+   {
+    "nombre": "17",
+    "chemin": "spec.departments[0].grid.reserved[85][0]",
+    "candidats": [
+     "spec.departments[0].grid.reserved[85][0]",
+     "spec.departments[0].grid.reserved[86][0]",
+     "spec.departments[0].grid.reserved[87][0]",
+     "spec.departments[0].grid.reserved[88][0]",
+     "spec.departments[0].grid.reserved[89][0]"
+    ],
+    "texte_libre": false,
+    "texte": "M3 · Soudage des platines (3 lignes) : 17 pannes pour 33,1 attendues d'après son MTBF, avec préventi"
+   },
+   {
+    "nombre": "3",
+    "chemin": "spec.params.options.lines",
+    "candidats": [
+     "spec.params.options.lines",
+     "spec.params.event_plan[1].week",
+     "spec.offers[1].lead_time",
+     "spec.agents[5].route[2][1]",
+     "spec.world.objects[4].cells[0]"
+    ],
+    "texte_libre": false,
+    "texte": "M3 · Soudage des platines (3 lignes) : 17 pannes pour 33,1 attendues d'après son MTBF, avec préventi"
+   },
+   {
+    "nombre": "33.1",
+    "chemin": "etat.history[5].wear.l1-m3.run_h",
+    "candidats": [
+     "etat.history[5].wear.l1-m3.run_h",
+     "etat.history[11].wear.l2-m3.run_h",
+     "debrief.history[5].wear.l1-m3.run_h",
+     "debrief.history[11].wear.l2-m3.run_h",
+     "debrief.bottlenecks[0].expected"
+    ],
+    "texte_libre": false,
+    "texte": "M3 · Soudage des platines (3 lignes) : 17 pannes pour 33,1 attendues d'après son MTBF, avec préventi"
+   },
+   {
+    "nombre": "0",
+    "chemin": "spec.agents[3].route[1][0]",
+    "candidats": [
+     "spec.agents[3].route[1][0]",
+     "spec.world.spawn[0]",
+     "spec.world.objects[0].rotation",
+     "spec.world.objects[1].cell[0]",
+     "spec.world.objects[5].rotation"
+    ],
+    "texte_libre": false,
+    "texte": "Préventif : 1 800 € ; réparations et dégâts évités : environ 0 € ; ventes perdues : 0 produit(s)."
+   },
+   {
+    "nombre": "1800",
+    "chemin": "spec.world.objects[3].cell[0]",
+    "candidats": [
+     "spec.world.objects[3].cell[0]",
+     "spec.world.objects[44].cell[0]",
+     "spec.world.objects[44].cell[1]",
+     "spec.world.objects[48].cell[0]",
+     "spec.departments[0].grid.rows"
+    ],
+    "texte_libre": false,
+    "texte": "Préventif : 1 800 € ; réparations et dégâts évités : environ 0 € ; ventes perdues : 0 produit(s)."
+   }
+  ]
+ },
+ "C2": {
+  "ok": true,
+  "citations_fausses": []
+ },
+ "C3": {
+  "ok": true,
+  "unmet_fautifs": []
+ },
+ "C5": {
+  "ok": true,
+  "tutoiement": []
+ },
+ "C7": {
+  "ok": true,
+  "aleas_sans_module_joue": [],
+  "plan_apres_fin": [],
+  "agents_informes": [
+   "agent_fournisseur",
+   "agent_pilotage",
+   "agent_direction"
+  ]
+ },
+ "C8": {
+  "ok": true,
+  "cles_non_respectees": [],
+  "cles_changees": []
+ },
+ "C9": {
+  "ok": true,
+  "playable": true,
+  "pilote": {
+   "otif": "atteint",
+   "trs": "atteint",
+   "stockouts": "partiel",
+   "cash": "atteint"
+  },
+  "passif": {
+   "otif": "non_atteint",
+   "trs": "non_atteint",
+   "stockouts": "non_atteint",
+   "cash": "non_atteint"
+  }
+ },
+ "echecs": []
+}

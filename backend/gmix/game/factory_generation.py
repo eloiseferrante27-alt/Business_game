@@ -11,8 +11,8 @@ import math
 import random
 from typing import Any
 
-from gmix.game import engine, factory, layout
-from gmix.game.generation import apply_rules, autopilot_check
+from gmix.game import factory, layout
+from gmix.game.generation import _money, apply_rules, autopilot_check
 from gmix.game.spec import GameParams, SimSpec, _resolve_citations, load_pack
 
 MAX_LOAD = 0.95  # charge réelle maximale (pack : client.charge)
@@ -89,8 +89,8 @@ def _meta(pack, params, theme, level, company, item) -> dict[str, Any]:
     return {
         "title": f"{company} · {theme['label']}", "company": company, "client": theme["client"],
         "theme": params.theme, "theme_label": theme["label"],
-        "pitch": f"{theme['description']} Pendant {params.weeks} semaines, votre équipe assure les modules "
-        f"{text} pour livrer "
+        "pitch": f"{theme['description']} Pendant {params.weeks} semaines, votre équipe assure "
+        f"{'les modules' if len(titles) > 1 else 'le module'} {text} pour livrer "
         f"{theme['client']} à la date promise : {item['name'].lower()}, sans rupture de matière ni stock inutile. "
         f"Niveau {level['label'].lower()} : {_fragments(pack, params)}.",
         "difficulty": params.difficulty, "difficulty_label": level["label"], "weeks": params.weeks,
@@ -157,7 +157,7 @@ def _offers(pack, item, level, params) -> tuple[list[dict[str, Any]], list[dict[
             "id": f"o{index}", "supplier_id": f"s{index}", "component_id": "c1", "profile": profile, "lead_time": lead,
             "reliability": reliability, "unit_cost": cost, "min_order": p["min_pallets"],
             "label": f"{mp['name']} · {name} ({city}) · {lead} j · {reliability:.0f} % à l'heure · "
-            f"{engine.money(cost)}/u. · min. {p['min_pallets']} palette(s)",
+            f"{_money(cost)} €/u. · min. {p['min_pallets']} palette(s)",
         })  # fmt: skip
     return suppliers, offers
 

@@ -234,6 +234,25 @@ def test_pitch_states_the_effective_settings() -> None:
     assert "Niveau équilibré : 4 jours de matière en stock," in spec_of()["meta"]["pitch"]  # fragments vides omis
 
 
+def test_texts_audit_t2_free_places_money_singular_and_offer_prices() -> None:
+    from gmix.game.factory_game import _facts_stock_mp
+
+    spec = spec_of()
+    state = engine.start(spec, engine.initial_state(spec))
+    view = engine.public_state(spec, state)
+    mp = view["factory"]["stocks"]["mp"][0]
+    text = " ".join(t for _, t in _facts_stock_mp(spec, state, view) if t.startswith("Magasin"))  # D16
+    assert f"{mp['pending']} en commande" in text and "libres une fois comptées" in text
+    cash = engine.num(spec["targets"]["cash_final"], 0) + " €"  # D7 : espace des milliers
+    assert " " in cash and any(f"au moins {cash}" in r["text"] for r in spec["game_rules"])
+    one = GameParams(pack="usine", theme="industrie", modules=["pilotage"], seed=5, weeks=6)
+    assert "assure le module pilotage pour" in generate(one)["meta"]["pitch"]  # D13
+    assert "assure les modules" in spec["meta"]["pitch"]
+    labels = [o["label"] for o in spec["offers"]]  # D15
+    assert len(set(labels)) == len(labels)
+    assert all(f"{o['unit_cost']:.2f}".replace(".", ",") + " €/u." in o["label"] for o in spec["offers"])
+
+
 def test_initial_order_only_when_stock_is_below_lead_plus_one_day() -> None:
     """Règle n° 5a : expert (2,5 j < 3 + 1) : commande déjà en route, arrivée au jour 2 ; équilibré : aucune."""
     assert not spec_of()["factory"].get("initial_order")
@@ -257,10 +276,18 @@ def test_initial_order_arrives_and_is_paid_at_reception() -> None:
 
 
 def test_stockout_margin_scales_with_the_number_of_lines() -> None:
-    """Règle n° 5b : marge de 5 donnée pour 2 lignes ; expert à 3 lignes : 7,5 jours-ligne."""
+    """Règle n° 5b : marge de 6 donnée pour 2 lignes ; expert à 3 lignes : 9 jours-ligne."""
     partial = lambda **kw: next(c for c in spec_of(**kw)["criteria"] if c["id"] == "stockouts")["partial"]  # noqa: E731
-    assert (partial(difficulty="expert", lines=2), partial(difficulty="expert", lines=3)) == (5, 7.5)
-    assert partial(difficulty="expert", lines=1) == 2.5
+    assert (partial(difficulty="expert", lines=2), partial(difficulty="expert", lines=3)) == (6, 9)
+    assert partial(difficulty="expert", lines=1) == 3
+
+
+def test_passive_wins_warns_when_a_do_nothing_player_reaches_the_targets() -> None:
+    """D17 : sans module Pilotage, le pilotage est automatique et le passif gagne ; la partie de référence résiste."""
+    j04 = autopilot_check(spec_of(modules=["production", "maintenance"], difficulty="equilibre"))
+    assert j04["passive_wins"] and "Pilotage" in j04["warnings"][0]
+    reference = autopilot_check(spec_of())
+    assert not reference["passive_wins"] and reference["warnings"] == []
 
 
 def test_line_trs_excludes_breaks_from_planned_time() -> None:
@@ -618,6 +645,13 @@ def test_random_failures_are_never_said_to_be_avoided() -> None:
     spec, state = _wear_state(spec_of(lines=1), expected=20, failures=0, preventive=1, shape=1.0)
     text = _wear_texts(spec, state)
     assert "au hasard" in text and "avec préventif" in text and "évité environ" not in text
+
+
+def test_unquantifiable_avoided_cost_is_null_and_never_zero_euros() -> None:
+    spec, state = _wear_state(spec_of(lines=1), expected=20, failures=19, preventive=1)
+    assert factory_game_balance(spec, state)["avoided_cost"] is None
+    text = _wear_texts(spec, state)
+    assert "non chiffrables" in text and "environ 0 €" not in text
 
 
 def test_the_debrief_and_the_maintenance_agent_carry_the_bottleneck_failures() -> None:

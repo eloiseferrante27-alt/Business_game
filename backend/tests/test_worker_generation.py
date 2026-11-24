@@ -46,7 +46,7 @@ def _command(user_id, game_id, job_id) -> Envelope:  # noqa: ANN001
 
 
 async def _run_case(monkeypatch: pytest.MonkeyPatch) -> None:
-    async def fake_design(llm, brief, *, seed=0, pack_id="usine", keep=None, note=None):  # noqa: ANN001
+    async def fake_design(llm, brief, *, seed=0, pack_id="usine", keep=None, note=None, current=None):  # noqa: ANN001
         assert brief == BRIEF
         return FactoryDesign(params=default_params(pack_id), fallback=False,
                              attempts=1, model="fake", prompt_tokens=3, completion_tokens=4)  # fmt: skip
@@ -104,8 +104,8 @@ async def _regen_case(monkeypatch: pytest.MonkeyPatch, mode: str) -> None:
     seen: dict = {}
     other = next(t for t in load_pack("usine")["agent_tones"] if t != default_params("usine")["agent_tone"])
 
-    async def fake_design(llm, brief, *, seed=0, pack_id="usine", keep=None, note=None):  # noqa: ANN001
-        seen.update(keep=keep, seed=seed)
+    async def fake_design(llm, brief, *, seed=0, pack_id="usine", keep=None, note=None, current=None):  # noqa: ANN001
+        seen.update(keep=keep, seed=seed, current=current)
         if mode == "error":
             raise RuntimeError("boom")
         params = default_params(pack_id) | {"agent_tone": other} | keep
@@ -120,6 +120,10 @@ async def _regen_case(monkeypatch: pytest.MonkeyPatch, mode: str) -> None:
             assert game.status == GameStatus.DRAFT and game.brief == BRIEF and game.review["keepme"] == 1
             assert (
                 seen["seed"] == 9 and "agent_tone" not in seen["keep"] and seen["keep"]["company_name"] == "Acme Vélos"
+            )
+            # current = valeurs actuelles de la section (hors keep), transmises au modèle
+            assert (
+                seen["current"]["agent_tone"] == spec["params"]["agent_tone"] and "company_name" not in seen["current"]
             )
             if mode == "ok":
                 assert (
@@ -150,7 +154,7 @@ def test_regenerate_drops_stale_layout_edits(monkeypatch: pytest.MonkeyPatch) ->
     """Une retouche qui ne passe plus après régénération est retirée de la spec et listée dans `review.dropped`."""
     stale = {"op": "remove", "object_id": "inconnu.0"}
 
-    async def fake_design(llm, brief, *, seed=0, pack_id="usine", keep=None, note=None):  # noqa: ANN001
+    async def fake_design(llm, brief, *, seed=0, pack_id="usine", keep=None, note=None, current=None):  # noqa: ANN001
         return FactoryDesign(params=default_params(pack_id) | keep, fallback=False, attempts=1, model="fake")
 
     async def run() -> None:
@@ -180,8 +184,9 @@ def test_regenerate_drops_stale_layout_edits(monkeypatch: pytest.MonkeyPatch) ->
 def test_design_applies_fixed(monkeypatch: pytest.MonkeyPatch) -> None:
     seen: dict = {}
 
-    async def fake_design(llm, brief, *, seed=0, pack_id="usine", keep=None, note=None):  # noqa: ANN001
+    async def fake_design(llm, brief, *, seed=0, pack_id="usine", keep=None, note=None, current=None):  # noqa: ANN001
         seen["keep"] = keep
+        seen["current"] = current
         return FactoryDesign(params=default_params(pack_id) | keep, fallback=False, attempts=1, model="fake")
 
     async def run() -> None:
@@ -193,7 +198,7 @@ def test_design_applies_fixed(monkeypatch: pytest.MonkeyPatch) -> None:
             await session.commit()
         try:
             await generation.process(_command(user_id, game_id, job_id), None, Bus())  # type: ignore[arg-type]
-            assert seen["keep"] == {"weeks": 8, "players_min": 3, "players_max": 4}
+            assert seen["keep"] == {"weeks": 8, "players_min": 3, "players_max": 4} and seen["current"] is None
             async with get_sessionmaker()() as session:
                 assert (await session.get(BusinessGame, game_id)).spec["params"]["weeks"] == 8
         finally:

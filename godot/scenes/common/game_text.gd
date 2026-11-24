@@ -252,9 +252,10 @@ static func history_bbcode(history: Array) -> String:
 	var out := PackedStringArray(["[b]Semaines jouées[/b]"])
 	for row: Dictionary in history:
 		var event := "  [color=%s]%s[/color]" % [ORANGE, esc(row["event"])] if row.get("event") else ""
+		var result := " · résultat %s" % money(row["margin"]) if row.has("margin") else ""  # absent du pack usine
 		out.append(
-			"S%d : OTIF %s %% · TRS %s %% · ruptures %s · trésorerie %s · résultat %s%s"
-			% [int(row["week"]), number(row["otif"]), number(row["trs"]), number(row["stockouts"]), money(row["cash"]), money(row["margin"]), event]
+			"S%d : OTIF %s %% · TRS %s %% · ruptures %s · trésorerie %s%s%s"
+			% [int(row["week"]), number(row["otif"]), number(row["trs"]), number(row["stockouts"]), money(row["cash"]), result, event]
 		)
 	return "\n".join(out)
 
@@ -387,6 +388,8 @@ static func _design_review(spec: Dictionary, review: Dictionary) -> PackedString
 	if not notes.is_empty():
 		out.append("\n[color=%s]%s[/color]" % [ORANGE, " ".join(notes)])
 	var autopilot: Dictionary = review["autopilot"] if review.get("autopilot") is Dictionary else {}
+	for warning: Variant in autopilot["warnings"] if autopilot.get("warnings") is Array else []:
+		out.append("\n[color=%s]%s[/color]" % [ORANGE, esc(warning)])
 	var criteria: Array = spec.get("criteria", [])
 	if not criteria.is_empty():
 		out.append("\n[b]Critères de réussite[/b]")

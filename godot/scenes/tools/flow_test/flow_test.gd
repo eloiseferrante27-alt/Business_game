@@ -271,7 +271,11 @@ func _trainer_journey() -> void:
 	await _check_world(world)
 	await _check_zone_click(world)
 	if _pack == "usine":
-		print("  fin du parcours usine : vue Sims, postes, semaines et rejeu sont l'objet de la mission suivante")
+		_begin("A.12u", "Pack usine : semaines simulées jusqu'à la fin, débrief (goulots exigés)")
+		var factory_back := await _leave_world()
+		if factory_back == null:
+			return
+		await _play_to_the_end(factory_back)
 		return
 
 	_begin("A.6b", "Vue Sims par défaut : clic pour marcher, menu contextuel, caméra, bascule de vue")
@@ -1201,7 +1205,10 @@ func _check_debrief_view(root: Node, report: Dictionary) -> void:
 	for c: Dictionary in with_series:
 		_check(c.get("final") == null or is_equal_approx(float((c["series"] as Array)[-1]), float(c["final"])), "débrief : series[-1] == final (%s)" % c["id"])
 	var bottlenecks: Array = report.get("bottlenecks", [])
+	if _pack == "usine":
+		_check(not bottlenecks.is_empty(), "débrief usine : l'API transmet des goulots", str(report.keys()))
 	if not bottlenecks.is_empty():
+		print("  goulots vérifiés : %d" % bottlenecks.size())
 		_check(text.contains("Pannes et arrêt des goulots"), "débrief : section des goulots")
 		for b: Dictionary in bottlenecks:
 			_check(text.contains(str(b["label"])), "débrief : goulot « %s »" % b["label"])

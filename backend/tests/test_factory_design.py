@@ -5,7 +5,7 @@ from typing import Any
 
 from gmix.game.spec import GameParams, default_params, load_pack
 from gmix.llm.catalog import load_catalog
-from gmix.llm.factory_design import degenerate, design_factory, design_schema
+from gmix.llm.factory_design import clean_unmet, degenerate, design_factory, design_schema
 from gmix.llm.ollama import ChatResult, OllamaError, Usage
 from gmix.llm.prompts import load_prompt
 from gmix.llm.service import LLMService
@@ -17,7 +17,7 @@ GOOD = {
     "agent_tone": "exigeant", "difficulty": "expert", "weeks": 8, "events": "frequents",
     "tunings": {k: "expert" for k in load_pack("usine")["tunables"]} | {"load": "equilibre"},
     "event_plan": [{"week": 3, "event_id": "vague_de_chaleur"}], "unmet": ["Le marketing n'est pas simulé."],
-    "option_lines": 3, "network": {"fournisseur_standard": "national", "fournisseur_economique": "import"},
+    "option_lines": 3, "network": {"fournisseur_economique": "import"},
 }  # fmt: skip
 
 
@@ -177,3 +177,39 @@ def test_prompt_with_full_keep_fits_the_budget() -> None:
     keep = default_params("usine") | {"company_name": "Atelier Test"}
     messages = load_prompt("factory.design").render(**_variables(pack, "mot " * 500, keep, "n " * 150))
     assert estimate_messages(messages) + 400 <= task.max_input_tokens
+
+
+async def test_regeneration_identical_to_current_is_repaired() -> None:
+    same = GOOD | {"agent_tone": "mixte"}
+    new = GOOD | {"agent_tone": "bienveillant"}
+    llm, client = _llm(same, new)
+    design = await design_factory(
+        llm, BRIEF, note="Plus bienveillant.", current={"agent_tone": "mixte"}, keep={"seed": 1}
+    )
+    assert design.attempts == 2 and design.params["agent_tone"] == "bienveillant"
+    assert "la valeur actuelle est" in json.dumps(client.calls[1]["messages"], ensure_ascii=False)
+    llm, _ = _llm(same, same, same)
+    assert (await design_factory(llm, BRIEF, note="Autre.", current={"agent_tone": "mixte"})).fallback
+
+
+def test_late_note_bounds_the_event_plan() -> None:
+    plan = design_schema(load_pack("usine"), {"weeks": 6}, late=True)["properties"]["event_plan"]
+    assert plan["items"]["properties"]["week"]["minimum"] == 5  # dernier tiers de 6 semaines
+    assert design_schema(load_pack("usine"))["properties"]["event_plan"]["items"]["properties"]["week"]["minimum"] == 2
+
+
+def test_clean_unmet_drops_played_modules_and_adds_scope() -> None:
+    pack = load_pack("usine")
+    params = GameParams.model_validate(default_params("usine") | {"modules": ["pilotage", "maintenance"]})
+    brief = "Usine avec marketing digital, 98 % de livraisons à l'heure."
+    out = clean_unmet(["La maintenance n'est pas simulée."], brief, params, pack)
+    assert not any("maintenance" in u.lower() for u in out)
+    assert any("marketing" in u.lower() for u in out) and any("cibles chiffrées" in u for u in out)
+    assert clean_unmet([], "Une usine d'acier.", params, pack) == []
+
+
+async def test_stubborn_model_cannot_repeat_current_enum_value() -> None:
+    same = GOOD | {"agent_tone": "mixte"}
+    llm, client = _llm(same, GOOD | {"agent_tone": "exigeant"})
+    await design_factory(llm, BRIEF, note="Autre ton.", current={"agent_tone": "mixte"})
+    assert "mixte" not in client.calls[1]["fmt"]["properties"]["agent_tone"]["enum"]

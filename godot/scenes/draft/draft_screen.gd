@@ -107,8 +107,13 @@ func _show_dropped() -> void:
 	var review: Dictionary = _game["review"] if _game.get("review") is Dictionary else {}
 	var dropped: Array = review["dropped"] if review.get("dropped") is Array else []
 	for child in _notice.get_children():
-		if child.name == "DroppedNotice":
+		if child.name in ["DroppedNotice", "WarningNotice"]:
 			child.queue_free()
+	var autopilot: Dictionary = review["autopilot"] if review.get("autopilot") is Dictionary else {}
+	for warning: Variant in autopilot["warnings"] if autopilot.get("warnings") is Array else []:
+		var notice := Ui.label(str(warning), 0, Ui.WARN, true)
+		notice.name = "WarningNotice"
+		_notice.add_child(notice)
 	if dropped.is_empty():
 		return
 	var lines := PackedStringArray()

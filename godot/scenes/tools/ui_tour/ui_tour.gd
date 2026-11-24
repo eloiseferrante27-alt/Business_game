@@ -251,7 +251,8 @@ func _review_screen(home: Control) -> void:
 		{"id": "cash", "label": "Trésorerie finale", "op": ">=", "target": 20000, "partial": null},
 	]
 	(detail["spec"] as Dictionary)["game_rules"] = [{"id": "r1", "text": LONG_MESSAGE, "citation": LONG_PROMPT}]
-	detail["review"] = {"autopilot": {"criteria": [{"id": "otif", "final": 91.5, "verdict": "partiel"}, {"id": "cash", "final": 12000, "verdict": "non_atteint"}], "playable": false},
+	detail["review"] = {"autopilot": {"criteria": [{"id": "otif", "final": 91.5, "verdict": "partiel"}, {"id": "cash", "final": 12000, "verdict": "non_atteint"}], "playable": false, "passive_wins": true,
+		"warnings": ["Attention : un joueur qui ne fait rien atteint les objectifs de ce jeu (le pilotage tourne en automatique). Ajoutez le module Pilotage ou durcissez les objectifs."]},
 		"unsourced": [{"key": "machines.press.mtbf_h", "status": "calibre", "note": LONG_MESSAGE}, {"key": "[b]demande[/b]", "status": "exemple", "note": ""}],
 		"fallback": true, "unmet": [LONG_PROMPT]}
 	home.call("_open_review", detail)
@@ -267,7 +268,7 @@ func _draft_screen() -> void:
 	await _wait(func() -> bool: return not (draft.get("_game") as Dictionary).is_empty(), 15.0)
 	var detail: Dictionary = (draft.get("_game") as Dictionary).duplicate(true)
 	detail["status"] = "draft"
-	detail["review"] = {"attempts": 1, "dropped": [{"index": 0, "reason": LONG_MESSAGE}, {"index": 3, "reason": LONG_PROMPT}]}
+	detail["review"] = {"attempts": 1, "autopilot": {"warnings": ["Attention : un joueur qui ne fait rien atteint les objectifs de ce jeu."]}, "dropped": [{"index": 0, "reason": LONG_MESSAGE}, {"index": 3, "reason": LONG_PROMPT}]}
 	(detail["spec"]["meta"] as Dictionary)["pitch"] = LONG_MESSAGE
 	draft.set("_game", detail)
 	draft.call("_show_game")

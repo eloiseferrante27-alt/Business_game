@@ -1,0 +1,12351 @@
+{
+ "kind": "simulation",
+ "version": 2,
+ "seed": 101,
+ "meta": {
+  "title": "Métallerie du Val · Équipement en acier",
+  "company": "Métallerie du Val",
+  "client": "Brico Distribution",
+  "theme": "industrie",
+  "theme_label": "Équipement en acier",
+  "pitch": "Une PME soude des équipements en acier pour un distributeur de bricolage. Pendant 4 semaines, votre équipe assure les modules pilotage, production et maintenance pour livrer Brico Distribution à la date promise : étagère murale en acier, sans rupture de matière ni stock inutile. Niveau découverte : machines plus fiables, goulot qui s'use, moins de défauts, fournisseurs plus fiables, demande plus régulière, 5 jours de matière en stock, 1,2 jour de produits finis en stock, usine chargée à 80 %, livraison promise à J+2.",
+  "difficulty": "decouverte",
+  "difficulty_label": "Découverte",
+  "weeks": 4,
+  "players": {
+   "min": 2,
+   "max": 6
+  },
+  "language": "fr",
+  "domain": "supply-chain",
+  "pack": "usine",
+  "ui_theme": "gmix"
+ },
+ "params": {
+  "pack": "usine",
+  "theme": "industrie",
+  "modules": [
+   "pilotage",
+   "production",
+   "maintenance"
+  ],
+  "extra_agents": [
+   "direction"
+  ],
+  "agent_tone": "mixte",
+  "difficulty": "decouverte",
+  "weeks": 4,
+  "events": "aucun",
+  "products": 1,
+  "options": {
+   "lines": 3
+  },
+  "company_name": null,
+  "players_min": 2,
+  "players_max": 6,
+  "seed": 101,
+  "tunings": {},
+  "event_plan": [],
+  "network": {
+   "fournisseur_economique": "national"
+  }
+ },
+ "products": [
+  {
+   "id": "p1",
+   "name": "Étagère murale en acier",
+   "category": "Rangement",
+   "price": 30.0,
+   "unit_cost": 7.0,
+   "demand": 1670,
+   "component_id": "c1",
+   "line_id": "l1",
+   "initial_stock": 401,
+   "safety_stock": 334
+  }
+ ],
+ "components": [
+  {
+   "id": "c1",
+   "name": "Tôle d'acier prédécoupée",
+   "unit_cost": 8.0,
+   "usage": 1739,
+   "initial_stock": 1739,
+   "safety_stock": 348,
+   "product_id": "p1"
+  }
+ ],
+ "suppliers": [
+  {
+   "id": "s1",
+   "name": "Tôlerie de Picardie",
+   "region": "Amiens"
+  },
+  {
+   "id": "s2",
+   "name": "Aciers du Rhône",
+   "region": "Lyon"
+  },
+  {
+   "id": "s3",
+   "name": "Sheet Metal Import",
+   "region": "Marseille"
+  }
+ ],
+ "offers": [
+  {
+   "id": "o1",
+   "supplier_id": "s1",
+   "component_id": "c1",
+   "profile": "rapide",
+   "lead_time": 1,
+   "reliability": 100.0,
+   "unit_cost": 8.96,
+   "min_order": 1,
+   "label": "Tôle d'acier prédécoupée · Tôlerie de Picardie (Amiens) · 1 j · 100 % à l'heure · 8,96 €/u. · min. 1 palette(s)"
+  },
+  {
+   "id": "o2",
+   "supplier_id": "s2",
+   "component_id": "c1",
+   "profile": "standard",
+   "lead_time": 3,
+   "reliability": 98.0,
+   "unit_cost": 8.0,
+   "min_order": 1,
+   "label": "Tôle d'acier prédécoupée · Aciers du Rhône (Lyon) · 3 j · 98 % à l'heure · 8,00 €/u. · min. 1 palette(s)"
+  },
+  {
+   "id": "o3",
+   "supplier_id": "s3",
+   "component_id": "c1",
+   "profile": "economique",
+   "lead_time": 5,
+   "reliability": 88.0,
+   "unit_cost": 7.04,
+   "min_order": 4,
+   "label": "Tôle d'acier prédécoupée · Sheet Metal Import (Marseille) · 5 j · 88 % à l'heure · 7,04 €/u. · min. 4 palette(s)"
+  }
+ ],
+ "lines": [
+  {
+   "id": "l1",
+   "name": "Ligne 1",
+   "product_id": "p1",
+   "capacity": 800,
+   "trs": 87.0,
+   "label": "Ligne 1 · Étagère murale en acier · 800 u./sem. à 100 %"
+  },
+  {
+   "id": "l2",
+   "name": "Ligne 2",
+   "product_id": "p1",
+   "capacity": 800,
+   "trs": 87.0,
+   "label": "Ligne 2 · Étagère murale en acier · 800 u./sem. à 100 %"
+  },
+  {
+   "id": "l3",
+   "name": "Ligne 3",
+   "product_id": "p1",
+   "capacity": 800,
+   "trs": 87.0,
+   "label": "Ligne 3 · Étagère murale en acier · 800 u./sem. à 100 %"
+  }
+ ],
+ "modules": [
+  {
+   "id": "pilotage",
+   "title": "Pilotage",
+   "description": "Lancer les ordres de fabrication et acheter la matière pour livrer chaque commande à la date promise.",
+   "role_id": "responsable_production",
+   "stations": [
+    "pilotage"
+   ],
+   "actions": [
+    {
+     "id": "lancer_of",
+     "label": "Lancer des ordres de fabrication",
+     "fields": [
+      {
+       "id": "line",
+       "label": "Ligne",
+       "type": "choice",
+       "source": "lines",
+       "options": null,
+       "min": null,
+       "max": null,
+       "step": null,
+       "default": null
+      },
+      {
+       "id": "lots",
+       "label": "Nombre de lots de 24",
+       "type": "int",
+       "source": null,
+       "options": null,
+       "min": 1,
+       "max": 40,
+       "step": 1,
+       "default": 5
+      }
+     ]
+    },
+    {
+     "id": "commander_mp",
+     "label": "Commander la matière première",
+     "fields": [
+      {
+       "id": "offer",
+       "label": "Matière et fournisseur",
+       "type": "choice",
+       "source": "offers",
+       "options": null,
+       "min": null,
+       "max": null,
+       "step": null,
+       "default": null
+      },
+      {
+       "id": "pallets",
+       "label": "Palettes (un camion)",
+       "type": "int",
+       "source": null,
+       "options": null,
+       "min": 1,
+       "max": 6,
+       "step": 1,
+       "default": 4
+      }
+     ]
+    }
+   ],
+   "autopilot": "ordre de fabrication (OF) quand le stock de produits finis (PF) plus l'encours passe sous une journée de demande ; matière première (MP) commandée au fournisseur standard au point de commande (consommation pendant le délai + 1 jour de révision + 2 jours de sécurité)",
+   "notions": [
+    "point_de_commande",
+    "stock_de_securite",
+    "delai_et_fiabilite",
+    "otif",
+    "loi_de_little",
+    "takt_time",
+    "charge_et_attente"
+   ]
+  },
+  {
+   "id": "production",
+   "title": "Production",
+   "description": "Protéger le goulot de chaque ligne pour que pauses et pannes en amont ne lui fassent pas perdre de temps.",
+   "role_id": "chef_de_ligne",
+   "stations": [
+    "tableau_ligne",
+    "machine"
+   ],
+   "actions": [
+    {
+     "id": "proteger_goulot",
+     "label": "Protéger le goulot d'une ligne",
+     "fields": [
+      {
+       "id": "line",
+       "label": "Ligne",
+       "type": "choice",
+       "source": "lines",
+       "options": null,
+       "min": null,
+       "max": null,
+       "step": null,
+       "default": null
+      },
+      {
+       "id": "mode",
+       "label": "Protection",
+       "type": "choice",
+       "source": null,
+       "options": [
+        {
+         "id": "aucune",
+         "label": "Aucune : le goulot s'arrête aux pauses et quand l'amont s'arrête"
+        },
+        {
+         "id": "releve_pauses",
+         "label": "Relève : le chef de ligne fait tourner le goulot pendant les pauses (une seule ligne à la fois)"
+        },
+        {
+         "id": "tampon_avant",
+         "label": "Tampon : table de 30 produits devant le goulot, plus d'encours"
+        }
+       ],
+       "min": null,
+       "max": null,
+       "step": null,
+       "default": null
+      }
+     ]
+    }
+   ],
+   "autopilot": "aucune protection",
+   "notions": [
+    "goulot",
+    "tampon_avant_goulot",
+    "rendement_en_cascade",
+    "capacite_et_trs",
+    "changement_de_serie"
+   ]
+  },
+  {
+   "id": "maintenance",
+   "title": "Maintenance",
+   "description": "Choisir où faire le préventif et dans quel ordre réparer, avec un seul technicien.",
+   "role_id": "responsable_maintenance",
+   "stations": [
+    "maintenance",
+    "machine"
+   ],
+   "actions": [
+    {
+     "id": "preventif",
+     "label": "Programmer le préventif d'une ligne",
+     "fields": [
+      {
+       "id": "line",
+       "label": "Ligne",
+       "type": "choice",
+       "source": "lines",
+       "options": null,
+       "min": null,
+       "max": null,
+       "step": null,
+       "default": null
+      },
+      {
+       "id": "cible",
+       "label": "Machines entretenues chaque semaine",
+       "type": "choice",
+       "source": null,
+       "options": [
+        {
+         "id": "aucune",
+         "label": "Aucune : pas de coût ; une machine qui s'use tombe plus souvent en panne en vieillissant"
+        },
+        {
+         "id": "goulot",
+         "label": "Le goulot : une intervention pendant une pause"
+        },
+        {
+         "id": "toutes",
+         "label": "Toutes les machines de la ligne : plus de coût et de temps de technicien"
+        }
+       ],
+       "min": null,
+       "max": null,
+       "step": null,
+       "default": null
+      }
+     ]
+    },
+    {
+     "id": "priorite_reparation",
+     "label": "Régler l'ordre des réparations",
+     "fields": [
+      {
+       "id": "ordre",
+       "label": "Ordre",
+       "type": "choice",
+       "source": null,
+       "options": [
+        {
+         "id": "arrivee",
+         "label": "Dans l'ordre d'arrivée des pannes"
+        },
+        {
+         "id": "goulot",
+         "label": "Les goulots d'abord"
+        }
+       ],
+       "min": null,
+       "max": null,
+       "step": null,
+       "default": null
+      }
+     ]
+    }
+   ],
+   "autopilot": "préventif sur le goulot de chaque ligne, réparations dans l'ordre d'arrivée",
+   "notions": [
+    "disponibilite",
+    "pannes_par_usure",
+    "maintenance_preventive",
+    "goulot"
+   ]
+  }
+ ],
+ "roles": [
+  {
+   "id": "responsable_production",
+   "title": "Responsable de production",
+   "mission": "Livrer les commandes à l'heure sans rupture de matière ni stock inutile",
+   "module_id": "pilotage",
+   "department_id": "pilotage"
+  },
+  {
+   "id": "chef_de_ligne",
+   "title": "Chef·fe de ligne",
+   "mission": "Faire tourner le goulot de chaque ligne le plus longtemps possible",
+   "module_id": "production",
+   "department_id": "production"
+  },
+  {
+   "id": "responsable_maintenance",
+   "title": "Responsable maintenance",
+   "mission": "Garder les goulots disponibles au juste coût",
+   "module_id": "maintenance",
+   "department_id": "production"
+  }
+ ],
+ "agents": [
+  {
+   "id": "agent_fournisseur",
+   "name": "Paul",
+   "job": "Commercial du fournisseur",
+   "kind": "fournisseur",
+   "module_id": null,
+   "department_id": "fournisseur",
+   "facts": "usine_fournisseur",
+   "personality": {
+    "id": "sceptique",
+    "label": "Sceptique",
+    "traits": "prudent, se méfie des solutions miracles",
+    "style": "pointe les risques, pose une question en retour",
+    "prefix": "Attention :"
+   },
+   "tasks": [
+    "recevoir les commandes de l'usine",
+    "préparer les palettes",
+    "envoyer le camion avec le bon de livraison"
+   ],
+   "character": "char_manager_m",
+   "zone": "fournisseur",
+   "route": [
+    [
+     -105.0,
+     26.0
+    ],
+    [
+     -99.0,
+     26.0
+    ],
+    [
+     -93.0,
+     26.0
+    ]
+   ],
+   "notions": [
+    "delai_et_fiabilite"
+   ],
+   "backstory": null
+  },
+  {
+   "id": "agent_reception",
+   "name": "Noah",
+   "job": "Réceptionnaire",
+   "kind": "departement",
+   "module_id": null,
+   "department_id": "reception",
+   "facts": "usine_reception",
+   "personality": {
+    "id": "methodique",
+    "label": "Méthodique",
+    "traits": "rigoureux, aime les chiffres exacts et les procédures",
+    "style": "précis, donne les étapes dans l'ordre",
+    "prefix": "À noter :"
+   },
+   "tasks": [
+    "décharger les camions",
+    "contrôler et étiqueter les palettes",
+    "mettre les non-conformes en quarantaine et prévenir le pilotage"
+   ],
+   "character": "char_worker_m",
+   "zone": "reception",
+   "route": [
+    [
+     -23.75,
+     7.25
+    ],
+    [
+     -16.25,
+     7.25
+    ],
+    [
+     -8.75,
+     7.25
+    ]
+   ],
+   "notions": [
+    "delai_et_fiabilite"
+   ],
+   "backstory": null
+  },
+  {
+   "id": "agent_stock_mp",
+   "name": "Inès",
+   "job": "Magasinière-cariste",
+   "kind": "departement",
+   "module_id": null,
+   "department_id": "stock_mp",
+   "facts": "usine_stock_mp",
+   "personality": {
+    "id": "exigeant",
+    "label": "Exigeant",
+    "traits": "direct, attaché aux résultats, peu patient avec les erreurs",
+    "style": "phrases sèches, va droit au chiffre",
+    "prefix": "Il faut agir :"
+   },
+   "tasks": [
+    "ranger les palettes reçues",
+    "sortir la matière dans l'ordre d'arrivée",
+    "préparer et livrer le kit de chaque OF",
+    "signaler le stock sous le point de commande"
+   ],
+   "character": "char_worker_f",
+   "zone": "stock_mp",
+   "route": [
+    [
+     -18.75,
+     -13.25
+    ],
+    [
+     -18.75,
+     -5.25
+    ],
+    [
+     -18.75,
+     -3.25
+    ]
+   ],
+   "notions": [
+    "point_de_commande",
+    "stock_de_securite",
+    "rotation_fifo"
+   ],
+   "backstory": null
+  },
+  {
+   "id": "agent_production",
+   "name": "Idriss",
+   "job": "Chef de ligne",
+   "kind": "module",
+   "module_id": "production",
+   "department_id": "production",
+   "facts": "usine_production",
+   "personality": {
+    "id": "bienveillant",
+    "label": "Bienveillant",
+    "traits": "chaleureux, encourageant, patient",
+    "style": "vouvoie, rassure, glisse parfois un conseil",
+    "prefix": "Petit point :"
+   },
+   "tasks": [
+    "lancer les OF sur les lignes",
+    "suivre la cadence et les arrêts",
+    "relayer l'opérateur du goulot pendant les pauses",
+    "appeler la maintenance"
+   ],
+   "character": "char_worker_m",
+   "zone": "production",
+   "route": [
+    [
+     -10.75,
+     -1.25
+    ],
+    [
+     0.25,
+     -1.25
+    ],
+    [
+     10.75,
+     -1.25
+    ]
+   ],
+   "notions": [
+    "goulot",
+    "tampon_avant_goulot",
+    "rendement_en_cascade",
+    "changement_de_serie"
+   ],
+   "backstory": null
+  },
+  {
+   "id": "agent_qualite",
+   "name": "Léa",
+   "job": "Contrôleuse qualité",
+   "kind": "departement",
+   "module_id": null,
+   "department_id": "qualite",
+   "facts": "usine_qualite",
+   "personality": {
+    "id": "presse",
+    "label": "Pressé",
+    "traits": "toujours entre deux tâches, efficace",
+    "style": "très bref, presque télégraphique",
+    "prefix": "Vite :"
+   },
+   "tasks": [
+    "contrôler chaque produit en sortie de ligne",
+    "trier conformes et rebuts",
+    "prévenir le chef de ligne quand le rebut grimpe"
+   ],
+   "character": "char_worker_f",
+   "zone": "qualite",
+   "route": [
+    [
+     15.25,
+     -14.75
+    ],
+    [
+     15.25,
+     -9.75
+    ],
+    [
+     15.25,
+     -4.75
+    ]
+   ],
+   "notions": [
+    "rendement_en_cascade",
+    "carte_p"
+   ],
+   "backstory": null
+  },
+  {
+   "id": "agent_emballage",
+   "name": "Malik",
+   "job": "Emballeur",
+   "kind": "departement",
+   "module_id": null,
+   "department_id": "emballage",
+   "facts": "usine_emballage",
+   "personality": {
+    "id": "sceptique",
+    "label": "Sceptique",
+    "traits": "prudent, se méfie des solutions miracles",
+    "style": "pointe les risques, pose une question en retour",
+    "prefix": "Attention :"
+   },
+   "tasks": [
+    "mettre 4 produits par carton",
+    "étiqueter et peser",
+    "monter et filmer les palettes",
+    "les envoyer à l'entrepôt"
+   ],
+   "character": "char_worker_m",
+   "zone": "emballage",
+   "route": [
+    [
+     15.25,
+     -1.75
+    ],
+    [
+     15.25,
+     0.75
+    ],
+    [
+     15.25,
+     2.75
+    ]
+   ],
+   "notions": [
+    "loi_de_little"
+   ],
+   "backstory": null
+  },
+  {
+   "id": "agent_maintenance",
+   "name": "Karim",
+   "job": "Technicien de maintenance",
+   "kind": "module",
+   "module_id": "maintenance",
+   "department_id": "maintenance",
+   "facts": "usine_maintenance",
+   "personality": {
+    "id": "methodique",
+    "label": "Méthodique",
+    "traits": "rigoureux, aime les chiffres exacts et les procédures",
+    "style": "précis, donne les étapes dans l'ordre",
+    "prefix": "À noter :"
+   },
+   "tasks": [
+    "aller réparer les machines en panne",
+    "faire le préventif pendant les pauses",
+    "tenir le tableau des interventions"
+   ],
+   "character": "char_worker_m",
+   "zone": "maintenance",
+   "route": [
+    [
+     -10.75,
+     -12.75
+    ],
+    [
+     -5.75,
+     -12.75
+    ],
+    [
+     -1.25,
+     -12.75
+    ]
+   ],
+   "notions": [
+    "disponibilite",
+    "pannes_par_usure",
+    "maintenance_preventive"
+   ],
+   "backstory": null
+  },
+  {
+   "id": "agent_pilotage",
+   "name": "Sophie",
+   "job": "Responsable de production",
+   "kind": "module",
+   "module_id": "pilotage",
+   "department_id": "pilotage",
+   "facts": "usine_pilotage",
+   "personality": {
+    "id": "exigeant",
+    "label": "Exigeant",
+    "traits": "direct, attaché aux résultats, peu patient avec les erreurs",
+    "style": "phrases sèches, va droit au chiffre",
+    "prefix": "Il faut agir :"
+   },
+   "tasks": [
+    "recevoir les commandes client",
+    "créer et lancer les OF",
+    "commander la matière",
+    "suivre les indicateurs"
+   ],
+   "character": "char_manager_f",
+   "zone": "pilotage",
+   "route": [
+    [
+     1.75,
+     -12.25
+    ],
+    [
+     6.25,
+     -12.25
+    ],
+    [
+     10.75,
+     -12.25
+    ]
+   ],
+   "notions": [
+    "point_de_commande",
+    "takt_time",
+    "loi_de_little",
+    "otif"
+   ],
+   "backstory": null
+  },
+  {
+   "id": "agent_entrepot_pf",
+   "name": "Maya",
+   "job": "Magasinière PF",
+   "kind": "departement",
+   "module_id": null,
+   "department_id": "entrepot_pf",
+   "facts": "usine_entrepot_pf",
+   "personality": {
+    "id": "bienveillant",
+    "label": "Bienveillant",
+    "traits": "chaleureux, encourageant, patient",
+    "style": "vouvoie, rassure, glisse parfois un conseil",
+    "prefix": "Petit point :"
+   },
+   "tasks": [
+    "ranger les palettes venant de l'emballage",
+    "préparer les commandes",
+    "charger le camion du client",
+    "signaler le stock PF sous le minimum"
+   ],
+   "character": "char_worker_f",
+   "zone": "entrepot_pf",
+   "route": [
+    [
+     16.25,
+     7.25
+    ],
+    [
+     16.25,
+     8.25
+    ],
+    [
+     16.25,
+     9.25
+    ]
+   ],
+   "notions": [
+    "otif"
+   ],
+   "backstory": null
+  },
+  {
+   "id": "agent_client",
+   "name": "Mme Durand",
+   "job": "Acheteuse du client",
+   "kind": "client",
+   "module_id": null,
+   "department_id": "client",
+   "facts": "usine_client",
+   "personality": {
+    "id": "presse",
+    "label": "Pressé",
+    "traits": "toujours entre deux tâches, efficace",
+    "style": "très bref, presque télégraphique",
+    "prefix": "Vite :"
+   },
+   "tasks": [
+    "passer les commandes",
+    "suivre les livraisons à la date promise",
+    "se plaindre des retards"
+   ],
+   "character": "char_manager_f",
+   "zone": "client",
+   "route": [
+    [
+     35.0,
+     26.0
+    ],
+    [
+     41.0,
+     26.0
+    ],
+    [
+     47.0,
+     26.0
+    ]
+   ],
+   "notions": [
+    "otif"
+   ],
+   "backstory": null
+  },
+  {
+   "id": "agent_direction",
+   "name": "Claire",
+   "job": "Directrice du site",
+   "kind": "direction",
+   "module_id": null,
+   "department_id": "pilotage",
+   "facts": "direction",
+   "personality": {
+    "id": "sceptique",
+    "label": "Sceptique",
+    "traits": "prudent, se méfie des solutions miracles",
+    "style": "pointe les risques, pose une question en retour",
+    "prefix": "Attention :"
+   },
+   "tasks": [
+    "fixer les objectifs",
+    "suivre les indicateurs",
+    "arbitrer les priorités"
+   ],
+   "character": "char_manager_f",
+   "zone": "pilotage",
+   "route": [
+    [
+     1.75,
+     -12.25
+    ],
+    [
+     6.25,
+     -12.25
+    ],
+    [
+     10.75,
+     -12.25
+    ]
+   ],
+   "notions": [
+    "otif",
+    "capacite_et_trs"
+   ],
+   "backstory": null
+  }
+ ],
+ "stations": [
+  {
+   "id": "poste_reception",
+   "kind": "poste_reception",
+   "label": "Poste de contrôle de la réception",
+   "position": [
+    -12.75,
+    13.25
+   ],
+   "ref": null,
+   "modules": [],
+   "department_id": "reception"
+  },
+  {
+   "id": "magasin_mp",
+   "kind": "magasin_mp",
+   "label": "Bureau du magasin MP",
+   "position": [
+    -15.25,
+    -5.75
+   ],
+   "ref": null,
+   "modules": [],
+   "department_id": "stock_mp"
+  },
+  {
+   "id": "tableau_ligne",
+   "kind": "tableau_ligne",
+   "label": "Tableau de ligne",
+   "position": [
+    10.25,
+    -7.75
+   ],
+   "ref": null,
+   "modules": [
+    "production"
+   ],
+   "department_id": "production"
+  },
+  {
+   "id": "machine_l1-m1",
+   "kind": "machine",
+   "label": "M1 · Découpe laser",
+   "position": [
+    -9.75,
+    -5.75
+   ],
+   "ref": "l1-m1",
+   "modules": [
+    "production",
+    "maintenance"
+   ],
+   "department_id": "production"
+  },
+  {
+   "id": "machine_l1-m2",
+   "kind": "machine",
+   "label": "M2 · Pliage",
+   "position": [
+    -6.25,
+    -5.75
+   ],
+   "ref": "l1-m2",
+   "modules": [
+    "production",
+    "maintenance"
+   ],
+   "department_id": "production"
+  },
+  {
+   "id": "machine_l1-m3",
+   "kind": "machine",
+   "label": "M3 · Soudage des équerres",
+   "position": [
+    -2.75,
+    -5.75
+   ],
+   "ref": "l1-m3",
+   "modules": [
+    "production",
+    "maintenance"
+   ],
+   "department_id": "production"
+  },
+  {
+   "id": "machine_l1-m4",
+   "kind": "machine",
+   "label": "M4 · Ébavurage et perçage",
+   "position": [
+    0.75,
+    -5.75
+   ],
+   "ref": "l1-m4",
+   "modules": [
+    "production",
+    "maintenance"
+   ],
+   "department_id": "production"
+  },
+  {
+   "id": "machine_l2-m1",
+   "kind": "machine",
+   "label": "M1 · Découpe laser",
+   "position": [
+    -9.75,
+    -1.25
+   ],
+   "ref": "l2-m1",
+   "modules": [
+    "production",
+    "maintenance"
+   ],
+   "department_id": "production"
+  },
+  {
+   "id": "machine_l2-m2",
+   "kind": "machine",
+   "label": "M2 · Pliage",
+   "position": [
+    -6.25,
+    -1.25
+   ],
+   "ref": "l2-m2",
+   "modules": [
+    "production",
+    "maintenance"
+   ],
+   "department_id": "production"
+  },
+  {
+   "id": "machine_l2-m3",
+   "kind": "machine",
+   "label": "M3 · Soudage des équerres",
+   "position": [
+    -2.75,
+    -1.25
+   ],
+   "ref": "l2-m3",
+   "modules": [
+    "production",
+    "maintenance"
+   ],
+   "department_id": "production"
+  },
+  {
+   "id": "machine_l2-m4",
+   "kind": "machine",
+   "label": "M4 · Ébavurage et perçage",
+   "position": [
+    0.75,
+    -1.25
+   ],
+   "ref": "l2-m4",
+   "modules": [
+    "production",
+    "maintenance"
+   ],
+   "department_id": "production"
+  },
+  {
+   "id": "machine_l3-m1",
+   "kind": "machine",
+   "label": "M1 · Découpe laser",
+   "position": [
+    -9.75,
+    0.75
+   ],
+   "ref": "l3-m1",
+   "modules": [
+    "production",
+    "maintenance"
+   ],
+   "department_id": "production"
+  },
+  {
+   "id": "machine_l3-m2",
+   "kind": "machine",
+   "label": "M2 · Pliage",
+   "position": [
+    -6.25,
+    0.75
+   ],
+   "ref": "l3-m2",
+   "modules": [
+    "production",
+    "maintenance"
+   ],
+   "department_id": "production"
+  },
+  {
+   "id": "machine_l3-m3",
+   "kind": "machine",
+   "label": "M3 · Soudage des équerres",
+   "position": [
+    -2.75,
+    0.75
+   ],
+   "ref": "l3-m3",
+   "modules": [
+    "production",
+    "maintenance"
+   ],
+   "department_id": "production"
+  },
+  {
+   "id": "machine_l3-m4",
+   "kind": "machine",
+   "label": "M4 · Ébavurage et perçage",
+   "position": [
+    0.75,
+    0.75
+   ],
+   "ref": "l3-m4",
+   "modules": [
+    "production",
+    "maintenance"
+   ],
+   "department_id": "production"
+  },
+  {
+   "id": "poste_qualite",
+   "kind": "poste_qualite",
+   "label": "Table de contrôle",
+   "position": [
+    19.25,
+    -13.75
+   ],
+   "ref": null,
+   "modules": [],
+   "department_id": "qualite"
+  },
+  {
+   "id": "poste_emballage",
+   "kind": "poste_emballage",
+   "label": "Table d'emballage",
+   "position": [
+    21.25,
+    1.75
+   ],
+   "ref": null,
+   "modules": [],
+   "department_id": "emballage"
+  },
+  {
+   "id": "maintenance",
+   "kind": "maintenance",
+   "label": "Établi de maintenance",
+   "position": [
+    -6.75,
+    -13.75
+   ],
+   "ref": null,
+   "modules": [
+    "maintenance"
+   ],
+   "department_id": "maintenance"
+  },
+  {
+   "id": "pilotage",
+   "kind": "pilotage",
+   "label": "Bureau du pilotage",
+   "position": [
+    6.25,
+    -13.25
+   ],
+   "ref": null,
+   "modules": [
+    "pilotage"
+   ],
+   "department_id": "pilotage"
+  },
+  {
+   "id": "entrepot_pf",
+   "kind": "entrepot_pf",
+   "label": "Bureau de l'entrepôt",
+   "position": [
+    9.75,
+    10.25
+   ],
+   "ref": null,
+   "modules": [],
+   "department_id": "entrepot_pf"
+  }
+ ],
+ "world": {
+  "template": "usine",
+  "size": [
+   48.0,
+   30.0
+  ],
+  "spawn": [
+   0.0,
+   20.0
+  ],
+  "objects": [
+   {
+    "asset": "prop_floor_zone",
+    "position": [
+     -16.25,
+     10.5
+    ],
+    "rotation": 0.0,
+    "label": "Réception",
+    "ref": "dept:reception",
+    "id": "reception.zone.0",
+    "department_id": "reception",
+    "role": null,
+    "cell": null,
+    "cells": null
+   },
+   {
+    "asset": "prop_floor_zone",
+    "position": [
+     -22.0,
+     13.5
+    ],
+    "rotation": 180.0,
+    "label": "Zone de dépose (6 palettes)",
+    "ref": null,
+    "id": "reception.tampon.0",
+    "department_id": "reception",
+    "role": "tampon",
+    "cell": [
+     0,
+     12
+    ],
+    "cells": [
+     8,
+     6
+    ]
+   },
+   {
+    "asset": "prop_floor_zone",
+    "position": [
+     -17.5,
+     13.5
+    ],
+    "rotation": 180.0,
+    "label": "Quarantaine (2 palettes)",
+    "ref": "quarantine",
+    "id": "reception.stockage.0",
+    "department_id": "reception",
+    "role": "stockage",
+    "cell": [
+     9,
+     12
+    ],
+    "cells": [
+     8,
+     6
+    ]
+   },
+   {
+    "asset": "veh_pallet_jack",
+    "position": [
+     -14.5,
+     14.0
+    ],
+    "rotation": 180.0,
+    "label": "Transpalette (2 000 kg)",
+    "ref": null,
+    "id": "reception.engin.0",
+    "department_id": "reception",
+    "role": "engin",
+    "cell": [
+     18,
+     14
+    ],
+    "cells": [
+     2,
+     4
+    ]
+   },
+   {
+    "asset": "prop_desk_computer",
+    "position": [
+     -12.75,
+     14.25
+    ],
+    "rotation": 180.0,
+    "label": "Poste de contrôle : PC, lecteur, imprimante d'étiquettes",
+    "ref": null,
+    "id": "reception.poste.0",
+    "department_id": "reception",
+    "role": "poste",
+    "cell": [
+     21,
+     15
+    ],
+    "cells": [
+     3,
+     3
+    ]
+   },
+   {
+    "asset": "prop_floor_zone",
+    "position": [
+     -19.0,
+     -6.0
+    ],
+    "rotation": 0.0,
+    "label": "Stock de matière première",
+    "ref": "dept:stock_mp",
+    "id": "stock_mp.zone.0",
+    "department_id": "stock_mp",
+    "role": null,
+    "cell": null,
+    "cells": null
+   },
+   {
+    "asset": "prop_pallet_rack",
+    "position": [
+     -21.25,
+     -14.25
+    ],
+    "rotation": 0.0,
+    "label": "Racks à palettes (24 emplacements)",
+    "ref": "mp:c1",
+    "id": "stock_mp.stockage.0",
+    "department_id": "stock_mp",
+    "role": "stockage",
+    "cell": [
+     0,
+     0
+    ],
+    "cells": [
+     11,
+     3
+    ]
+   },
+   {
+    "asset": "prop_pallet_rack",
+    "position": [
+     -21.25,
+     -10.25
+    ],
+    "rotation": 180.0,
+    "label": "Racks à palettes (24 emplacements)",
+    "ref": "mp:c1",
+    "id": "stock_mp.stockage.1",
+    "department_id": "stock_mp",
+    "role": "stockage",
+    "cell": [
+     0,
+     8
+    ],
+    "cells": [
+     11,
+     3
+    ]
+   },
+   {
+    "asset": "prop_pallet_rack",
+    "position": [
+     -21.25,
+     -6.25
+    ],
+    "rotation": 0.0,
+    "label": "Racks à palettes (24 emplacements)",
+    "ref": "mp:c1",
+    "id": "stock_mp.stockage.2",
+    "department_id": "stock_mp",
+    "role": "stockage",
+    "cell": [
+     0,
+     16
+    ],
+    "cells": [
+     11,
+     3
+    ]
+   },
+   {
+    "asset": "prop_pallet_rack",
+    "position": [
+     -21.25,
+     -2.25
+    ],
+    "rotation": 180.0,
+    "label": "Racks à palettes (24 emplacements)",
+    "ref": "mp:c1",
+    "id": "stock_mp.stockage.3",
+    "department_id": "stock_mp",
+    "role": "stockage",
+    "cell": [
+     0,
+     24
+    ],
+    "cells": [
+     11,
+     3
+    ]
+   },
+   {
+    "asset": "prop_floor_zone",
+    "position": [
+     -22.5,
+     1.0
+    ],
+    "rotation": 90.0,
+    "label": "Préparation des kits",
+    "ref": null,
+    "id": "stock_mp.tampon.0",
+    "department_id": "stock_mp",
+    "role": "tampon",
+    "cell": [
+     0,
+     28
+    ],
+    "cells": [
+     6,
+     8
+    ]
+   },
+   {
+    "asset": "veh_forklift",
+    "position": [
+     -22.25,
+     -8.25
+    ],
+    "rotation": 90.0,
+    "label": "Chariot élévateur (1 200 kg)",
+    "ref": null,
+    "id": "stock_mp.engin.0",
+    "department_id": "stock_mp",
+    "role": "engin",
+    "cell": [
+     0,
+     12
+    ],
+    "cells": [
+     7,
+     3
+    ]
+   },
+   {
+    "asset": "prop_floor_zone",
+    "position": [
+     0.0,
+     -2.75
+    ],
+    "rotation": 0.0,
+    "label": "Production",
+    "ref": "dept:production",
+    "id": "production.zone.0",
+    "department_id": "production",
+    "role": null,
+    "cell": null,
+    "cells": null
+   },
+   {
+    "asset": "prop_machine",
+    "position": [
+     -9.75,
+     -7.0
+    ],
+    "rotation": 90.0,
+    "label": "M1 · Découpe laser",
+    "ref": "machine:l1-m1",
+    "id": "production.machine.0",
+    "department_id": "production",
+    "role": "machine",
+    "cell": [
+     0,
+     1
+    ],
+    "cells": [
+     5,
+     4
+    ]
+   },
+   {
+    "asset": "prop_buffer_table",
+    "position": [
+     -8.0,
+     -7.0
+    ],
+    "rotation": 90.0,
+    "label": "Table d'attente (10 produits)",
+    "ref": "buffer:l1-m1",
+    "id": "production.tampon.0",
+    "department_id": "production",
+    "role": "tampon",
+    "cell": [
+     5,
+     1
+    ],
+    "cells": [
+     2,
+     4
+    ]
+   },
+   {
+    "asset": "prop_machine",
+    "position": [
+     -6.25,
+     -7.0
+    ],
+    "rotation": 90.0,
+    "label": "M2 · Pliage",
+    "ref": "machine:l1-m2",
+    "id": "production.machine.1",
+    "department_id": "production",
+    "role": "machine",
+    "cell": [
+     7,
+     1
+    ],
+    "cells": [
+     5,
+     4
+    ]
+   },
+   {
+    "asset": "prop_buffer_table",
+    "position": [
+     -4.5,
+     -7.0
+    ],
+    "rotation": 90.0,
+    "label": "Table d'attente (10 produits)",
+    "ref": "buffer:l1-m2",
+    "id": "production.tampon.1",
+    "department_id": "production",
+    "role": "tampon",
+    "cell": [
+     12,
+     1
+    ],
+    "cells": [
+     2,
+     4
+    ]
+   },
+   {
+    "asset": "prop_machine",
+    "position": [
+     -2.75,
+     -7.0
+    ],
+    "rotation": 90.0,
+    "label": "M3 · Soudage des équerres",
+    "ref": "machine:l1-m3",
+    "id": "production.machine.2",
+    "department_id": "production",
+    "role": "machine",
+    "cell": [
+     14,
+     1
+    ],
+    "cells": [
+     5,
+     4
+    ]
+   },
+   {
+    "asset": "prop_buffer_table",
+    "position": [
+     -1.0,
+     -7.0
+    ],
+    "rotation": 90.0,
+    "label": "Table d'attente (10 produits)",
+    "ref": "buffer:l1-m3",
+    "id": "production.tampon.2",
+    "department_id": "production",
+    "role": "tampon",
+    "cell": [
+     19,
+     1
+    ],
+    "cells": [
+     2,
+     4
+    ]
+   },
+   {
+    "asset": "prop_machine",
+    "position": [
+     0.75,
+     -7.0
+    ],
+    "rotation": 90.0,
+    "label": "M4 · Ébavurage et perçage",
+    "ref": "machine:l1-m4",
+    "id": "production.machine.3",
+    "department_id": "production",
+    "role": "machine",
+    "cell": [
+     21,
+     1
+    ],
+    "cells": [
+     5,
+     4
+    ]
+   },
+   {
+    "asset": "prop_buffer_table",
+    "position": [
+     2.5,
+     -7.0
+    ],
+    "rotation": 90.0,
+    "label": "Table d'attente (10 produits)",
+    "ref": "buffer:l1-m4",
+    "id": "production.tampon.3",
+    "department_id": "production",
+    "role": "tampon",
+    "cell": [
+     26,
+     1
+    ],
+    "cells": [
+     2,
+     4
+    ]
+   },
+   {
+    "asset": "prop_andon_light",
+    "position": [
+     3.75,
+     -7.75
+    ],
+    "rotation": 0.0,
+    "label": "Andon de la ligne",
+    "ref": "line:l1",
+    "id": "production.affichage.0",
+    "department_id": "production",
+    "role": "affichage",
+    "cell": [
+     29,
+     1
+    ],
+    "cells": [
+     1,
+     1
+    ]
+   },
+   {
+    "asset": "prop_machine",
+    "position": [
+     -9.75,
+     -2.5
+    ],
+    "rotation": 90.0,
+    "label": "M1 · Découpe laser",
+    "ref": "machine:l2-m1",
+    "id": "production.machine.4",
+    "department_id": "production",
+    "role": "machine",
+    "cell": [
+     0,
+     10
+    ],
+    "cells": [
+     5,
+     4
+    ]
+   },
+   {
+    "asset": "prop_buffer_table",
+    "position": [
+     -8.0,
+     -2.5
+    ],
+    "rotation": 90.0,
+    "label": "Table d'attente (10 produits)",
+    "ref": "buffer:l2-m1",
+    "id": "production.tampon.4",
+    "department_id": "production",
+    "role": "tampon",
+    "cell": [
+     5,
+     10
+    ],
+    "cells": [
+     2,
+     4
+    ]
+   },
+   {
+    "asset": "prop_machine",
+    "position": [
+     -6.25,
+     -2.5
+    ],
+    "rotation": 90.0,
+    "label": "M2 · Pliage",
+    "ref": "machine:l2-m2",
+    "id": "production.machine.5",
+    "department_id": "production",
+    "role": "machine",
+    "cell": [
+     7,
+     10
+    ],
+    "cells": [
+     5,
+     4
+    ]
+   },
+   {
+    "asset": "prop_buffer_table",
+    "position": [
+     -4.5,
+     -2.5
+    ],
+    "rotation": 90.0,
+    "label": "Table d'attente (10 produits)",
+    "ref": "buffer:l2-m2",
+    "id": "production.tampon.5",
+    "department_id": "production",
+    "role": "tampon",
+    "cell": [
+     12,
+     10
+    ],
+    "cells": [
+     2,
+     4
+    ]
+   },
+   {
+    "asset": "prop_machine",
+    "position": [
+     -2.75,
+     -2.5
+    ],
+    "rotation": 90.0,
+    "label": "M3 · Soudage des équerres",
+    "ref": "machine:l2-m3",
+    "id": "production.machine.6",
+    "department_id": "production",
+    "role": "machine",
+    "cell": [
+     14,
+     10
+    ],
+    "cells": [
+     5,
+     4
+    ]
+   },
+   {
+    "asset": "prop_buffer_table",
+    "position": [
+     -1.0,
+     -2.5
+    ],
+    "rotation": 90.0,
+    "label": "Table d'attente (10 produits)",
+    "ref": "buffer:l2-m3",
+    "id": "production.tampon.6",
+    "department_id": "production",
+    "role": "tampon",
+    "cell": [
+     19,
+     10
+    ],
+    "cells": [
+     2,
+     4
+    ]
+   },
+   {
+    "asset": "prop_machine",
+    "position": [
+     0.75,
+     -2.5
+    ],
+    "rotation": 90.0,
+    "label": "M4 · Ébavurage et perçage",
+    "ref": "machine:l2-m4",
+    "id": "production.machine.7",
+    "department_id": "production",
+    "role": "machine",
+    "cell": [
+     21,
+     10
+    ],
+    "cells": [
+     5,
+     4
+    ]
+   },
+   {
+    "asset": "prop_buffer_table",
+    "position": [
+     2.5,
+     -2.5
+    ],
+    "rotation": 90.0,
+    "label": "Table d'attente (10 produits)",
+    "ref": "buffer:l2-m4",
+    "id": "production.tampon.7",
+    "department_id": "production",
+    "role": "tampon",
+    "cell": [
+     26,
+     10
+    ],
+    "cells": [
+     2,
+     4
+    ]
+   },
+   {
+    "asset": "prop_andon_light",
+    "position": [
+     3.75,
+     -3.25
+    ],
+    "rotation": 0.0,
+    "label": "Andon de la ligne",
+    "ref": "line:l2",
+    "id": "production.affichage.1",
+    "department_id": "production",
+    "role": "affichage",
+    "cell": [
+     29,
+     10
+    ],
+    "cells": [
+     1,
+     1
+    ]
+   },
+   {
+    "asset": "prop_machine",
+    "position": [
+     -9.75,
+     2.0
+    ],
+    "rotation": 90.0,
+    "label": "M1 · Découpe laser",
+    "ref": "machine:l3-m1",
+    "id": "production.machine.8",
+    "department_id": "production",
+    "role": "machine",
+    "cell": [
+     0,
+     19
+    ],
+    "cells": [
+     5,
+     4
+    ]
+   },
+   {
+    "asset": "prop_buffer_table",
+    "position": [
+     -8.0,
+     2.0
+    ],
+    "rotation": 90.0,
+    "label": "Table d'attente (10 produits)",
+    "ref": "buffer:l3-m1",
+    "id": "production.tampon.8",
+    "department_id": "production",
+    "role": "tampon",
+    "cell": [
+     5,
+     19
+    ],
+    "cells": [
+     2,
+     4
+    ]
+   },
+   {
+    "asset": "prop_machine",
+    "position": [
+     -6.25,
+     2.0
+    ],
+    "rotation": 90.0,
+    "label": "M2 · Pliage",
+    "ref": "machine:l3-m2",
+    "id": "production.machine.9",
+    "department_id": "production",
+    "role": "machine",
+    "cell": [
+     7,
+     19
+    ],
+    "cells": [
+     5,
+     4
+    ]
+   },
+   {
+    "asset": "prop_buffer_table",
+    "position": [
+     -4.5,
+     2.0
+    ],
+    "rotation": 90.0,
+    "label": "Table d'attente (10 produits)",
+    "ref": "buffer:l3-m2",
+    "id": "production.tampon.9",
+    "department_id": "production",
+    "role": "tampon",
+    "cell": [
+     12,
+     19
+    ],
+    "cells": [
+     2,
+     4
+    ]
+   },
+   {
+    "asset": "prop_machine",
+    "position": [
+     -2.75,
+     2.0
+    ],
+    "rotation": 90.0,
+    "label": "M3 · Soudage des équerres",
+    "ref": "machine:l3-m3",
+    "id": "production.machine.10",
+    "department_id": "production",
+    "role": "machine",
+    "cell": [
+     14,
+     19
+    ],
+    "cells": [
+     5,
+     4
+    ]
+   },
+   {
+    "asset": "prop_buffer_table",
+    "position": [
+     -1.0,
+     2.0
+    ],
+    "rotation": 90.0,
+    "label": "Table d'attente (10 produits)",
+    "ref": "buffer:l3-m3",
+    "id": "production.tampon.10",
+    "department_id": "production",
+    "role": "tampon",
+    "cell": [
+     19,
+     19
+    ],
+    "cells": [
+     2,
+     4
+    ]
+   },
+   {
+    "asset": "prop_machine",
+    "position": [
+     0.75,
+     2.0
+    ],
+    "rotation": 90.0,
+    "label": "M4 · Ébavurage et perçage",
+    "ref": "machine:l3-m4",
+    "id": "production.machine.11",
+    "department_id": "production",
+    "role": "machine",
+    "cell": [
+     21,
+     19
+    ],
+    "cells": [
+     5,
+     4
+    ]
+   },
+   {
+    "asset": "prop_buffer_table",
+    "position": [
+     2.5,
+     2.0
+    ],
+    "rotation": 90.0,
+    "label": "Table d'attente (10 produits)",
+    "ref": "buffer:l3-m4",
+    "id": "production.tampon.11",
+    "department_id": "production",
+    "role": "tampon",
+    "cell": [
+     26,
+     19
+    ],
+    "cells": [
+     2,
+     4
+    ]
+   },
+   {
+    "asset": "prop_andon_light",
+    "position": [
+     3.75,
+     1.25
+    ],
+    "rotation": 0.0,
+    "label": "Andon de la ligne",
+    "ref": "line:l3",
+    "id": "production.affichage.2",
+    "department_id": "production",
+    "role": "affichage",
+    "cell": [
+     29,
+     19
+    ],
+    "cells": [
+     1,
+     1
+    ]
+   },
+   {
+    "asset": "prop_wall_board",
+    "position": [
+     10.0,
+     -8.25
+    ],
+    "rotation": 0.0,
+    "label": "Tableau de ligne : OF en cours, cadence, arrêts",
+    "ref": null,
+    "id": "production.affichage.3",
+    "department_id": "production",
+    "role": "affichage",
+    "cell": [
+     40,
+     0
+    ],
+    "cells": [
+     4,
+     1
+    ]
+   },
+   {
+    "asset": "prop_floor_zone",
+    "position": [
+     19.0,
+     -9.75
+    ],
+    "rotation": 0.0,
+    "label": "Contrôle qualité",
+    "ref": "dept:qualite",
+    "id": "qualite.zone.0",
+    "department_id": "qualite",
+    "role": null,
+    "cell": null,
+    "cells": null
+   },
+   {
+    "asset": "prop_floor_zone",
+    "position": [
+     22.5,
+     -13.0
+    ],
+    "rotation": 270.0,
+    "label": "Zone conforme",
+    "ref": null,
+    "id": "qualite.tampon.0",
+    "department_id": "qualite",
+    "role": "tampon",
+    "cell": [
+     14,
+     0
+    ],
+    "cells": [
+     6,
+     8
+    ]
+   },
+   {
+    "asset": "prop_floor_zone",
+    "position": [
+     22.5,
+     -8.5
+    ],
+    "rotation": 270.0,
+    "label": "Zone à retoucher",
+    "ref": null,
+    "id": "qualite.tampon.1",
+    "department_id": "qualite",
+    "role": "tampon",
+    "cell": [
+     14,
+     9
+    ],
+    "cells": [
+     6,
+     8
+    ]
+   },
+   {
+    "asset": "prop_scrap_bin",
+    "position": [
+     23.5,
+     -5.5
+    ],
+    "rotation": 270.0,
+    "label": "Bac à rebut",
+    "ref": "scrap",
+    "id": "qualite.stockage.0",
+    "department_id": "qualite",
+    "role": "stockage",
+    "cell": [
+     18,
+     18
+    ],
+    "cells": [
+     2,
+     2
+    ]
+   },
+   {
+    "asset": "prop_inspection_table",
+    "position": [
+     20.0,
+     -14.0
+    ],
+    "rotation": 270.0,
+    "label": "Table de contrôle et instruments",
+    "ref": "quality",
+    "id": "qualite.poste.0",
+    "department_id": "qualite",
+    "role": "poste",
+    "cell": [
+     11,
+     0
+    ],
+    "cells": [
+     2,
+     4
+    ]
+   },
+   {
+    "asset": "prop_floor_zone",
+    "position": [
+     19.0,
+     0.5
+    ],
+    "rotation": 0.0,
+    "label": "Emballage",
+    "ref": "dept:emballage",
+    "id": "emballage.zone.0",
+    "department_id": "emballage",
+    "role": null,
+    "cell": null,
+    "cells": null
+   },
+   {
+    "asset": "prop_pallet_wrapper",
+    "position": [
+     22.75,
+     -1.0
+    ],
+    "rotation": 270.0,
+    "label": "Filmeuse de palettes",
+    "ref": null,
+    "id": "emballage.machine.0",
+    "department_id": "emballage",
+    "role": "machine",
+    "cell": [
+     15,
+     0
+    ],
+    "cells": [
+     5,
+     4
+    ]
+   },
+   {
+    "asset": "prop_pallet",
+    "position": [
+     23.5,
+     1.25
+    ],
+    "rotation": 270.0,
+    "label": "Palette en cours",
+    "ref": null,
+    "id": "emballage.tampon.0",
+    "department_id": "emballage",
+    "role": "tampon",
+    "cell": [
+     18,
+     5
+    ],
+    "cells": [
+     2,
+     3
+    ]
+   },
+   {
+    "asset": "prop_packing_table",
+    "position": [
+     22.0,
+     1.5
+    ],
+    "rotation": 270.0,
+    "label": "Table d'emballage : cartons, ruban, balance",
+    "ref": null,
+    "id": "emballage.poste.0",
+    "department_id": "emballage",
+    "role": "poste",
+    "cell": [
+     15,
+     5
+    ],
+    "cells": [
+     2,
+     4
+    ]
+   },
+   {
+    "asset": "prop_floor_zone",
+    "position": [
+     -6.0,
+     -13.25
+    ],
+    "rotation": 0.0,
+    "label": "Maintenance et pièces de rechange",
+    "ref": "dept:maintenance",
+    "id": "maintenance.zone.0",
+    "department_id": "maintenance",
+    "role": null,
+    "cell": null,
+    "cells": null
+   },
+   {
+    "asset": "prop_wall_board",
+    "position": [
+     -10.0,
+     -14.75
+    ],
+    "rotation": 0.0,
+    "label": "Tableau des interventions",
+    "ref": null,
+    "id": "maintenance.affichage.0",
+    "department_id": "maintenance",
+    "role": "affichage",
+    "cell": [
+     0,
+     0
+    ],
+    "cells": [
+     4,
+     1
+    ]
+   },
+   {
+    "asset": "prop_workbench",
+    "position": [
+     -7.0,
+     -14.5
+    ],
+    "rotation": 0.0,
+    "label": "Établi et servante d'outils",
+    "ref": null,
+    "id": "maintenance.poste.0",
+    "department_id": "maintenance",
+    "role": "poste",
+    "cell": [
+     5,
+     0
+    ],
+    "cells": [
+     6,
+     2
+    ]
+   },
+   {
+    "asset": "prop_floor_zone",
+    "position": [
+     6.25,
+     -13.0
+    ],
+    "rotation": 0.0,
+    "label": "Pilotage",
+    "ref": "dept:pilotage",
+    "id": "pilotage.zone.0",
+    "department_id": "pilotage",
+    "role": null,
+    "cell": null,
+    "cells": null
+   },
+   {
+    "asset": "prop_kpi_screen",
+    "position": [
+     3.25,
+     -14.5
+    ],
+    "rotation": 0.0,
+    "label": "Écran des indicateurs",
+    "ref": "kpi",
+    "id": "pilotage.affichage.0",
+    "department_id": "pilotage",
+    "role": "affichage",
+    "cell": [
+     0,
+     0
+    ],
+    "cells": [
+     7,
+     2
+    ]
+   },
+   {
+    "asset": "prop_desk_computer",
+    "position": [
+     6.25,
+     -14.25
+    ],
+    "rotation": 0.0,
+    "label": "Bureau : stocks, OF, commandes",
+    "ref": null,
+    "id": "pilotage.poste.0",
+    "department_id": "pilotage",
+    "role": "poste",
+    "cell": [
+     8,
+     0
+    ],
+    "cells": [
+     3,
+     3
+    ]
+   },
+   {
+    "asset": "prop_floor_zone",
+    "position": [
+     0.0,
+     11.75
+    ],
+    "rotation": 0.0,
+    "label": "Quai partagé (réception et expédition)",
+    "ref": "dept:quai",
+    "id": "quai.zone.0",
+    "department_id": "quai",
+    "role": null,
+    "cell": null,
+    "cells": null
+   },
+   {
+    "asset": "prop_dock_door",
+    "position": [
+     0.0,
+     15.0
+    ],
+    "rotation": 180.0,
+    "label": "Porte de quai",
+    "ref": "dock",
+    "id": "quai.porte.0",
+    "department_id": "quai",
+    "role": "porte",
+    "cell": [
+     9,
+     12
+    ],
+    "cells": [
+     6,
+     1
+    ]
+   },
+   {
+    "asset": "veh_pallet_jack",
+    "position": [
+     -5.5,
+     14.0
+    ],
+    "rotation": 180.0,
+    "label": "Transpalette du quai",
+    "ref": null,
+    "id": "quai.engin.0",
+    "department_id": "quai",
+    "role": "engin",
+    "cell": [
+     0,
+     9
+    ],
+    "cells": [
+     2,
+     4
+    ]
+   },
+   {
+    "asset": "prop_floor_zone",
+    "position": [
+     16.25,
+     10.25
+    ],
+    "rotation": 0.0,
+    "label": "Entrepôt de produits finis",
+    "ref": "dept:entrepot_pf",
+    "id": "entrepot_pf.zone.0",
+    "department_id": "entrepot_pf",
+    "role": null,
+    "cell": null,
+    "cells": null
+   },
+   {
+    "asset": "prop_pallet_rack",
+    "position": [
+     21.25,
+     6.25
+    ],
+    "rotation": 0.0,
+    "label": "Racks PF (20 palettes)",
+    "ref": "pf",
+    "id": "entrepot_pf.stockage.0",
+    "department_id": "entrepot_pf",
+    "role": "stockage",
+    "cell": [
+     20,
+     0
+    ],
+    "cells": [
+     11,
+     3
+    ]
+   },
+   {
+    "asset": "prop_pallet_rack",
+    "position": [
+     15.75,
+     6.25
+    ],
+    "rotation": 0.0,
+    "label": "Racks PF (20 palettes)",
+    "ref": "pf",
+    "id": "entrepot_pf.stockage.1",
+    "department_id": "entrepot_pf",
+    "role": "stockage",
+    "cell": [
+     9,
+     0
+    ],
+    "cells": [
+     11,
+     3
+    ]
+   },
+   {
+    "asset": "prop_pallet_rack",
+    "position": [
+     21.25,
+     10.25
+    ],
+    "rotation": 180.0,
+    "label": "Racks PF (20 palettes)",
+    "ref": "pf",
+    "id": "entrepot_pf.stockage.2",
+    "department_id": "entrepot_pf",
+    "role": "stockage",
+    "cell": [
+     20,
+     8
+    ],
+    "cells": [
+     11,
+     3
+    ]
+   },
+   {
+    "asset": "prop_pallet_rack",
+    "position": [
+     15.75,
+     10.25
+    ],
+    "rotation": 180.0,
+    "label": "Racks PF (20 palettes)",
+    "ref": "pf",
+    "id": "entrepot_pf.stockage.3",
+    "department_id": "entrepot_pf",
+    "role": "stockage",
+    "cell": [
+     9,
+     8
+    ],
+    "cells": [
+     11,
+     3
+    ]
+   },
+   {
+    "asset": "prop_floor_zone",
+    "position": [
+     22.0,
+     13.0
+    ],
+    "rotation": 270.0,
+    "label": "Préparation des commandes",
+    "ref": null,
+    "id": "entrepot_pf.tampon.0",
+    "department_id": "entrepot_pf",
+    "role": "tampon",
+    "cell": [
+     23,
+     12
+    ],
+    "cells": [
+     8,
+     6
+    ]
+   },
+   {
+    "asset": "bld_warehouse",
+    "position": [
+     -40.0,
+     55.0
+    ],
+    "rotation": 180.0,
+    "label": "Fournisseur rapide",
+    "ref": null,
+    "id": "fournisseur_rapide.batiment.0",
+    "department_id": "fournisseur_rapide",
+    "role": "batiment",
+    "cell": [
+     9,
+     7
+    ],
+    "cells": [
+     12,
+     16
+    ]
+   },
+   {
+    "asset": "bld_factory_plant",
+    "position": [
+     -100.0,
+     55.0
+    ],
+    "rotation": 180.0,
+    "label": "Fournisseur de matière première",
+    "ref": null,
+    "id": "fournisseur.batiment.0",
+    "department_id": "fournisseur",
+    "role": "batiment",
+    "cell": [
+     8,
+     9
+    ],
+    "cells": [
+     14,
+     12
+    ]
+   },
+   {
+    "asset": "prop_pallet_stack",
+    "position": [
+     -128.0,
+     84.0
+    ],
+    "rotation": 180.0,
+    "label": "Palettes prêtes",
+    "ref": null,
+    "id": "fournisseur.decor.0",
+    "department_id": "fournisseur",
+    "role": "decor",
+    "cell": [
+     0,
+     29
+    ],
+    "cells": [
+     2,
+     1
+    ]
+   },
+   {
+    "asset": "prop_pallet_stack",
+    "position": [
+     -122.0,
+     84.0
+    ],
+    "rotation": 180.0,
+    "label": "Palettes prêtes",
+    "ref": null,
+    "id": "fournisseur.decor.1",
+    "department_id": "fournisseur",
+    "role": "decor",
+    "cell": [
+     3,
+     29
+    ],
+    "cells": [
+     2,
+     1
+    ]
+   },
+   {
+    "asset": "bld_warehouse_hangar",
+    "position": [
+     -161.0,
+     115.0
+    ],
+    "rotation": 180.0,
+    "label": "Fournisseur economique",
+    "ref": null,
+    "id": "fournisseur_economique.batiment.0",
+    "department_id": "fournisseur_economique",
+    "role": "batiment",
+    "cell": [
+     9,
+     8
+    ],
+    "cells": [
+     11,
+     14
+    ]
+   },
+   {
+    "asset": "bld_distribution_center",
+    "position": [
+     40.0,
+     54.0
+    ],
+    "rotation": 180.0,
+    "label": "Client",
+    "ref": null,
+    "id": "client.batiment.0",
+    "department_id": "client",
+    "role": "batiment",
+    "cell": [
+     11,
+     9
+    ],
+    "cells": [
+     8,
+     11
+    ]
+   }
+  ],
+  "forklift_route": [
+   [
+    -16.25,
+    7.25
+   ],
+   [
+    -15.25,
+    -5.75
+   ],
+   [
+    0.25,
+    2.75
+   ],
+   [
+    15.25,
+    -9.75
+   ],
+   [
+    15.25,
+    0.75
+   ],
+   [
+    9.75,
+    10.25
+   ],
+   [
+    0.25,
+    9.75
+   ]
+  ],
+  "sites": [
+   {
+    "id": "usine",
+    "kind": "usine",
+    "label": "Usine à lignes de production",
+    "external": false,
+    "area": [
+     -24.0,
+     -15.0,
+     24.0,
+     15.0
+    ],
+    "gate": [
+     0.0,
+     15.0
+    ],
+    "supplier_id": null,
+    "distance_class": null,
+    "km": null,
+    "travel_h": null,
+    "transit_days": null
+   },
+   {
+    "id": "fournisseur_rapide",
+    "kind": "fournisseur",
+    "label": "Fournisseur rapide",
+    "external": true,
+    "area": [
+     -70.0,
+     25.0,
+     -10.0,
+     85.0
+    ],
+    "gate": [
+     -40.0,
+     25.0
+    ],
+    "supplier_id": "s1",
+    "distance_class": "proche",
+    "km": 250.0,
+    "travel_h": 3.57,
+    "transit_days": 1
+   },
+   {
+    "id": "fournisseur_standard",
+    "kind": "fournisseur",
+    "label": "Fournisseur standard",
+    "external": true,
+    "area": [
+     -130.0,
+     25.0,
+     -70.0,
+     85.0
+    ],
+    "gate": [
+     -100.0,
+     25.0
+    ],
+    "supplier_id": "s2",
+    "distance_class": "proche",
+    "km": 250.0,
+    "travel_h": 3.57,
+    "transit_days": 1
+   },
+   {
+    "id": "fournisseur_economique",
+    "kind": "fournisseur",
+    "label": "Fournisseur economique",
+    "external": true,
+    "area": [
+     -190.0,
+     85.0,
+     -130.0,
+     145.0
+    ],
+    "gate": [
+     -160.0,
+     85.0
+    ],
+    "supplier_id": "s3",
+    "distance_class": "national",
+    "km": 800.0,
+    "travel_h": 11.43,
+    "transit_days": 2
+   },
+   {
+    "id": "client",
+    "kind": "client",
+    "label": "Client",
+    "external": true,
+    "area": [
+     10.0,
+     25.0,
+     70.0,
+     85.0
+    ],
+    "gate": [
+     40.0,
+     25.0
+    ],
+    "supplier_id": null,
+    "distance_class": "proche",
+    "km": 250.0,
+    "travel_h": 3.57,
+    "transit_days": 1
+   }
+  ],
+  "links": [
+   {
+    "id": "route:fournisseur_rapide",
+    "type": "route",
+    "from_site": "fournisseur_rapide",
+    "to_site": "usine",
+    "points": [
+     [
+      -40.0,
+      25.0
+     ],
+     [
+      -40.0,
+      20.0
+     ],
+     [
+      0.0,
+      20.0
+     ],
+     [
+      0.0,
+      15.0
+     ]
+    ],
+    "vehicle": "veh_box_truck"
+   },
+   {
+    "id": "route:fournisseur_standard",
+    "type": "route",
+    "from_site": "fournisseur_standard",
+    "to_site": "usine",
+    "points": [
+     [
+      -100.0,
+      25.0
+     ],
+     [
+      -100.0,
+      20.0
+     ],
+     [
+      0.0,
+      20.0
+     ],
+     [
+      0.0,
+      15.0
+     ]
+    ],
+    "vehicle": "veh_box_truck"
+   },
+   {
+    "id": "route:fournisseur_economique",
+    "type": "route",
+    "from_site": "fournisseur_economique",
+    "to_site": "usine",
+    "points": [
+     [
+      -160.0,
+      85.0
+     ],
+     [
+      -160.0,
+      20.0
+     ],
+     [
+      0.0,
+      20.0
+     ],
+     [
+      0.0,
+      15.0
+     ]
+    ],
+    "vehicle": "veh_box_truck"
+   },
+   {
+    "id": "route:client",
+    "type": "route",
+    "from_site": "client",
+    "to_site": "usine",
+    "points": [
+     [
+      40.0,
+      25.0
+     ],
+     [
+      40.0,
+      20.0
+     ],
+     [
+      0.0,
+      20.0
+     ],
+     [
+      0.0,
+      15.0
+     ]
+    ],
+    "vehicle": "veh_box_truck"
+   }
+  ],
+  "bounds": [
+   -190.0,
+   -15.0,
+   70.0,
+   145.0
+  ]
+ },
+ "notions": [
+  {
+   "id": "point_de_commande",
+   "title": "Point de commande",
+   "text": "On recommande quand le stock, commandes en cours comprises, passe sous le point de commande, égal à la consommation prévue pendant le délai d'approvisionnement plus le stock de sécurité.",
+   "citation": "Wikipédia (en), « Reorder point », révision 1361046588 : https://en.wikipedia.org/wiki/Reorder_point?oldid=1361046588"
+  },
+  {
+   "id": "stock_de_securite",
+   "title": "Stock de sécurité",
+   "text": "Le stock de sécurité couvre l'incertitude de la demande et des délais ; plus ils sont imprévisibles et plus le service visé est élevé, plus il doit être important.",
+   "citation": "Wikipédia (fr), « Stock de sécurité », révision 209683581 : https://fr.wikipedia.org/wiki/Stock_de_s%C3%A9curit%C3%A9?oldid=209683581"
+  },
+  {
+   "id": "delai_et_fiabilite",
+   "title": "Délai et fiabilité des fournisseurs",
+   "text": "Plus les délais de réapprovisionnement sont aléatoires, plus le stock de sécurité doit être important ; un fournisseur aux délais irréguliers oblige donc à garder davantage de matière en réserve.",
+   "citation": "Wikipédia (fr), « Stock de sécurité », révision 209683581 : https://fr.wikipedia.org/wiki/Stock_de_s%C3%A9curit%C3%A9?oldid=209683581"
+  },
+  {
+   "id": "otif",
+   "title": "OTIF (à l'heure et complet)",
+   "text": "Le modèle SCOR mesure la performance de livraison comme la part des produits livrés à temps et en totalité à la date promise.",
+   "citation": "Wikipédia (en), « Supply chain operations reference », révision 1378804368 : https://en.wikipedia.org/wiki/Supply_chain_operations_reference?oldid=1378804368"
+  },
+  {
+   "id": "loi_de_little",
+   "title": "Loi de Little",
+   "text": "En régime stable, l'encours moyen égale le débit multiplié par le temps moyen passé dans le système : à débit égal, plus d'encours veut dire des produits qui attendent plus longtemps.",
+   "citation": "Wikipédia (en), « Little's law », révision 1370351232 : https://en.wikipedia.org/wiki/Little%27s_law?oldid=1370351232"
+  },
+  {
+   "id": "takt_time",
+   "title": "Takt time",
+   "text": "Le takt time est le temps disponible divisé par le nombre d'unités demandées : le rythme à tenir pour suivre le client. Il ne se confond pas avec le temps de cycle réel, qui compte aussi les pièces défectueuses et les réglages.",
+   "citation": "Wikipédia (fr), « Takt time », révision 229912463 : https://fr.wikipedia.org/wiki/Takt_time?oldid=229912463"
+  },
+  {
+   "id": "charge_et_attente",
+   "title": "Charge et attente",
+   "text": "Selon l'approximation de Kingman, l'attente devant un poste croît avec u ÷ (1 − u), u étant son taux d'occupation, et avec la variabilité des arrivées et des temps de service : près de 100 % de charge, elle explose.",
+   "citation": "Wikipédia (en), « Kingman's formula », révision 1322269537 : https://en.wikipedia.org/wiki/Kingman%27s_formula?oldid=1322269537"
+  },
+  {
+   "id": "goulot",
+   "title": "Goulot et contrainte",
+   "text": "Dans une ligne en série, le poste le plus lent fixe le débit maximal : augmenter sa capacité augmente le débit de l'ensemble, améliorer les autres ne sert à rien. Tant que la demande reste sous ce débit, c'est le marché qui limite l'usine ; lors d'un pic ou après une panne, ce poste devient la contrainte et chaque heure qu'il perd est perdue pour la ligne.",
+   "citation": "Wikipédia (fr), « Théorie des contraintes », révision 237231287 : https://fr.wikipedia.org/wiki/Th%C3%A9orie_des_contraintes?oldid=237231287"
+  },
+  {
+   "id": "tampon_avant_goulot",
+   "title": "Protéger la contrainte par des tampons",
+   "text": "Un stock tampon placé devant la contrainte lui évite de manquer de travail quand un poste amont s'arrête, et de la place libre derrière elle évite qu'un arrêt en aval la bloque. Le tampon achète du temps ; il doit suffire sans être excessif.",
+   "citation": "Wikipédia (en), « Theory of constraints », révision 1380318896 : https://en.wikipedia.org/wiki/Theory_of_constraints?oldid=1380318896"
+  },
+  {
+   "id": "rendement_en_cascade",
+   "title": "Rendement cumulé",
+   "text": "La probabilité qu'un produit sorte bon d'un procédé à plusieurs étapes est le produit des rendements de chaque étape : le rendement de la ligne n'est donc jamais meilleur que celui de sa moins bonne machine.",
+   "citation": "Wikipédia (en), « Rolled throughput yield », révision 1313806052 : https://en.wikipedia.org/wiki/Rolled_throughput_yield?oldid=1313806052"
+  },
+  {
+   "id": "capacite_et_trs",
+   "title": "Taux de rendement synthétique (TRS)",
+   "text": "Le TRS (OEE en anglais) multiplie trois taux : disponibilité (temps de marche ÷ temps d'ouverture), performance (vitesse réelle ÷ vitesse maximale) et qualité (bons ÷ produits). Le temps d'ouverture est une convention : ici, les pauses le réduisent ; d'autres organisations comptent la pause comme un arrêt. À 100 %, la machine tourne sans arrêt, à pleine vitesse, sans défaut.",
+   "citation": "Wikipédia (fr), « Taux de rendement synthétique », révision 234398211 : https://fr.wikipedia.org/wiki/Taux_de_rendement_synth%C3%A9tique?oldid=234398211"
+  },
+  {
+   "id": "changement_de_serie",
+   "title": "Changement de série (SMED)",
+   "text": "Le SMED réduit le temps de changement de série pour pouvoir produire en petits lots ; « single minute » veut dire moins de 10 minutes.",
+   "citation": "Wikipédia (en), « Single-minute exchange of die », révision 1360889711 : https://en.wikipedia.org/wiki/Single-minute_exchange_of_die?oldid=1360889711"
+  },
+  {
+   "id": "disponibilite",
+   "title": "Disponibilité, MTBF et MTTR",
+   "text": "La disponibilité est le temps de marche divisé par le temps total. Pour les pannes, avec le MTBF compté en heures de marche entre deux pannes, elle vaut MTBF ÷ (MTBF + MTTR) ; l'attente du technicien et son trajet allongent l'arrêt et la font encore baisser.",
+   "citation": "Wikipédia (en), « Availability », révision 1378432007 : https://en.wikipedia.org/wiki/Availability?oldid=1378432007"
+  },
+  {
+   "id": "pannes_par_usure",
+   "title": "Pannes d'usure et pannes au hasard",
+   "text": "Réviser ou remplacer à date fixe ne se justifie que si l'équipement s'use avec l'usage : son risque de panne croît avec l'âge et l'entretien le remet à zéro. Les études des compagnies aériennes des années 1960 ont montré que la grande majorité des pannes ne sont pas forcément liées à l'âge : contre celles-là, le préventif à date fixe n'aide pas.",
+   "citation": "Wikipédia (en), « Reliability-centered maintenance », révision 1318353310 : https://en.wikipedia.org/wiki/Reliability-centered_maintenance?oldid=1318353310"
+  },
+  {
+   "id": "maintenance_preventive",
+   "title": "Maintenance préventive et corrective",
+   "text": "Le préventif inspecte et entretient l'équipement à intervalles planifiés pour remplacer les pièces usées avant la panne ; le correctif répare après la panne, souvent plus cher à cause des arrêts et des dégâts en chaîne.",
+   "citation": "Wikipédia (en), « Maintenance », révision 1380603447 : https://en.wikipedia.org/wiki/Maintenance?oldid=1380603447"
+  },
+  {
+   "id": "rotation_fifo",
+   "title": "Premier entré, premier sorti (FIFO)",
+   "text": "Sortir d'abord ce qui est arrivé en premier évite que le stock vieillisse ou se dégrade avant d'être utilisé.",
+   "citation": "Wikipédia (en), « Stock rotation », révision 1363766650 : https://en.wikipedia.org/wiki/Stock_rotation?oldid=1363766650"
+  },
+  {
+   "id": "carte_p",
+   "title": "Carte p",
+   "text": "La carte p suit la part de produits non conformes d'un échantillon ; sa limite haute vaut p + 3 × racine(p (1 − p) ÷ n). Un lot au-delà signale probablement un changement du procédé plutôt qu'un simple aléa.",
+   "citation": "Wikipédia (en), « P-chart », révision 1322280790 : https://en.wikipedia.org/wiki/P-chart?oldid=1322280790"
+  }
+ ],
+ "events": [
+  {
+   "id": "retard_transport",
+   "title": "Perturbations routières",
+   "description": "Travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière.",
+   "weight": 2.0,
+   "effects": {
+    "delay_risk": 0.25
+   },
+   "modules": [
+    "pilotage"
+   ]
+  },
+  {
+   "id": "hausse_matieres",
+   "title": "Hausse de l'acier",
+   "description": "Les prix d'achat de la matière augmentent de 10 %.",
+   "weight": 2.0,
+   "effects": {
+    "cost": 1.1
+   },
+   "modules": [
+    "pilotage"
+   ]
+  },
+  {
+   "id": "commande_exceptionnelle",
+   "title": "Commandes exceptionnelles du client",
+   "description": "Le client ajoute des commandes : la demande grimpe de 15 % sur la semaine.",
+   "weight": 1.0,
+   "effects": {
+    "demand": 1.15
+   },
+   "modules": [
+    "pilotage",
+    "production"
+   ]
+  },
+  {
+   "id": "creux_de_demande",
+   "title": "Creux de demande",
+   "description": "Le client commande moins cette semaine : la demande baisse de 15 %.",
+   "weight": 1.0,
+   "effects": {
+    "demand": 0.85
+   },
+   "modules": [
+    "pilotage"
+   ]
+  },
+  {
+   "id": "lot_mp_non_conforme",
+   "title": "Lot de matière non conforme",
+   "description": "Un lot du fournisseur est défectueux ; le taux de palettes reçues non conformes, mises en quarantaine, prend 10 points de plus.",
+   "weight": 1.0,
+   "effects": {
+    "nonconform": 0.1
+   },
+   "modules": [
+    "pilotage"
+   ]
+  },
+  {
+   "id": "vague_de_chaleur",
+   "title": "Vague de chaleur dans l'atelier",
+   "description": "Les fortes chaleurs fatiguent les machines ; elles tombent en panne environ 40 % plus souvent cette semaine.",
+   "weight": 1.0,
+   "effects": {
+    "mtbf": 0.7
+   },
+   "modules": [
+    "maintenance",
+    "production"
+   ]
+  }
+ ],
+ "economy": {
+  "initial_cash": 83500.0,
+  "holding_rate_week": 0.0048,
+  "maintenance_rate": {},
+  "trs_drift": {},
+  "control_cost_rate": 0.0,
+  "interest_rate_week": 0.004,
+  "price_elasticity": 0.0,
+  "defect_rate": 0.0,
+  "demand_noise": 0.0,
+  "events_probability": 0.0,
+  "transport": {}
+ },
+ "targets": {
+  "otif": 95.0,
+  "trs": 80.0,
+  "stockouts": 0,
+  "cash_final": 142300.0
+ },
+ "departments": [
+  {
+   "id": "reception",
+   "label": "Réception",
+   "external": false,
+   "area": [
+    -24.0,
+    6.0,
+    -8.5,
+    15.0
+   ],
+   "block": "bord",
+   "site_id": null,
+   "grid": {
+    "origin": [
+     -24.0,
+     6.0
+    ],
+    "cell_m": 0.5,
+    "cols": 31,
+    "rows": 18,
+    "reserved": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      0,
+      2
+     ],
+     [
+      0,
+      3
+     ],
+     [
+      0,
+      4
+     ],
+     [
+      1,
+      0
+     ],
+     [
+      1,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      1,
+      3
+     ],
+     [
+      1,
+      4
+     ],
+     [
+      2,
+      0
+     ],
+     [
+      2,
+      1
+     ],
+     [
+      2,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      2,
+      4
+     ],
+     [
+      3,
+      0
+     ],
+     [
+      3,
+      1
+     ],
+     [
+      3,
+      2
+     ],
+     [
+      3,
+      3
+     ],
+     [
+      3,
+      4
+     ],
+     [
+      4,
+      0
+     ],
+     [
+      4,
+      1
+     ],
+     [
+      4,
+      2
+     ],
+     [
+      4,
+      3
+     ],
+     [
+      4,
+      4
+     ],
+     [
+      5,
+      0
+     ],
+     [
+      5,
+      1
+     ],
+     [
+      5,
+      2
+     ],
+     [
+      5,
+      3
+     ],
+     [
+      5,
+      4
+     ],
+     [
+      6,
+      0
+     ],
+     [
+      6,
+      1
+     ],
+     [
+      6,
+      2
+     ],
+     [
+      6,
+      3
+     ],
+     [
+      6,
+      4
+     ],
+     [
+      7,
+      0
+     ],
+     [
+      7,
+      1
+     ],
+     [
+      7,
+      2
+     ],
+     [
+      7,
+      3
+     ],
+     [
+      7,
+      4
+     ],
+     [
+      8,
+      0
+     ],
+     [
+      8,
+      1
+     ],
+     [
+      8,
+      2
+     ],
+     [
+      8,
+      3
+     ],
+     [
+      8,
+      4
+     ],
+     [
+      9,
+      0
+     ],
+     [
+      9,
+      1
+     ],
+     [
+      9,
+      2
+     ],
+     [
+      9,
+      3
+     ],
+     [
+      9,
+      4
+     ],
+     [
+      10,
+      0
+     ],
+     [
+      10,
+      1
+     ],
+     [
+      10,
+      2
+     ],
+     [
+      10,
+      3
+     ],
+     [
+      10,
+      4
+     ],
+     [
+      11,
+      0
+     ],
+     [
+      11,
+      1
+     ],
+     [
+      11,
+      2
+     ],
+     [
+      11,
+      3
+     ],
+     [
+      11,
+      4
+     ],
+     [
+      12,
+      0
+     ],
+     [
+      12,
+      1
+     ],
+     [
+      12,
+      2
+     ],
+     [
+      12,
+      3
+     ],
+     [
+      12,
+      4
+     ],
+     [
+      13,
+      0
+     ],
+     [
+      13,
+      1
+     ],
+     [
+      13,
+      2
+     ],
+     [
+      13,
+      3
+     ],
+     [
+      13,
+      4
+     ],
+     [
+      14,
+      0
+     ],
+     [
+      14,
+      1
+     ],
+     [
+      14,
+      2
+     ],
+     [
+      14,
+      3
+     ],
+     [
+      14,
+      4
+     ],
+     [
+      15,
+      0
+     ],
+     [
+      15,
+      1
+     ],
+     [
+      15,
+      2
+     ],
+     [
+      15,
+      3
+     ],
+     [
+      15,
+      4
+     ],
+     [
+      16,
+      0
+     ],
+     [
+      16,
+      1
+     ],
+     [
+      16,
+      2
+     ],
+     [
+      16,
+      3
+     ],
+     [
+      16,
+      4
+     ],
+     [
+      17,
+      0
+     ],
+     [
+      17,
+      1
+     ],
+     [
+      17,
+      2
+     ],
+     [
+      17,
+      3
+     ],
+     [
+      17,
+      4
+     ],
+     [
+      18,
+      0
+     ],
+     [
+      18,
+      1
+     ],
+     [
+      18,
+      2
+     ],
+     [
+      18,
+      3
+     ],
+     [
+      18,
+      4
+     ],
+     [
+      19,
+      0
+     ],
+     [
+      19,
+      1
+     ],
+     [
+      19,
+      2
+     ],
+     [
+      19,
+      3
+     ],
+     [
+      19,
+      4
+     ],
+     [
+      20,
+      0
+     ],
+     [
+      20,
+      1
+     ],
+     [
+      20,
+      2
+     ],
+     [
+      20,
+      3
+     ],
+     [
+      20,
+      4
+     ],
+     [
+      21,
+      0
+     ],
+     [
+      21,
+      1
+     ],
+     [
+      21,
+      2
+     ],
+     [
+      21,
+      3
+     ],
+     [
+      21,
+      4
+     ],
+     [
+      22,
+      0
+     ],
+     [
+      22,
+      1
+     ],
+     [
+      22,
+      2
+     ],
+     [
+      22,
+      3
+     ],
+     [
+      22,
+      4
+     ],
+     [
+      22,
+      14
+     ],
+     [
+      23,
+      0
+     ],
+     [
+      23,
+      1
+     ],
+     [
+      23,
+      2
+     ],
+     [
+      23,
+      3
+     ],
+     [
+      23,
+      4
+     ],
+     [
+      24,
+      0
+     ],
+     [
+      24,
+      1
+     ],
+     [
+      24,
+      2
+     ],
+     [
+      24,
+      3
+     ],
+     [
+      24,
+      4
+     ],
+     [
+      25,
+      0
+     ],
+     [
+      25,
+      1
+     ],
+     [
+      25,
+      2
+     ],
+     [
+      25,
+      3
+     ],
+     [
+      25,
+      4
+     ],
+     [
+      26,
+      0
+     ],
+     [
+      26,
+      1
+     ],
+     [
+      26,
+      2
+     ],
+     [
+      26,
+      3
+     ],
+     [
+      26,
+      4
+     ],
+     [
+      27,
+      0
+     ],
+     [
+      27,
+      1
+     ],
+     [
+      27,
+      2
+     ],
+     [
+      27,
+      3
+     ],
+     [
+      27,
+      4
+     ],
+     [
+      28,
+      0
+     ],
+     [
+      28,
+      1
+     ],
+     [
+      28,
+      2
+     ],
+     [
+      28,
+      3
+     ],
+     [
+      28,
+      4
+     ],
+     [
+      29,
+      0
+     ],
+     [
+      29,
+      1
+     ],
+     [
+      29,
+      2
+     ],
+     [
+      29,
+      3
+     ],
+     [
+      29,
+      4
+     ],
+     [
+      30,
+      0
+     ],
+     [
+      30,
+      1
+     ],
+     [
+      30,
+      2
+     ],
+     [
+      30,
+      3
+     ],
+     [
+      30,
+      4
+     ]
+    ],
+    "palette": {
+     "furn_plant": [
+      1,
+      1
+     ],
+     "furn_bookcase": [
+      5,
+      2
+     ],
+     "furn_chair": [
+      1,
+      1
+     ],
+     "furn_office_chair": [
+      2,
+      2
+     ],
+     "furn_table": [
+      5,
+      3
+     ],
+     "prop_box_small": [
+      1,
+      1
+     ],
+     "prop_wall_board": [
+      4,
+      1
+     ]
+    }
+   }
+  },
+  {
+   "id": "stock_mp",
+   "label": "Stock de matière première",
+   "external": false,
+   "area": [
+    -24.0,
+    -15.0,
+    -14.0,
+    3.0
+   ],
+   "block": "racks",
+   "site_id": null,
+   "grid": {
+    "origin": [
+     -24.0,
+     -15.0
+    ],
+    "cell_m": 0.5,
+    "cols": 20,
+    "rows": 36,
+    "reserved": [
+     [
+      0,
+      3
+     ],
+     [
+      0,
+      4
+     ],
+     [
+      0,
+      5
+     ],
+     [
+      0,
+      6
+     ],
+     [
+      0,
+      7
+     ],
+     [
+      0,
+      19
+     ],
+     [
+      0,
+      20
+     ],
+     [
+      0,
+      21
+     ],
+     [
+      0,
+      22
+     ],
+     [
+      0,
+      23
+     ],
+     [
+      1,
+      3
+     ],
+     [
+      1,
+      4
+     ],
+     [
+      1,
+      5
+     ],
+     [
+      1,
+      6
+     ],
+     [
+      1,
+      7
+     ],
+     [
+      1,
+      19
+     ],
+     [
+      1,
+      20
+     ],
+     [
+      1,
+      21
+     ],
+     [
+      1,
+      22
+     ],
+     [
+      1,
+      23
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      2,
+      4
+     ],
+     [
+      2,
+      5
+     ],
+     [
+      2,
+      6
+     ],
+     [
+      2,
+      7
+     ],
+     [
+      2,
+      19
+     ],
+     [
+      2,
+      20
+     ],
+     [
+      2,
+      21
+     ],
+     [
+      2,
+      22
+     ],
+     [
+      2,
+      23
+     ],
+     [
+      3,
+      3
+     ],
+     [
+      3,
+      4
+     ],
+     [
+      3,
+      5
+     ],
+     [
+      3,
+      6
+     ],
+     [
+      3,
+      7
+     ],
+     [
+      3,
+      19
+     ],
+     [
+      3,
+      20
+     ],
+     [
+      3,
+      21
+     ],
+     [
+      3,
+      22
+     ],
+     [
+      3,
+      23
+     ],
+     [
+      4,
+      3
+     ],
+     [
+      4,
+      4
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      4,
+      6
+     ],
+     [
+      4,
+      7
+     ],
+     [
+      4,
+      19
+     ],
+     [
+      4,
+      20
+     ],
+     [
+      4,
+      21
+     ],
+     [
+      4,
+      22
+     ],
+     [
+      4,
+      23
+     ],
+     [
+      5,
+      3
+     ],
+     [
+      5,
+      4
+     ],
+     [
+      5,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      5,
+      7
+     ],
+     [
+      5,
+      19
+     ],
+     [
+      5,
+      20
+     ],
+     [
+      5,
+      21
+     ],
+     [
+      5,
+      22
+     ],
+     [
+      5,
+      23
+     ],
+     [
+      6,
+      3
+     ],
+     [
+      6,
+      4
+     ],
+     [
+      6,
+      5
+     ],
+     [
+      6,
+      6
+     ],
+     [
+      6,
+      7
+     ],
+     [
+      6,
+      19
+     ],
+     [
+      6,
+      20
+     ],
+     [
+      6,
+      21
+     ],
+     [
+      6,
+      22
+     ],
+     [
+      6,
+      23
+     ],
+     [
+      7,
+      3
+     ],
+     [
+      7,
+      4
+     ],
+     [
+      7,
+      5
+     ],
+     [
+      7,
+      6
+     ],
+     [
+      7,
+      7
+     ],
+     [
+      7,
+      19
+     ],
+     [
+      7,
+      20
+     ],
+     [
+      7,
+      21
+     ],
+     [
+      7,
+      22
+     ],
+     [
+      7,
+      23
+     ],
+     [
+      8,
+      3
+     ],
+     [
+      8,
+      4
+     ],
+     [
+      8,
+      5
+     ],
+     [
+      8,
+      6
+     ],
+     [
+      8,
+      7
+     ],
+     [
+      8,
+      19
+     ],
+     [
+      8,
+      20
+     ],
+     [
+      8,
+      21
+     ],
+     [
+      8,
+      22
+     ],
+     [
+      8,
+      23
+     ],
+     [
+      9,
+      3
+     ],
+     [
+      9,
+      4
+     ],
+     [
+      9,
+      5
+     ],
+     [
+      9,
+      6
+     ],
+     [
+      9,
+      7
+     ],
+     [
+      9,
+      19
+     ],
+     [
+      9,
+      20
+     ],
+     [
+      9,
+      21
+     ],
+     [
+      9,
+      22
+     ],
+     [
+      9,
+      23
+     ],
+     [
+      10,
+      3
+     ],
+     [
+      10,
+      4
+     ],
+     [
+      10,
+      5
+     ],
+     [
+      10,
+      6
+     ],
+     [
+      10,
+      7
+     ],
+     [
+      10,
+      19
+     ],
+     [
+      10,
+      20
+     ],
+     [
+      10,
+      21
+     ],
+     [
+      10,
+      22
+     ],
+     [
+      10,
+      23
+     ],
+     [
+      11,
+      3
+     ],
+     [
+      11,
+      4
+     ],
+     [
+      11,
+      5
+     ],
+     [
+      11,
+      6
+     ],
+     [
+      11,
+      7
+     ],
+     [
+      11,
+      19
+     ],
+     [
+      11,
+      20
+     ],
+     [
+      11,
+      21
+     ],
+     [
+      11,
+      22
+     ],
+     [
+      11,
+      23
+     ],
+     [
+      12,
+      3
+     ],
+     [
+      12,
+      4
+     ],
+     [
+      12,
+      5
+     ],
+     [
+      12,
+      6
+     ],
+     [
+      12,
+      7
+     ],
+     [
+      12,
+      19
+     ],
+     [
+      12,
+      20
+     ],
+     [
+      12,
+      21
+     ],
+     [
+      12,
+      22
+     ],
+     [
+      12,
+      23
+     ],
+     [
+      13,
+      3
+     ],
+     [
+      13,
+      4
+     ],
+     [
+      13,
+      5
+     ],
+     [
+      13,
+      6
+     ],
+     [
+      13,
+      7
+     ],
+     [
+      13,
+      19
+     ],
+     [
+      13,
+      20
+     ],
+     [
+      13,
+      21
+     ],
+     [
+      13,
+      22
+     ],
+     [
+      13,
+      23
+     ],
+     [
+      14,
+      3
+     ],
+     [
+      14,
+      4
+     ],
+     [
+      14,
+      5
+     ],
+     [
+      14,
+      6
+     ],
+     [
+      14,
+      7
+     ],
+     [
+      14,
+      19
+     ],
+     [
+      14,
+      20
+     ],
+     [
+      14,
+      21
+     ],
+     [
+      14,
+      22
+     ],
+     [
+      14,
+      23
+     ],
+     [
+      15,
+      0
+     ],
+     [
+      15,
+      1
+     ],
+     [
+      15,
+      2
+     ],
+     [
+      15,
+      3
+     ],
+     [
+      15,
+      4
+     ],
+     [
+      15,
+      5
+     ],
+     [
+      15,
+      6
+     ],
+     [
+      15,
+      7
+     ],
+     [
+      15,
+      8
+     ],
+     [
+      15,
+      9
+     ],
+     [
+      15,
+      10
+     ],
+     [
+      15,
+      11
+     ],
+     [
+      15,
+      12
+     ],
+     [
+      15,
+      13
+     ],
+     [
+      15,
+      14
+     ],
+     [
+      15,
+      15
+     ],
+     [
+      15,
+      16
+     ],
+     [
+      15,
+      17
+     ],
+     [
+      15,
+      18
+     ],
+     [
+      15,
+      19
+     ],
+     [
+      15,
+      20
+     ],
+     [
+      15,
+      21
+     ],
+     [
+      15,
+      22
+     ],
+     [
+      15,
+      23
+     ],
+     [
+      15,
+      24
+     ],
+     [
+      15,
+      25
+     ],
+     [
+      15,
+      26
+     ],
+     [
+      15,
+      27
+     ],
+     [
+      15,
+      28
+     ],
+     [
+      15,
+      29
+     ],
+     [
+      15,
+      30
+     ],
+     [
+      15,
+      31
+     ],
+     [
+      15,
+      32
+     ],
+     [
+      15,
+      33
+     ],
+     [
+      15,
+      34
+     ],
+     [
+      15,
+      35
+     ],
+     [
+      16,
+      0
+     ],
+     [
+      16,
+      1
+     ],
+     [
+      16,
+      2
+     ],
+     [
+      16,
+      3
+     ],
+     [
+      16,
+      4
+     ],
+     [
+      16,
+      5
+     ],
+     [
+      16,
+      6
+     ],
+     [
+      16,
+      7
+     ],
+     [
+      16,
+      8
+     ],
+     [
+      16,
+      9
+     ],
+     [
+      16,
+      10
+     ],
+     [
+      16,
+      11
+     ],
+     [
+      16,
+      12
+     ],
+     [
+      16,
+      13
+     ],
+     [
+      16,
+      14
+     ],
+     [
+      16,
+      15
+     ],
+     [
+      16,
+      16
+     ],
+     [
+      16,
+      17
+     ],
+     [
+      16,
+      18
+     ],
+     [
+      16,
+      19
+     ],
+     [
+      16,
+      20
+     ],
+     [
+      16,
+      21
+     ],
+     [
+      16,
+      22
+     ],
+     [
+      16,
+      23
+     ],
+     [
+      16,
+      24
+     ],
+     [
+      16,
+      25
+     ],
+     [
+      16,
+      26
+     ],
+     [
+      16,
+      27
+     ],
+     [
+      16,
+      28
+     ],
+     [
+      16,
+      29
+     ],
+     [
+      16,
+      30
+     ],
+     [
+      16,
+      31
+     ],
+     [
+      16,
+      32
+     ],
+     [
+      16,
+      33
+     ],
+     [
+      16,
+      34
+     ],
+     [
+      16,
+      35
+     ],
+     [
+      17,
+      0
+     ],
+     [
+      17,
+      1
+     ],
+     [
+      17,
+      2
+     ],
+     [
+      17,
+      3
+     ],
+     [
+      17,
+      4
+     ],
+     [
+      17,
+      5
+     ],
+     [
+      17,
+      6
+     ],
+     [
+      17,
+      7
+     ],
+     [
+      17,
+      8
+     ],
+     [
+      17,
+      9
+     ],
+     [
+      17,
+      10
+     ],
+     [
+      17,
+      11
+     ],
+     [
+      17,
+      12
+     ],
+     [
+      17,
+      13
+     ],
+     [
+      17,
+      14
+     ],
+     [
+      17,
+      15
+     ],
+     [
+      17,
+      16
+     ],
+     [
+      17,
+      17
+     ],
+     [
+      17,
+      18
+     ],
+     [
+      17,
+      19
+     ],
+     [
+      17,
+      20
+     ],
+     [
+      17,
+      21
+     ],
+     [
+      17,
+      22
+     ],
+     [
+      17,
+      23
+     ],
+     [
+      17,
+      24
+     ],
+     [
+      17,
+      25
+     ],
+     [
+      17,
+      26
+     ],
+     [
+      17,
+      27
+     ],
+     [
+      17,
+      28
+     ],
+     [
+      17,
+      29
+     ],
+     [
+      17,
+      30
+     ],
+     [
+      17,
+      31
+     ],
+     [
+      17,
+      32
+     ],
+     [
+      17,
+      33
+     ],
+     [
+      17,
+      34
+     ],
+     [
+      17,
+      35
+     ],
+     [
+      18,
+      0
+     ],
+     [
+      18,
+      1
+     ],
+     [
+      18,
+      2
+     ],
+     [
+      18,
+      3
+     ],
+     [
+      18,
+      4
+     ],
+     [
+      18,
+      5
+     ],
+     [
+      18,
+      6
+     ],
+     [
+      18,
+      7
+     ],
+     [
+      18,
+      8
+     ],
+     [
+      18,
+      9
+     ],
+     [
+      18,
+      10
+     ],
+     [
+      18,
+      11
+     ],
+     [
+      18,
+      12
+     ],
+     [
+      18,
+      13
+     ],
+     [
+      18,
+      14
+     ],
+     [
+      18,
+      15
+     ],
+     [
+      18,
+      16
+     ],
+     [
+      18,
+      17
+     ],
+     [
+      18,
+      18
+     ],
+     [
+      18,
+      19
+     ],
+     [
+      18,
+      20
+     ],
+     [
+      18,
+      21
+     ],
+     [
+      18,
+      22
+     ],
+     [
+      18,
+      23
+     ],
+     [
+      18,
+      24
+     ],
+     [
+      18,
+      25
+     ],
+     [
+      18,
+      26
+     ],
+     [
+      18,
+      27
+     ],
+     [
+      18,
+      28
+     ],
+     [
+      18,
+      29
+     ],
+     [
+      18,
+      30
+     ],
+     [
+      18,
+      31
+     ],
+     [
+      18,
+      32
+     ],
+     [
+      18,
+      33
+     ],
+     [
+      18,
+      34
+     ],
+     [
+      18,
+      35
+     ],
+     [
+      19,
+      0
+     ],
+     [
+      19,
+      1
+     ],
+     [
+      19,
+      2
+     ],
+     [
+      19,
+      3
+     ],
+     [
+      19,
+      4
+     ],
+     [
+      19,
+      5
+     ],
+     [
+      19,
+      6
+     ],
+     [
+      19,
+      7
+     ],
+     [
+      19,
+      8
+     ],
+     [
+      19,
+      9
+     ],
+     [
+      19,
+      10
+     ],
+     [
+      19,
+      11
+     ],
+     [
+      19,
+      12
+     ],
+     [
+      19,
+      13
+     ],
+     [
+      19,
+      14
+     ],
+     [
+      19,
+      15
+     ],
+     [
+      19,
+      16
+     ],
+     [
+      19,
+      17
+     ],
+     [
+      19,
+      18
+     ],
+     [
+      19,
+      19
+     ],
+     [
+      19,
+      20
+     ],
+     [
+      19,
+      21
+     ],
+     [
+      19,
+      22
+     ],
+     [
+      19,
+      23
+     ],
+     [
+      19,
+      24
+     ],
+     [
+      19,
+      25
+     ],
+     [
+      19,
+      26
+     ],
+     [
+      19,
+      27
+     ],
+     [
+      19,
+      28
+     ],
+     [
+      19,
+      29
+     ],
+     [
+      19,
+      30
+     ],
+     [
+      19,
+      31
+     ],
+     [
+      19,
+      32
+     ],
+     [
+      19,
+      33
+     ],
+     [
+      19,
+      34
+     ],
+     [
+      19,
+      35
+     ]
+    ],
+    "palette": {
+     "prop_traffic_cone": [
+      1,
+      1
+     ],
+     "furn_bookcase": [
+      5,
+      2
+     ],
+     "prop_wall_board": [
+      4,
+      1
+     ]
+    }
+   }
+  },
+  {
+   "id": "production",
+   "label": "Production",
+   "external": false,
+   "area": [
+    -11.0,
+    -8.5,
+    11.0,
+    3.0
+   ],
+   "block": "ligne",
+   "site_id": null,
+   "grid": {
+    "origin": [
+     -11.0,
+     -8.5
+    ],
+    "cell_m": 0.5,
+    "cols": 44,
+    "rows": 23,
+    "reserved": [
+     [
+      0,
+      5
+     ],
+     [
+      0,
+      6
+     ],
+     [
+      0,
+      7
+     ],
+     [
+      0,
+      8
+     ],
+     [
+      0,
+      9
+     ],
+     [
+      0,
+      14
+     ],
+     [
+      0,
+      15
+     ],
+     [
+      0,
+      16
+     ],
+     [
+      0,
+      17
+     ],
+     [
+      0,
+      18
+     ],
+     [
+      1,
+      5
+     ],
+     [
+      1,
+      6
+     ],
+     [
+      1,
+      7
+     ],
+     [
+      1,
+      8
+     ],
+     [
+      1,
+      9
+     ],
+     [
+      1,
+      14
+     ],
+     [
+      1,
+      15
+     ],
+     [
+      1,
+      16
+     ],
+     [
+      1,
+      17
+     ],
+     [
+      1,
+      18
+     ],
+     [
+      2,
+      5
+     ],
+     [
+      2,
+      6
+     ],
+     [
+      2,
+      7
+     ],
+     [
+      2,
+      8
+     ],
+     [
+      2,
+      9
+     ],
+     [
+      2,
+      14
+     ],
+     [
+      2,
+      15
+     ],
+     [
+      2,
+      16
+     ],
+     [
+      2,
+      17
+     ],
+     [
+      2,
+      18
+     ],
+     [
+      3,
+      5
+     ],
+     [
+      3,
+      6
+     ],
+     [
+      3,
+      7
+     ],
+     [
+      3,
+      8
+     ],
+     [
+      3,
+      9
+     ],
+     [
+      3,
+      14
+     ],
+     [
+      3,
+      15
+     ],
+     [
+      3,
+      16
+     ],
+     [
+      3,
+      17
+     ],
+     [
+      3,
+      18
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      4,
+      6
+     ],
+     [
+      4,
+      7
+     ],
+     [
+      4,
+      8
+     ],
+     [
+      4,
+      9
+     ],
+     [
+      4,
+      14
+     ],
+     [
+      4,
+      15
+     ],
+     [
+      4,
+      16
+     ],
+     [
+      4,
+      17
+     ],
+     [
+      4,
+      18
+     ],
+     [
+      5,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      5,
+      7
+     ],
+     [
+      5,
+      8
+     ],
+     [
+      5,
+      9
+     ],
+     [
+      5,
+      14
+     ],
+     [
+      5,
+      15
+     ],
+     [
+      5,
+      16
+     ],
+     [
+      5,
+      17
+     ],
+     [
+      5,
+      18
+     ],
+     [
+      6,
+      5
+     ],
+     [
+      6,
+      6
+     ],
+     [
+      6,
+      7
+     ],
+     [
+      6,
+      8
+     ],
+     [
+      6,
+      9
+     ],
+     [
+      6,
+      14
+     ],
+     [
+      6,
+      15
+     ],
+     [
+      6,
+      16
+     ],
+     [
+      6,
+      17
+     ],
+     [
+      6,
+      18
+     ],
+     [
+      7,
+      5
+     ],
+     [
+      7,
+      6
+     ],
+     [
+      7,
+      7
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      7,
+      9
+     ],
+     [
+      7,
+      14
+     ],
+     [
+      7,
+      15
+     ],
+     [
+      7,
+      16
+     ],
+     [
+      7,
+      17
+     ],
+     [
+      7,
+      18
+     ],
+     [
+      8,
+      5
+     ],
+     [
+      8,
+      6
+     ],
+     [
+      8,
+      7
+     ],
+     [
+      8,
+      8
+     ],
+     [
+      8,
+      9
+     ],
+     [
+      8,
+      14
+     ],
+     [
+      8,
+      15
+     ],
+     [
+      8,
+      16
+     ],
+     [
+      8,
+      17
+     ],
+     [
+      8,
+      18
+     ],
+     [
+      9,
+      5
+     ],
+     [
+      9,
+      6
+     ],
+     [
+      9,
+      7
+     ],
+     [
+      9,
+      8
+     ],
+     [
+      9,
+      9
+     ],
+     [
+      9,
+      14
+     ],
+     [
+      9,
+      15
+     ],
+     [
+      9,
+      16
+     ],
+     [
+      9,
+      17
+     ],
+     [
+      9,
+      18
+     ],
+     [
+      10,
+      5
+     ],
+     [
+      10,
+      6
+     ],
+     [
+      10,
+      7
+     ],
+     [
+      10,
+      8
+     ],
+     [
+      10,
+      9
+     ],
+     [
+      10,
+      14
+     ],
+     [
+      10,
+      15
+     ],
+     [
+      10,
+      16
+     ],
+     [
+      10,
+      17
+     ],
+     [
+      10,
+      18
+     ],
+     [
+      11,
+      5
+     ],
+     [
+      11,
+      6
+     ],
+     [
+      11,
+      7
+     ],
+     [
+      11,
+      8
+     ],
+     [
+      11,
+      9
+     ],
+     [
+      11,
+      14
+     ],
+     [
+      11,
+      15
+     ],
+     [
+      11,
+      16
+     ],
+     [
+      11,
+      17
+     ],
+     [
+      11,
+      18
+     ],
+     [
+      12,
+      5
+     ],
+     [
+      12,
+      6
+     ],
+     [
+      12,
+      7
+     ],
+     [
+      12,
+      8
+     ],
+     [
+      12,
+      9
+     ],
+     [
+      12,
+      14
+     ],
+     [
+      12,
+      15
+     ],
+     [
+      12,
+      16
+     ],
+     [
+      12,
+      17
+     ],
+     [
+      12,
+      18
+     ],
+     [
+      13,
+      5
+     ],
+     [
+      13,
+      6
+     ],
+     [
+      13,
+      7
+     ],
+     [
+      13,
+      8
+     ],
+     [
+      13,
+      9
+     ],
+     [
+      13,
+      14
+     ],
+     [
+      13,
+      15
+     ],
+     [
+      13,
+      16
+     ],
+     [
+      13,
+      17
+     ],
+     [
+      13,
+      18
+     ],
+     [
+      14,
+      5
+     ],
+     [
+      14,
+      6
+     ],
+     [
+      14,
+      7
+     ],
+     [
+      14,
+      8
+     ],
+     [
+      14,
+      9
+     ],
+     [
+      14,
+      14
+     ],
+     [
+      14,
+      15
+     ],
+     [
+      14,
+      16
+     ],
+     [
+      14,
+      17
+     ],
+     [
+      14,
+      18
+     ],
+     [
+      15,
+      5
+     ],
+     [
+      15,
+      6
+     ],
+     [
+      15,
+      7
+     ],
+     [
+      15,
+      8
+     ],
+     [
+      15,
+      9
+     ],
+     [
+      15,
+      14
+     ],
+     [
+      15,
+      15
+     ],
+     [
+      15,
+      16
+     ],
+     [
+      15,
+      17
+     ],
+     [
+      15,
+      18
+     ],
+     [
+      16,
+      5
+     ],
+     [
+      16,
+      6
+     ],
+     [
+      16,
+      7
+     ],
+     [
+      16,
+      8
+     ],
+     [
+      16,
+      9
+     ],
+     [
+      16,
+      14
+     ],
+     [
+      16,
+      15
+     ],
+     [
+      16,
+      16
+     ],
+     [
+      16,
+      17
+     ],
+     [
+      16,
+      18
+     ],
+     [
+      17,
+      5
+     ],
+     [
+      17,
+      6
+     ],
+     [
+      17,
+      7
+     ],
+     [
+      17,
+      8
+     ],
+     [
+      17,
+      9
+     ],
+     [
+      17,
+      14
+     ],
+     [
+      17,
+      15
+     ],
+     [
+      17,
+      16
+     ],
+     [
+      17,
+      17
+     ],
+     [
+      17,
+      18
+     ],
+     [
+      18,
+      5
+     ],
+     [
+      18,
+      6
+     ],
+     [
+      18,
+      7
+     ],
+     [
+      18,
+      8
+     ],
+     [
+      18,
+      9
+     ],
+     [
+      18,
+      14
+     ],
+     [
+      18,
+      15
+     ],
+     [
+      18,
+      16
+     ],
+     [
+      18,
+      17
+     ],
+     [
+      18,
+      18
+     ],
+     [
+      19,
+      5
+     ],
+     [
+      19,
+      6
+     ],
+     [
+      19,
+      7
+     ],
+     [
+      19,
+      8
+     ],
+     [
+      19,
+      9
+     ],
+     [
+      19,
+      14
+     ],
+     [
+      19,
+      15
+     ],
+     [
+      19,
+      16
+     ],
+     [
+      19,
+      17
+     ],
+     [
+      19,
+      18
+     ],
+     [
+      20,
+      5
+     ],
+     [
+      20,
+      6
+     ],
+     [
+      20,
+      7
+     ],
+     [
+      20,
+      8
+     ],
+     [
+      20,
+      9
+     ],
+     [
+      20,
+      14
+     ],
+     [
+      20,
+      15
+     ],
+     [
+      20,
+      16
+     ],
+     [
+      20,
+      17
+     ],
+     [
+      20,
+      18
+     ],
+     [
+      21,
+      5
+     ],
+     [
+      21,
+      6
+     ],
+     [
+      21,
+      7
+     ],
+     [
+      21,
+      8
+     ],
+     [
+      21,
+      9
+     ],
+     [
+      21,
+      14
+     ],
+     [
+      21,
+      15
+     ],
+     [
+      21,
+      16
+     ],
+     [
+      21,
+      17
+     ],
+     [
+      21,
+      18
+     ],
+     [
+      22,
+      5
+     ],
+     [
+      22,
+      6
+     ],
+     [
+      22,
+      7
+     ],
+     [
+      22,
+      8
+     ],
+     [
+      22,
+      9
+     ],
+     [
+      22,
+      14
+     ],
+     [
+      22,
+      15
+     ],
+     [
+      22,
+      16
+     ],
+     [
+      22,
+      17
+     ],
+     [
+      22,
+      18
+     ],
+     [
+      23,
+      5
+     ],
+     [
+      23,
+      6
+     ],
+     [
+      23,
+      7
+     ],
+     [
+      23,
+      8
+     ],
+     [
+      23,
+      9
+     ],
+     [
+      23,
+      14
+     ],
+     [
+      23,
+      15
+     ],
+     [
+      23,
+      16
+     ],
+     [
+      23,
+      17
+     ],
+     [
+      23,
+      18
+     ],
+     [
+      24,
+      5
+     ],
+     [
+      24,
+      6
+     ],
+     [
+      24,
+      7
+     ],
+     [
+      24,
+      8
+     ],
+     [
+      24,
+      9
+     ],
+     [
+      24,
+      14
+     ],
+     [
+      24,
+      15
+     ],
+     [
+      24,
+      16
+     ],
+     [
+      24,
+      17
+     ],
+     [
+      24,
+      18
+     ],
+     [
+      25,
+      5
+     ],
+     [
+      25,
+      6
+     ],
+     [
+      25,
+      7
+     ],
+     [
+      25,
+      8
+     ],
+     [
+      25,
+      9
+     ],
+     [
+      25,
+      14
+     ],
+     [
+      25,
+      15
+     ],
+     [
+      25,
+      16
+     ],
+     [
+      25,
+      17
+     ],
+     [
+      25,
+      18
+     ],
+     [
+      26,
+      5
+     ],
+     [
+      26,
+      6
+     ],
+     [
+      26,
+      7
+     ],
+     [
+      26,
+      8
+     ],
+     [
+      26,
+      9
+     ],
+     [
+      26,
+      14
+     ],
+     [
+      26,
+      15
+     ],
+     [
+      26,
+      16
+     ],
+     [
+      26,
+      17
+     ],
+     [
+      26,
+      18
+     ],
+     [
+      27,
+      5
+     ],
+     [
+      27,
+      6
+     ],
+     [
+      27,
+      7
+     ],
+     [
+      27,
+      8
+     ],
+     [
+      27,
+      9
+     ],
+     [
+      27,
+      14
+     ],
+     [
+      27,
+      15
+     ],
+     [
+      27,
+      16
+     ],
+     [
+      27,
+      17
+     ],
+     [
+      27,
+      18
+     ],
+     [
+      28,
+      5
+     ],
+     [
+      28,
+      6
+     ],
+     [
+      28,
+      7
+     ],
+     [
+      28,
+      8
+     ],
+     [
+      28,
+      9
+     ],
+     [
+      28,
+      14
+     ],
+     [
+      28,
+      15
+     ],
+     [
+      28,
+      16
+     ],
+     [
+      28,
+      17
+     ],
+     [
+      28,
+      18
+     ],
+     [
+      29,
+      5
+     ],
+     [
+      29,
+      6
+     ],
+     [
+      29,
+      7
+     ],
+     [
+      29,
+      8
+     ],
+     [
+      29,
+      9
+     ],
+     [
+      29,
+      14
+     ],
+     [
+      29,
+      15
+     ],
+     [
+      29,
+      16
+     ],
+     [
+      29,
+      17
+     ],
+     [
+      29,
+      18
+     ],
+     [
+      30,
+      5
+     ],
+     [
+      30,
+      6
+     ],
+     [
+      30,
+      7
+     ],
+     [
+      30,
+      8
+     ],
+     [
+      30,
+      9
+     ],
+     [
+      30,
+      14
+     ],
+     [
+      30,
+      15
+     ],
+     [
+      30,
+      16
+     ],
+     [
+      30,
+      17
+     ],
+     [
+      30,
+      18
+     ],
+     [
+      31,
+      5
+     ],
+     [
+      31,
+      6
+     ],
+     [
+      31,
+      7
+     ],
+     [
+      31,
+      8
+     ],
+     [
+      31,
+      9
+     ],
+     [
+      31,
+      14
+     ],
+     [
+      31,
+      15
+     ],
+     [
+      31,
+      16
+     ],
+     [
+      31,
+      17
+     ],
+     [
+      31,
+      18
+     ],
+     [
+      32,
+      5
+     ],
+     [
+      32,
+      6
+     ],
+     [
+      32,
+      7
+     ],
+     [
+      32,
+      8
+     ],
+     [
+      32,
+      9
+     ],
+     [
+      32,
+      14
+     ],
+     [
+      32,
+      15
+     ],
+     [
+      32,
+      16
+     ],
+     [
+      32,
+      17
+     ],
+     [
+      32,
+      18
+     ],
+     [
+      33,
+      5
+     ],
+     [
+      33,
+      6
+     ],
+     [
+      33,
+      7
+     ],
+     [
+      33,
+      8
+     ],
+     [
+      33,
+      9
+     ],
+     [
+      33,
+      14
+     ],
+     [
+      33,
+      15
+     ],
+     [
+      33,
+      16
+     ],
+     [
+      33,
+      17
+     ],
+     [
+      33,
+      18
+     ],
+     [
+      34,
+      5
+     ],
+     [
+      34,
+      6
+     ],
+     [
+      34,
+      7
+     ],
+     [
+      34,
+      8
+     ],
+     [
+      34,
+      9
+     ],
+     [
+      34,
+      14
+     ],
+     [
+      34,
+      15
+     ],
+     [
+      34,
+      16
+     ],
+     [
+      34,
+      17
+     ],
+     [
+      34,
+      18
+     ],
+     [
+      35,
+      5
+     ],
+     [
+      35,
+      6
+     ],
+     [
+      35,
+      7
+     ],
+     [
+      35,
+      8
+     ],
+     [
+      35,
+      9
+     ],
+     [
+      35,
+      14
+     ],
+     [
+      35,
+      15
+     ],
+     [
+      35,
+      16
+     ],
+     [
+      35,
+      17
+     ],
+     [
+      35,
+      18
+     ],
+     [
+      36,
+      5
+     ],
+     [
+      36,
+      6
+     ],
+     [
+      36,
+      7
+     ],
+     [
+      36,
+      8
+     ],
+     [
+      36,
+      9
+     ],
+     [
+      36,
+      14
+     ],
+     [
+      36,
+      15
+     ],
+     [
+      36,
+      16
+     ],
+     [
+      36,
+      17
+     ],
+     [
+      36,
+      18
+     ],
+     [
+      37,
+      5
+     ],
+     [
+      37,
+      6
+     ],
+     [
+      37,
+      7
+     ],
+     [
+      37,
+      8
+     ],
+     [
+      37,
+      9
+     ],
+     [
+      37,
+      14
+     ],
+     [
+      37,
+      15
+     ],
+     [
+      37,
+      16
+     ],
+     [
+      37,
+      17
+     ],
+     [
+      37,
+      18
+     ],
+     [
+      38,
+      5
+     ],
+     [
+      38,
+      6
+     ],
+     [
+      38,
+      7
+     ],
+     [
+      38,
+      8
+     ],
+     [
+      38,
+      9
+     ],
+     [
+      38,
+      14
+     ],
+     [
+      38,
+      15
+     ],
+     [
+      38,
+      16
+     ],
+     [
+      38,
+      17
+     ],
+     [
+      38,
+      18
+     ],
+     [
+      39,
+      5
+     ],
+     [
+      39,
+      6
+     ],
+     [
+      39,
+      7
+     ],
+     [
+      39,
+      8
+     ],
+     [
+      39,
+      9
+     ],
+     [
+      39,
+      14
+     ],
+     [
+      39,
+      15
+     ],
+     [
+      39,
+      16
+     ],
+     [
+      39,
+      17
+     ],
+     [
+      39,
+      18
+     ],
+     [
+      40,
+      5
+     ],
+     [
+      40,
+      6
+     ],
+     [
+      40,
+      7
+     ],
+     [
+      40,
+      8
+     ],
+     [
+      40,
+      9
+     ],
+     [
+      40,
+      14
+     ],
+     [
+      40,
+      15
+     ],
+     [
+      40,
+      16
+     ],
+     [
+      40,
+      17
+     ],
+     [
+      40,
+      18
+     ],
+     [
+      41,
+      5
+     ],
+     [
+      41,
+      6
+     ],
+     [
+      41,
+      7
+     ],
+     [
+      41,
+      8
+     ],
+     [
+      41,
+      9
+     ],
+     [
+      41,
+      14
+     ],
+     [
+      41,
+      15
+     ],
+     [
+      41,
+      16
+     ],
+     [
+      41,
+      17
+     ],
+     [
+      41,
+      18
+     ],
+     [
+      42,
+      5
+     ],
+     [
+      42,
+      6
+     ],
+     [
+      42,
+      7
+     ],
+     [
+      42,
+      8
+     ],
+     [
+      42,
+      9
+     ],
+     [
+      42,
+      14
+     ],
+     [
+      42,
+      15
+     ],
+     [
+      42,
+      16
+     ],
+     [
+      42,
+      17
+     ],
+     [
+      42,
+      18
+     ],
+     [
+      43,
+      5
+     ],
+     [
+      43,
+      6
+     ],
+     [
+      43,
+      7
+     ],
+     [
+      43,
+      8
+     ],
+     [
+      43,
+      9
+     ],
+     [
+      43,
+      14
+     ],
+     [
+      43,
+      15
+     ],
+     [
+      43,
+      16
+     ],
+     [
+      43,
+      17
+     ],
+     [
+      43,
+      18
+     ]
+    ],
+    "palette": {
+     "prop_traffic_cone": [
+      1,
+      1
+     ],
+     "prop_wall_board": [
+      4,
+      1
+     ],
+     "furn_bookcase": [
+      5,
+      2
+     ]
+    }
+   }
+  },
+  {
+   "id": "qualite",
+   "label": "Contrôle qualité",
+   "external": false,
+   "area": [
+    14.0,
+    -15.0,
+    24.0,
+    -4.5
+   ],
+   "block": "bord",
+   "site_id": null,
+   "grid": {
+    "origin": [
+     14.0,
+     -15.0
+    ],
+    "cell_m": 0.5,
+    "cols": 20,
+    "rows": 21,
+    "reserved": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      0,
+      2
+     ],
+     [
+      0,
+      3
+     ],
+     [
+      0,
+      4
+     ],
+     [
+      0,
+      5
+     ],
+     [
+      0,
+      6
+     ],
+     [
+      0,
+      7
+     ],
+     [
+      0,
+      8
+     ],
+     [
+      0,
+      9
+     ],
+     [
+      0,
+      10
+     ],
+     [
+      0,
+      11
+     ],
+     [
+      0,
+      12
+     ],
+     [
+      0,
+      13
+     ],
+     [
+      0,
+      14
+     ],
+     [
+      0,
+      15
+     ],
+     [
+      0,
+      16
+     ],
+     [
+      0,
+      17
+     ],
+     [
+      0,
+      18
+     ],
+     [
+      0,
+      19
+     ],
+     [
+      0,
+      20
+     ],
+     [
+      1,
+      0
+     ],
+     [
+      1,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      1,
+      3
+     ],
+     [
+      1,
+      4
+     ],
+     [
+      1,
+      5
+     ],
+     [
+      1,
+      6
+     ],
+     [
+      1,
+      7
+     ],
+     [
+      1,
+      8
+     ],
+     [
+      1,
+      9
+     ],
+     [
+      1,
+      10
+     ],
+     [
+      1,
+      11
+     ],
+     [
+      1,
+      12
+     ],
+     [
+      1,
+      13
+     ],
+     [
+      1,
+      14
+     ],
+     [
+      1,
+      15
+     ],
+     [
+      1,
+      16
+     ],
+     [
+      1,
+      17
+     ],
+     [
+      1,
+      18
+     ],
+     [
+      1,
+      19
+     ],
+     [
+      1,
+      20
+     ],
+     [
+      2,
+      0
+     ],
+     [
+      2,
+      1
+     ],
+     [
+      2,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      2,
+      4
+     ],
+     [
+      2,
+      5
+     ],
+     [
+      2,
+      6
+     ],
+     [
+      2,
+      7
+     ],
+     [
+      2,
+      8
+     ],
+     [
+      2,
+      9
+     ],
+     [
+      2,
+      10
+     ],
+     [
+      2,
+      11
+     ],
+     [
+      2,
+      12
+     ],
+     [
+      2,
+      13
+     ],
+     [
+      2,
+      14
+     ],
+     [
+      2,
+      15
+     ],
+     [
+      2,
+      16
+     ],
+     [
+      2,
+      17
+     ],
+     [
+      2,
+      18
+     ],
+     [
+      2,
+      19
+     ],
+     [
+      2,
+      20
+     ],
+     [
+      3,
+      0
+     ],
+     [
+      3,
+      1
+     ],
+     [
+      3,
+      2
+     ],
+     [
+      3,
+      3
+     ],
+     [
+      3,
+      4
+     ],
+     [
+      3,
+      5
+     ],
+     [
+      3,
+      6
+     ],
+     [
+      3,
+      7
+     ],
+     [
+      3,
+      8
+     ],
+     [
+      3,
+      9
+     ],
+     [
+      3,
+      10
+     ],
+     [
+      3,
+      11
+     ],
+     [
+      3,
+      12
+     ],
+     [
+      3,
+      13
+     ],
+     [
+      3,
+      14
+     ],
+     [
+      3,
+      15
+     ],
+     [
+      3,
+      16
+     ],
+     [
+      3,
+      17
+     ],
+     [
+      3,
+      18
+     ],
+     [
+      3,
+      19
+     ],
+     [
+      3,
+      20
+     ],
+     [
+      4,
+      0
+     ],
+     [
+      4,
+      1
+     ],
+     [
+      4,
+      2
+     ],
+     [
+      4,
+      3
+     ],
+     [
+      4,
+      4
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      4,
+      6
+     ],
+     [
+      4,
+      7
+     ],
+     [
+      4,
+      8
+     ],
+     [
+      4,
+      9
+     ],
+     [
+      4,
+      10
+     ],
+     [
+      4,
+      11
+     ],
+     [
+      4,
+      12
+     ],
+     [
+      4,
+      13
+     ],
+     [
+      4,
+      14
+     ],
+     [
+      4,
+      15
+     ],
+     [
+      4,
+      16
+     ],
+     [
+      4,
+      17
+     ],
+     [
+      4,
+      18
+     ],
+     [
+      4,
+      19
+     ],
+     [
+      4,
+      20
+     ],
+     [
+      10,
+      2
+     ]
+    ],
+    "palette": {
+     "furn_plant": [
+      1,
+      1
+     ],
+     "furn_bookcase": [
+      5,
+      2
+     ],
+     "furn_chair": [
+      1,
+      1
+     ],
+     "furn_office_chair": [
+      2,
+      2
+     ],
+     "furn_table": [
+      5,
+      3
+     ],
+     "prop_box_small": [
+      1,
+      1
+     ],
+     "prop_wall_board": [
+      4,
+      1
+     ]
+    }
+   }
+  },
+  {
+   "id": "emballage",
+   "label": "Emballage",
+   "external": false,
+   "area": [
+    14.0,
+    -2.0,
+    24.0,
+    3.0
+   ],
+   "block": "bord",
+   "site_id": null,
+   "grid": {
+    "origin": [
+     14.0,
+     -2.0
+    ],
+    "cell_m": 0.5,
+    "cols": 20,
+    "rows": 10,
+    "reserved": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      0,
+      2
+     ],
+     [
+      0,
+      3
+     ],
+     [
+      0,
+      4
+     ],
+     [
+      0,
+      5
+     ],
+     [
+      0,
+      6
+     ],
+     [
+      0,
+      7
+     ],
+     [
+      0,
+      8
+     ],
+     [
+      0,
+      9
+     ],
+     [
+      1,
+      0
+     ],
+     [
+      1,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      1,
+      3
+     ],
+     [
+      1,
+      4
+     ],
+     [
+      1,
+      5
+     ],
+     [
+      1,
+      6
+     ],
+     [
+      1,
+      7
+     ],
+     [
+      1,
+      8
+     ],
+     [
+      1,
+      9
+     ],
+     [
+      2,
+      0
+     ],
+     [
+      2,
+      1
+     ],
+     [
+      2,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      2,
+      4
+     ],
+     [
+      2,
+      5
+     ],
+     [
+      2,
+      6
+     ],
+     [
+      2,
+      7
+     ],
+     [
+      2,
+      8
+     ],
+     [
+      2,
+      9
+     ],
+     [
+      3,
+      0
+     ],
+     [
+      3,
+      1
+     ],
+     [
+      3,
+      2
+     ],
+     [
+      3,
+      3
+     ],
+     [
+      3,
+      4
+     ],
+     [
+      3,
+      5
+     ],
+     [
+      3,
+      6
+     ],
+     [
+      3,
+      7
+     ],
+     [
+      3,
+      8
+     ],
+     [
+      3,
+      9
+     ],
+     [
+      4,
+      0
+     ],
+     [
+      4,
+      1
+     ],
+     [
+      4,
+      2
+     ],
+     [
+      4,
+      3
+     ],
+     [
+      4,
+      4
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      4,
+      6
+     ],
+     [
+      4,
+      7
+     ],
+     [
+      4,
+      8
+     ],
+     [
+      4,
+      9
+     ],
+     [
+      14,
+      7
+     ]
+    ],
+    "palette": {
+     "furn_plant": [
+      1,
+      1
+     ],
+     "furn_bookcase": [
+      5,
+      2
+     ],
+     "furn_chair": [
+      1,
+      1
+     ],
+     "furn_office_chair": [
+      2,
+      2
+     ],
+     "furn_table": [
+      5,
+      3
+     ],
+     "prop_box_small": [
+      1,
+      1
+     ],
+     "prop_wall_board": [
+      4,
+      1
+     ]
+    }
+   }
+  },
+  {
+   "id": "maintenance",
+   "label": "Maintenance et pièces de rechange",
+   "external": false,
+   "area": [
+    -11.0,
+    -15.0,
+    -1.0,
+    -11.5
+   ],
+   "block": "bord",
+   "site_id": null,
+   "grid": {
+    "origin": [
+     -11.0,
+     -15.0
+    ],
+    "cell_m": 0.5,
+    "cols": 20,
+    "rows": 7,
+    "reserved": [
+     [
+      0,
+      2
+     ],
+     [
+      0,
+      3
+     ],
+     [
+      0,
+      4
+     ],
+     [
+      0,
+      5
+     ],
+     [
+      0,
+      6
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      1,
+      3
+     ],
+     [
+      1,
+      4
+     ],
+     [
+      1,
+      5
+     ],
+     [
+      1,
+      6
+     ],
+     [
+      2,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      2,
+      4
+     ],
+     [
+      2,
+      5
+     ],
+     [
+      2,
+      6
+     ],
+     [
+      3,
+      2
+     ],
+     [
+      3,
+      3
+     ],
+     [
+      3,
+      4
+     ],
+     [
+      3,
+      5
+     ],
+     [
+      3,
+      6
+     ],
+     [
+      4,
+      2
+     ],
+     [
+      4,
+      3
+     ],
+     [
+      4,
+      4
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      4,
+      6
+     ],
+     [
+      5,
+      2
+     ],
+     [
+      5,
+      3
+     ],
+     [
+      5,
+      4
+     ],
+     [
+      5,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      6,
+      2
+     ],
+     [
+      6,
+      3
+     ],
+     [
+      6,
+      4
+     ],
+     [
+      6,
+      5
+     ],
+     [
+      6,
+      6
+     ],
+     [
+      7,
+      2
+     ],
+     [
+      7,
+      3
+     ],
+     [
+      7,
+      4
+     ],
+     [
+      7,
+      5
+     ],
+     [
+      7,
+      6
+     ],
+     [
+      8,
+      2
+     ],
+     [
+      8,
+      3
+     ],
+     [
+      8,
+      4
+     ],
+     [
+      8,
+      5
+     ],
+     [
+      8,
+      6
+     ],
+     [
+      9,
+      2
+     ],
+     [
+      9,
+      3
+     ],
+     [
+      9,
+      4
+     ],
+     [
+      9,
+      5
+     ],
+     [
+      9,
+      6
+     ],
+     [
+      10,
+      2
+     ],
+     [
+      10,
+      3
+     ],
+     [
+      10,
+      4
+     ],
+     [
+      10,
+      5
+     ],
+     [
+      10,
+      6
+     ],
+     [
+      11,
+      2
+     ],
+     [
+      11,
+      3
+     ],
+     [
+      11,
+      4
+     ],
+     [
+      11,
+      5
+     ],
+     [
+      11,
+      6
+     ],
+     [
+      12,
+      2
+     ],
+     [
+      12,
+      3
+     ],
+     [
+      12,
+      4
+     ],
+     [
+      12,
+      5
+     ],
+     [
+      12,
+      6
+     ],
+     [
+      13,
+      2
+     ],
+     [
+      13,
+      3
+     ],
+     [
+      13,
+      4
+     ],
+     [
+      13,
+      5
+     ],
+     [
+      13,
+      6
+     ],
+     [
+      14,
+      2
+     ],
+     [
+      14,
+      3
+     ],
+     [
+      14,
+      4
+     ],
+     [
+      14,
+      5
+     ],
+     [
+      14,
+      6
+     ],
+     [
+      15,
+      2
+     ],
+     [
+      15,
+      3
+     ],
+     [
+      15,
+      4
+     ],
+     [
+      15,
+      5
+     ],
+     [
+      15,
+      6
+     ],
+     [
+      16,
+      2
+     ],
+     [
+      16,
+      3
+     ],
+     [
+      16,
+      4
+     ],
+     [
+      16,
+      5
+     ],
+     [
+      16,
+      6
+     ],
+     [
+      17,
+      2
+     ],
+     [
+      17,
+      3
+     ],
+     [
+      17,
+      4
+     ],
+     [
+      17,
+      5
+     ],
+     [
+      17,
+      6
+     ],
+     [
+      18,
+      2
+     ],
+     [
+      18,
+      3
+     ],
+     [
+      18,
+      4
+     ],
+     [
+      18,
+      5
+     ],
+     [
+      18,
+      6
+     ],
+     [
+      19,
+      2
+     ],
+     [
+      19,
+      3
+     ],
+     [
+      19,
+      4
+     ],
+     [
+      19,
+      5
+     ],
+     [
+      19,
+      6
+     ]
+    ],
+    "palette": {
+     "furn_plant": [
+      1,
+      1
+     ],
+     "furn_bookcase": [
+      5,
+      2
+     ],
+     "furn_chair": [
+      1,
+      1
+     ],
+     "furn_office_chair": [
+      2,
+      2
+     ],
+     "furn_table": [
+      5,
+      3
+     ],
+     "prop_box_small": [
+      1,
+      1
+     ],
+     "prop_wall_board": [
+      4,
+      1
+     ]
+    }
+   }
+  },
+  {
+   "id": "pilotage",
+   "label": "Pilotage",
+   "external": false,
+   "area": [
+    1.5,
+    -15.0,
+    11.0,
+    -11.0
+   ],
+   "block": "bord",
+   "site_id": null,
+   "grid": {
+    "origin": [
+     1.5,
+     -15.0
+    ],
+    "cell_m": 0.5,
+    "cols": 19,
+    "rows": 8,
+    "reserved": [
+     [
+      0,
+      3
+     ],
+     [
+      0,
+      4
+     ],
+     [
+      0,
+      5
+     ],
+     [
+      0,
+      6
+     ],
+     [
+      0,
+      7
+     ],
+     [
+      1,
+      3
+     ],
+     [
+      1,
+      4
+     ],
+     [
+      1,
+      5
+     ],
+     [
+      1,
+      6
+     ],
+     [
+      1,
+      7
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      2,
+      4
+     ],
+     [
+      2,
+      5
+     ],
+     [
+      2,
+      6
+     ],
+     [
+      2,
+      7
+     ],
+     [
+      3,
+      3
+     ],
+     [
+      3,
+      4
+     ],
+     [
+      3,
+      5
+     ],
+     [
+      3,
+      6
+     ],
+     [
+      3,
+      7
+     ],
+     [
+      4,
+      3
+     ],
+     [
+      4,
+      4
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      4,
+      6
+     ],
+     [
+      4,
+      7
+     ],
+     [
+      5,
+      3
+     ],
+     [
+      5,
+      4
+     ],
+     [
+      5,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      5,
+      7
+     ],
+     [
+      6,
+      3
+     ],
+     [
+      6,
+      4
+     ],
+     [
+      6,
+      5
+     ],
+     [
+      6,
+      6
+     ],
+     [
+      6,
+      7
+     ],
+     [
+      7,
+      3
+     ],
+     [
+      7,
+      4
+     ],
+     [
+      7,
+      5
+     ],
+     [
+      7,
+      6
+     ],
+     [
+      7,
+      7
+     ],
+     [
+      8,
+      3
+     ],
+     [
+      8,
+      4
+     ],
+     [
+      8,
+      5
+     ],
+     [
+      8,
+      6
+     ],
+     [
+      8,
+      7
+     ],
+     [
+      9,
+      3
+     ],
+     [
+      9,
+      4
+     ],
+     [
+      9,
+      5
+     ],
+     [
+      9,
+      6
+     ],
+     [
+      9,
+      7
+     ],
+     [
+      10,
+      3
+     ],
+     [
+      10,
+      4
+     ],
+     [
+      10,
+      5
+     ],
+     [
+      10,
+      6
+     ],
+     [
+      10,
+      7
+     ],
+     [
+      11,
+      3
+     ],
+     [
+      11,
+      4
+     ],
+     [
+      11,
+      5
+     ],
+     [
+      11,
+      6
+     ],
+     [
+      11,
+      7
+     ],
+     [
+      12,
+      3
+     ],
+     [
+      12,
+      4
+     ],
+     [
+      12,
+      5
+     ],
+     [
+      12,
+      6
+     ],
+     [
+      12,
+      7
+     ],
+     [
+      13,
+      3
+     ],
+     [
+      13,
+      4
+     ],
+     [
+      13,
+      5
+     ],
+     [
+      13,
+      6
+     ],
+     [
+      13,
+      7
+     ],
+     [
+      14,
+      3
+     ],
+     [
+      14,
+      4
+     ],
+     [
+      14,
+      5
+     ],
+     [
+      14,
+      6
+     ],
+     [
+      14,
+      7
+     ],
+     [
+      15,
+      3
+     ],
+     [
+      15,
+      4
+     ],
+     [
+      15,
+      5
+     ],
+     [
+      15,
+      6
+     ],
+     [
+      15,
+      7
+     ],
+     [
+      16,
+      3
+     ],
+     [
+      16,
+      4
+     ],
+     [
+      16,
+      5
+     ],
+     [
+      16,
+      6
+     ],
+     [
+      16,
+      7
+     ],
+     [
+      17,
+      3
+     ],
+     [
+      17,
+      4
+     ],
+     [
+      17,
+      5
+     ],
+     [
+      17,
+      6
+     ],
+     [
+      17,
+      7
+     ],
+     [
+      18,
+      3
+     ],
+     [
+      18,
+      4
+     ],
+     [
+      18,
+      5
+     ],
+     [
+      18,
+      6
+     ],
+     [
+      18,
+      7
+     ]
+    ],
+    "palette": {
+     "furn_plant": [
+      1,
+      1
+     ],
+     "furn_bookcase": [
+      5,
+      2
+     ],
+     "furn_chair": [
+      1,
+      1
+     ],
+     "furn_office_chair": [
+      2,
+      2
+     ],
+     "furn_table": [
+      5,
+      3
+     ],
+     "prop_box_small": [
+      1,
+      1
+     ],
+     "prop_wall_board": [
+      4,
+      1
+     ]
+    }
+   }
+  },
+  {
+   "id": "quai",
+   "label": "Quai partagé (réception et expédition)",
+   "external": false,
+   "area": [
+    -6.0,
+    8.5,
+    6.0,
+    15.0
+   ],
+   "block": "bord",
+   "site_id": null,
+   "grid": {
+    "origin": [
+     -6.0,
+     8.5
+    ],
+    "cell_m": 0.5,
+    "cols": 24,
+    "rows": 13,
+    "reserved": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      0,
+      2
+     ],
+     [
+      0,
+      3
+     ],
+     [
+      0,
+      4
+     ],
+     [
+      1,
+      0
+     ],
+     [
+      1,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      1,
+      3
+     ],
+     [
+      1,
+      4
+     ],
+     [
+      2,
+      0
+     ],
+     [
+      2,
+      1
+     ],
+     [
+      2,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      2,
+      4
+     ],
+     [
+      3,
+      0
+     ],
+     [
+      3,
+      1
+     ],
+     [
+      3,
+      2
+     ],
+     [
+      3,
+      3
+     ],
+     [
+      3,
+      4
+     ],
+     [
+      4,
+      0
+     ],
+     [
+      4,
+      1
+     ],
+     [
+      4,
+      2
+     ],
+     [
+      4,
+      3
+     ],
+     [
+      4,
+      4
+     ],
+     [
+      5,
+      0
+     ],
+     [
+      5,
+      1
+     ],
+     [
+      5,
+      2
+     ],
+     [
+      5,
+      3
+     ],
+     [
+      5,
+      4
+     ],
+     [
+      6,
+      0
+     ],
+     [
+      6,
+      1
+     ],
+     [
+      6,
+      2
+     ],
+     [
+      6,
+      3
+     ],
+     [
+      6,
+      4
+     ],
+     [
+      7,
+      0
+     ],
+     [
+      7,
+      1
+     ],
+     [
+      7,
+      2
+     ],
+     [
+      7,
+      3
+     ],
+     [
+      7,
+      4
+     ],
+     [
+      8,
+      0
+     ],
+     [
+      8,
+      1
+     ],
+     [
+      8,
+      2
+     ],
+     [
+      8,
+      3
+     ],
+     [
+      8,
+      4
+     ],
+     [
+      9,
+      0
+     ],
+     [
+      9,
+      1
+     ],
+     [
+      9,
+      2
+     ],
+     [
+      9,
+      3
+     ],
+     [
+      9,
+      4
+     ],
+     [
+      10,
+      0
+     ],
+     [
+      10,
+      1
+     ],
+     [
+      10,
+      2
+     ],
+     [
+      10,
+      3
+     ],
+     [
+      10,
+      4
+     ],
+     [
+      11,
+      0
+     ],
+     [
+      11,
+      1
+     ],
+     [
+      11,
+      2
+     ],
+     [
+      11,
+      3
+     ],
+     [
+      11,
+      4
+     ],
+     [
+      12,
+      0
+     ],
+     [
+      12,
+      1
+     ],
+     [
+      12,
+      2
+     ],
+     [
+      12,
+      3
+     ],
+     [
+      12,
+      4
+     ],
+     [
+      13,
+      0
+     ],
+     [
+      13,
+      1
+     ],
+     [
+      13,
+      2
+     ],
+     [
+      13,
+      3
+     ],
+     [
+      13,
+      4
+     ],
+     [
+      14,
+      0
+     ],
+     [
+      14,
+      1
+     ],
+     [
+      14,
+      2
+     ],
+     [
+      14,
+      3
+     ],
+     [
+      14,
+      4
+     ],
+     [
+      15,
+      0
+     ],
+     [
+      15,
+      1
+     ],
+     [
+      15,
+      2
+     ],
+     [
+      15,
+      3
+     ],
+     [
+      15,
+      4
+     ],
+     [
+      16,
+      0
+     ],
+     [
+      16,
+      1
+     ],
+     [
+      16,
+      2
+     ],
+     [
+      16,
+      3
+     ],
+     [
+      16,
+      4
+     ],
+     [
+      17,
+      0
+     ],
+     [
+      17,
+      1
+     ],
+     [
+      17,
+      2
+     ],
+     [
+      17,
+      3
+     ],
+     [
+      17,
+      4
+     ],
+     [
+      18,
+      0
+     ],
+     [
+      18,
+      1
+     ],
+     [
+      18,
+      2
+     ],
+     [
+      18,
+      3
+     ],
+     [
+      18,
+      4
+     ],
+     [
+      19,
+      0
+     ],
+     [
+      19,
+      1
+     ],
+     [
+      19,
+      2
+     ],
+     [
+      19,
+      3
+     ],
+     [
+      19,
+      4
+     ],
+     [
+      20,
+      0
+     ],
+     [
+      20,
+      1
+     ],
+     [
+      20,
+      2
+     ],
+     [
+      20,
+      3
+     ],
+     [
+      20,
+      4
+     ],
+     [
+      21,
+      0
+     ],
+     [
+      21,
+      1
+     ],
+     [
+      21,
+      2
+     ],
+     [
+      21,
+      3
+     ],
+     [
+      21,
+      4
+     ],
+     [
+      22,
+      0
+     ],
+     [
+      22,
+      1
+     ],
+     [
+      22,
+      2
+     ],
+     [
+      22,
+      3
+     ],
+     [
+      22,
+      4
+     ],
+     [
+      23,
+      0
+     ],
+     [
+      23,
+      1
+     ],
+     [
+      23,
+      2
+     ],
+     [
+      23,
+      3
+     ],
+     [
+      23,
+      4
+     ]
+    ],
+    "palette": {
+     "furn_plant": [
+      1,
+      1
+     ],
+     "furn_bookcase": [
+      5,
+      2
+     ],
+     "furn_chair": [
+      1,
+      1
+     ],
+     "furn_office_chair": [
+      2,
+      2
+     ],
+     "furn_table": [
+      5,
+      3
+     ],
+     "prop_box_small": [
+      1,
+      1
+     ],
+     "prop_wall_board": [
+      4,
+      1
+     ]
+    }
+   }
+  },
+  {
+   "id": "entrepot_pf",
+   "label": "Entrepôt de produits finis",
+   "external": false,
+   "area": [
+    8.5,
+    5.5,
+    24.0,
+    15.0
+   ],
+   "block": "racks",
+   "site_id": null,
+   "grid": {
+    "origin": [
+     8.5,
+     5.5
+    ],
+    "cell_m": 0.5,
+    "cols": 31,
+    "rows": 19,
+    "reserved": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      0,
+      2
+     ],
+     [
+      0,
+      3
+     ],
+     [
+      0,
+      4
+     ],
+     [
+      0,
+      5
+     ],
+     [
+      0,
+      6
+     ],
+     [
+      0,
+      7
+     ],
+     [
+      0,
+      8
+     ],
+     [
+      0,
+      9
+     ],
+     [
+      0,
+      10
+     ],
+     [
+      0,
+      11
+     ],
+     [
+      0,
+      12
+     ],
+     [
+      0,
+      13
+     ],
+     [
+      0,
+      14
+     ],
+     [
+      0,
+      15
+     ],
+     [
+      0,
+      16
+     ],
+     [
+      0,
+      17
+     ],
+     [
+      0,
+      18
+     ],
+     [
+      1,
+      0
+     ],
+     [
+      1,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      1,
+      3
+     ],
+     [
+      1,
+      4
+     ],
+     [
+      1,
+      5
+     ],
+     [
+      1,
+      6
+     ],
+     [
+      1,
+      7
+     ],
+     [
+      1,
+      8
+     ],
+     [
+      1,
+      9
+     ],
+     [
+      1,
+      10
+     ],
+     [
+      1,
+      11
+     ],
+     [
+      1,
+      12
+     ],
+     [
+      1,
+      13
+     ],
+     [
+      1,
+      14
+     ],
+     [
+      1,
+      15
+     ],
+     [
+      1,
+      16
+     ],
+     [
+      1,
+      17
+     ],
+     [
+      1,
+      18
+     ],
+     [
+      2,
+      0
+     ],
+     [
+      2,
+      1
+     ],
+     [
+      2,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      2,
+      4
+     ],
+     [
+      2,
+      5
+     ],
+     [
+      2,
+      6
+     ],
+     [
+      2,
+      7
+     ],
+     [
+      2,
+      8
+     ],
+     [
+      2,
+      9
+     ],
+     [
+      2,
+      10
+     ],
+     [
+      2,
+      11
+     ],
+     [
+      2,
+      12
+     ],
+     [
+      2,
+      13
+     ],
+     [
+      2,
+      14
+     ],
+     [
+      2,
+      15
+     ],
+     [
+      2,
+      16
+     ],
+     [
+      2,
+      17
+     ],
+     [
+      2,
+      18
+     ],
+     [
+      3,
+      0
+     ],
+     [
+      3,
+      1
+     ],
+     [
+      3,
+      2
+     ],
+     [
+      3,
+      3
+     ],
+     [
+      3,
+      4
+     ],
+     [
+      3,
+      5
+     ],
+     [
+      3,
+      6
+     ],
+     [
+      3,
+      7
+     ],
+     [
+      3,
+      8
+     ],
+     [
+      3,
+      9
+     ],
+     [
+      3,
+      10
+     ],
+     [
+      3,
+      11
+     ],
+     [
+      3,
+      12
+     ],
+     [
+      3,
+      13
+     ],
+     [
+      3,
+      14
+     ],
+     [
+      3,
+      15
+     ],
+     [
+      3,
+      16
+     ],
+     [
+      3,
+      17
+     ],
+     [
+      3,
+      18
+     ],
+     [
+      4,
+      0
+     ],
+     [
+      4,
+      1
+     ],
+     [
+      4,
+      2
+     ],
+     [
+      4,
+      3
+     ],
+     [
+      4,
+      4
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      4,
+      6
+     ],
+     [
+      4,
+      7
+     ],
+     [
+      4,
+      8
+     ],
+     [
+      4,
+      9
+     ],
+     [
+      4,
+      10
+     ],
+     [
+      4,
+      11
+     ],
+     [
+      4,
+      12
+     ],
+     [
+      4,
+      13
+     ],
+     [
+      4,
+      14
+     ],
+     [
+      4,
+      15
+     ],
+     [
+      4,
+      16
+     ],
+     [
+      4,
+      17
+     ],
+     [
+      4,
+      18
+     ],
+     [
+      5,
+      3
+     ],
+     [
+      5,
+      4
+     ],
+     [
+      5,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      5,
+      7
+     ],
+     [
+      6,
+      3
+     ],
+     [
+      6,
+      4
+     ],
+     [
+      6,
+      5
+     ],
+     [
+      6,
+      6
+     ],
+     [
+      6,
+      7
+     ],
+     [
+      7,
+      3
+     ],
+     [
+      7,
+      4
+     ],
+     [
+      7,
+      5
+     ],
+     [
+      7,
+      6
+     ],
+     [
+      7,
+      7
+     ],
+     [
+      8,
+      3
+     ],
+     [
+      8,
+      4
+     ],
+     [
+      8,
+      5
+     ],
+     [
+      8,
+      6
+     ],
+     [
+      8,
+      7
+     ],
+     [
+      9,
+      3
+     ],
+     [
+      9,
+      4
+     ],
+     [
+      9,
+      5
+     ],
+     [
+      9,
+      6
+     ],
+     [
+      9,
+      7
+     ],
+     [
+      10,
+      3
+     ],
+     [
+      10,
+      4
+     ],
+     [
+      10,
+      5
+     ],
+     [
+      10,
+      6
+     ],
+     [
+      10,
+      7
+     ],
+     [
+      11,
+      3
+     ],
+     [
+      11,
+      4
+     ],
+     [
+      11,
+      5
+     ],
+     [
+      11,
+      6
+     ],
+     [
+      11,
+      7
+     ],
+     [
+      12,
+      3
+     ],
+     [
+      12,
+      4
+     ],
+     [
+      12,
+      5
+     ],
+     [
+      12,
+      6
+     ],
+     [
+      12,
+      7
+     ],
+     [
+      13,
+      3
+     ],
+     [
+      13,
+      4
+     ],
+     [
+      13,
+      5
+     ],
+     [
+      13,
+      6
+     ],
+     [
+      13,
+      7
+     ],
+     [
+      14,
+      3
+     ],
+     [
+      14,
+      4
+     ],
+     [
+      14,
+      5
+     ],
+     [
+      14,
+      6
+     ],
+     [
+      14,
+      7
+     ],
+     [
+      15,
+      3
+     ],
+     [
+      15,
+      4
+     ],
+     [
+      15,
+      5
+     ],
+     [
+      15,
+      6
+     ],
+     [
+      15,
+      7
+     ],
+     [
+      16,
+      3
+     ],
+     [
+      16,
+      4
+     ],
+     [
+      16,
+      5
+     ],
+     [
+      16,
+      6
+     ],
+     [
+      16,
+      7
+     ],
+     [
+      17,
+      3
+     ],
+     [
+      17,
+      4
+     ],
+     [
+      17,
+      5
+     ],
+     [
+      17,
+      6
+     ],
+     [
+      17,
+      7
+     ],
+     [
+      18,
+      3
+     ],
+     [
+      18,
+      4
+     ],
+     [
+      18,
+      5
+     ],
+     [
+      18,
+      6
+     ],
+     [
+      18,
+      7
+     ],
+     [
+      19,
+      3
+     ],
+     [
+      19,
+      4
+     ],
+     [
+      19,
+      5
+     ],
+     [
+      19,
+      6
+     ],
+     [
+      19,
+      7
+     ],
+     [
+      20,
+      3
+     ],
+     [
+      20,
+      4
+     ],
+     [
+      20,
+      5
+     ],
+     [
+      20,
+      6
+     ],
+     [
+      20,
+      7
+     ],
+     [
+      21,
+      3
+     ],
+     [
+      21,
+      4
+     ],
+     [
+      21,
+      5
+     ],
+     [
+      21,
+      6
+     ],
+     [
+      21,
+      7
+     ],
+     [
+      22,
+      3
+     ],
+     [
+      22,
+      4
+     ],
+     [
+      22,
+      5
+     ],
+     [
+      22,
+      6
+     ],
+     [
+      22,
+      7
+     ],
+     [
+      23,
+      3
+     ],
+     [
+      23,
+      4
+     ],
+     [
+      23,
+      5
+     ],
+     [
+      23,
+      6
+     ],
+     [
+      23,
+      7
+     ],
+     [
+      24,
+      3
+     ],
+     [
+      24,
+      4
+     ],
+     [
+      24,
+      5
+     ],
+     [
+      24,
+      6
+     ],
+     [
+      24,
+      7
+     ],
+     [
+      25,
+      3
+     ],
+     [
+      25,
+      4
+     ],
+     [
+      25,
+      5
+     ],
+     [
+      25,
+      6
+     ],
+     [
+      25,
+      7
+     ],
+     [
+      26,
+      3
+     ],
+     [
+      26,
+      4
+     ],
+     [
+      26,
+      5
+     ],
+     [
+      26,
+      6
+     ],
+     [
+      26,
+      7
+     ],
+     [
+      27,
+      3
+     ],
+     [
+      27,
+      4
+     ],
+     [
+      27,
+      5
+     ],
+     [
+      27,
+      6
+     ],
+     [
+      27,
+      7
+     ],
+     [
+      28,
+      3
+     ],
+     [
+      28,
+      4
+     ],
+     [
+      28,
+      5
+     ],
+     [
+      28,
+      6
+     ],
+     [
+      28,
+      7
+     ],
+     [
+      29,
+      3
+     ],
+     [
+      29,
+      4
+     ],
+     [
+      29,
+      5
+     ],
+     [
+      29,
+      6
+     ],
+     [
+      29,
+      7
+     ],
+     [
+      30,
+      3
+     ],
+     [
+      30,
+      4
+     ],
+     [
+      30,
+      5
+     ],
+     [
+      30,
+      6
+     ],
+     [
+      30,
+      7
+     ]
+    ],
+    "palette": {
+     "prop_traffic_cone": [
+      1,
+      1
+     ],
+     "furn_bookcase": [
+      5,
+      2
+     ],
+     "prop_wall_board": [
+      4,
+      1
+     ]
+    }
+   }
+  },
+  {
+   "id": "fournisseur_rapide",
+   "label": "Fournisseur rapide",
+   "external": true,
+   "area": [
+    -70.0,
+    25.0,
+    -10.0,
+    85.0
+   ],
+   "block": "site",
+   "site_id": "fournisseur_rapide",
+   "grid": {
+    "origin": [
+     -70.0,
+     25.0
+    ],
+    "cell_m": 2.0,
+    "cols": 30,
+    "rows": 30,
+    "reserved": [],
+    "palette": {
+     "nat_tree": [
+      2,
+      2
+     ],
+     "nat_tree_oak": [
+      3,
+      3
+     ],
+     "nat_tree_pine": [
+      2,
+      2
+     ],
+     "nat_bush": [
+      1,
+      1
+     ],
+     "nat_rock": [
+      1,
+      1
+     ],
+     "prop_street_light": [
+      1,
+      2
+     ],
+     "prop_traffic_cone": [
+      1,
+      1
+     ]
+    }
+   }
+  },
+  {
+   "id": "fournisseur",
+   "label": "Fournisseur de matière première",
+   "external": true,
+   "area": [
+    -130.0,
+    25.0,
+    -70.0,
+    85.0
+   ],
+   "block": "site",
+   "site_id": "fournisseur_standard",
+   "grid": {
+    "origin": [
+     -130.0,
+     25.0
+    ],
+    "cell_m": 2.0,
+    "cols": 30,
+    "rows": 30,
+    "reserved": [],
+    "palette": {
+     "nat_tree": [
+      2,
+      2
+     ],
+     "nat_tree_oak": [
+      3,
+      3
+     ],
+     "nat_tree_pine": [
+      2,
+      2
+     ],
+     "nat_bush": [
+      1,
+      1
+     ],
+     "nat_rock": [
+      1,
+      1
+     ],
+     "prop_street_light": [
+      1,
+      2
+     ],
+     "prop_traffic_cone": [
+      1,
+      1
+     ]
+    }
+   }
+  },
+  {
+   "id": "fournisseur_economique",
+   "label": "Fournisseur economique",
+   "external": true,
+   "area": [
+    -190.0,
+    85.0,
+    -130.0,
+    145.0
+   ],
+   "block": "site",
+   "site_id": "fournisseur_economique",
+   "grid": {
+    "origin": [
+     -190.0,
+     85.0
+    ],
+    "cell_m": 2.0,
+    "cols": 30,
+    "rows": 30,
+    "reserved": [],
+    "palette": {
+     "nat_tree": [
+      2,
+      2
+     ],
+     "nat_tree_oak": [
+      3,
+      3
+     ],
+     "nat_tree_pine": [
+      2,
+      2
+     ],
+     "nat_bush": [
+      1,
+      1
+     ],
+     "nat_rock": [
+      1,
+      1
+     ],
+     "prop_street_light": [
+      1,
+      2
+     ],
+     "prop_traffic_cone": [
+      1,
+      1
+     ]
+    }
+   }
+  },
+  {
+   "id": "client",
+   "label": "Client",
+   "external": true,
+   "area": [
+    10.0,
+    25.0,
+    70.0,
+    85.0
+   ],
+   "block": "site",
+   "site_id": "client",
+   "grid": {
+    "origin": [
+     10.0,
+     25.0
+    ],
+    "cell_m": 2.0,
+    "cols": 30,
+    "rows": 30,
+    "reserved": [],
+    "palette": {
+     "nat_tree": [
+      2,
+      2
+     ],
+     "nat_tree_oak": [
+      3,
+      3
+     ],
+     "nat_tree_pine": [
+      2,
+      2
+     ],
+     "nat_bush": [
+      1,
+      1
+     ],
+     "nat_rock": [
+      1,
+      1
+     ],
+     "prop_street_light": [
+      1,
+      2
+     ],
+     "prop_traffic_cone": [
+      1,
+      1
+     ]
+    }
+   }
+  }
+ ],
+ "factory": {
+  "product_id": "p1",
+  "lot_size": 24,
+  "pf_min": 334,
+  "pf_max": 480,
+  "mp_safety_days": 2.0,
+  "initial_order": null,
+  "bom": [
+   {
+    "component_id": "c1",
+    "per_unit": 1.0
+   }
+  ],
+  "machines": [
+   {
+    "id": "l1-m1",
+    "line_id": "l1",
+    "rank": 1,
+    "name": "M1 · Découpe laser",
+    "operation": "Découpe laser",
+    "cycle_min": 2.0,
+    "run_min": 480.0,
+    "stop_min": 0.0,
+    "mtbf_h": 60.0,
+    "weibull_shape": 2.0,
+    "mttr_h": 1.0,
+    "setup_min": 10.0,
+    "tool_life": null,
+    "tool_change_min": 0.0,
+    "defect_rate": 0.01,
+    "buffer": 10,
+    "transfer_min": 0.5,
+    "operators": 1,
+    "asset": "prop_machine"
+   },
+   {
+    "id": "l1-m2",
+    "line_id": "l1",
+    "rank": 2,
+    "name": "M2 · Pliage",
+    "operation": "Pliage",
+    "cycle_min": 1.5,
+    "run_min": 480.0,
+    "stop_min": 0.0,
+    "mtbf_h": 120.0,
+    "weibull_shape": 2.0,
+    "mttr_h": 0.5,
+    "setup_min": 5.0,
+    "tool_life": null,
+    "tool_change_min": 0.0,
+    "defect_rate": 0.005,
+    "buffer": 10,
+    "transfer_min": 0.5,
+    "operators": 1,
+    "asset": "prop_machine"
+   },
+   {
+    "id": "l1-m3",
+    "line_id": "l1",
+    "rank": 3,
+    "name": "M3 · Soudage des équerres",
+    "operation": "Soudage des équerres",
+    "cycle_min": 3.0,
+    "run_min": 480.0,
+    "stop_min": 0.0,
+    "mtbf_h": 90.0,
+    "weibull_shape": 3.0,
+    "mttr_h": 1.0,
+    "setup_min": 0.0,
+    "tool_life": null,
+    "tool_change_min": 0.0,
+    "defect_rate": 0.015,
+    "buffer": 10,
+    "transfer_min": 0.5,
+    "operators": 1,
+    "asset": "prop_machine"
+   },
+   {
+    "id": "l1-m4",
+    "line_id": "l1",
+    "rank": 4,
+    "name": "M4 · Ébavurage et perçage",
+    "operation": "Ébavurage et perçage",
+    "cycle_min": 1.0,
+    "run_min": 480.0,
+    "stop_min": 0.0,
+    "mtbf_h": 150.0,
+    "weibull_shape": 2.0,
+    "mttr_h": 0.5,
+    "setup_min": 5.0,
+    "tool_life": null,
+    "tool_change_min": 0.0,
+    "defect_rate": 0.01,
+    "buffer": 10,
+    "transfer_min": 0.0,
+    "operators": 1,
+    "asset": "prop_machine"
+   },
+   {
+    "id": "l2-m1",
+    "line_id": "l2",
+    "rank": 1,
+    "name": "M1 · Découpe laser",
+    "operation": "Découpe laser",
+    "cycle_min": 2.0,
+    "run_min": 480.0,
+    "stop_min": 0.0,
+    "mtbf_h": 60.0,
+    "weibull_shape": 2.0,
+    "mttr_h": 1.0,
+    "setup_min": 10.0,
+    "tool_life": null,
+    "tool_change_min": 0.0,
+    "defect_rate": 0.01,
+    "buffer": 10,
+    "transfer_min": 0.5,
+    "operators": 1,
+    "asset": "prop_machine"
+   },
+   {
+    "id": "l2-m2",
+    "line_id": "l2",
+    "rank": 2,
+    "name": "M2 · Pliage",
+    "operation": "Pliage",
+    "cycle_min": 1.5,
+    "run_min": 480.0,
+    "stop_min": 0.0,
+    "mtbf_h": 120.0,
+    "weibull_shape": 2.0,
+    "mttr_h": 0.5,
+    "setup_min": 5.0,
+    "tool_life": null,
+    "tool_change_min": 0.0,
+    "defect_rate": 0.005,
+    "buffer": 10,
+    "transfer_min": 0.5,
+    "operators": 1,
+    "asset": "prop_machine"
+   },
+   {
+    "id": "l2-m3",
+    "line_id": "l2",
+    "rank": 3,
+    "name": "M3 · Soudage des équerres",
+    "operation": "Soudage des équerres",
+    "cycle_min": 3.0,
+    "run_min": 480.0,
+    "stop_min": 0.0,
+    "mtbf_h": 90.0,
+    "weibull_shape": 3.0,
+    "mttr_h": 1.0,
+    "setup_min": 0.0,
+    "tool_life": null,
+    "tool_change_min": 0.0,
+    "defect_rate": 0.015,
+    "buffer": 10,
+    "transfer_min": 0.5,
+    "operators": 1,
+    "asset": "prop_machine"
+   },
+   {
+    "id": "l2-m4",
+    "line_id": "l2",
+    "rank": 4,
+    "name": "M4 · Ébavurage et perçage",
+    "operation": "Ébavurage et perçage",
+    "cycle_min": 1.0,
+    "run_min": 480.0,
+    "stop_min": 0.0,
+    "mtbf_h": 150.0,
+    "weibull_shape": 2.0,
+    "mttr_h": 0.5,
+    "setup_min": 5.0,
+    "tool_life": null,
+    "tool_change_min": 0.0,
+    "defect_rate": 0.01,
+    "buffer": 10,
+    "transfer_min": 0.0,
+    "operators": 1,
+    "asset": "prop_machine"
+   },
+   {
+    "id": "l3-m1",
+    "line_id": "l3",
+    "rank": 1,
+    "name": "M1 · Découpe laser",
+    "operation": "Découpe laser",
+    "cycle_min": 2.0,
+    "run_min": 480.0,
+    "stop_min": 0.0,
+    "mtbf_h": 60.0,
+    "weibull_shape": 2.0,
+    "mttr_h": 1.0,
+    "setup_min": 10.0,
+    "tool_life": null,
+    "tool_change_min": 0.0,
+    "defect_rate": 0.01,
+    "buffer": 10,
+    "transfer_min": 0.5,
+    "operators": 1,
+    "asset": "prop_machine"
+   },
+   {
+    "id": "l3-m2",
+    "line_id": "l3",
+    "rank": 2,
+    "name": "M2 · Pliage",
+    "operation": "Pliage",
+    "cycle_min": 1.5,
+    "run_min": 480.0,
+    "stop_min": 0.0,
+    "mtbf_h": 120.0,
+    "weibull_shape": 2.0,
+    "mttr_h": 0.5,
+    "setup_min": 5.0,
+    "tool_life": null,
+    "tool_change_min": 0.0,
+    "defect_rate": 0.005,
+    "buffer": 10,
+    "transfer_min": 0.5,
+    "operators": 1,
+    "asset": "prop_machine"
+   },
+   {
+    "id": "l3-m3",
+    "line_id": "l3",
+    "rank": 3,
+    "name": "M3 · Soudage des équerres",
+    "operation": "Soudage des équerres",
+    "cycle_min": 3.0,
+    "run_min": 480.0,
+    "stop_min": 0.0,
+    "mtbf_h": 90.0,
+    "weibull_shape": 3.0,
+    "mttr_h": 1.0,
+    "setup_min": 0.0,
+    "tool_life": null,
+    "tool_change_min": 0.0,
+    "defect_rate": 0.015,
+    "buffer": 10,
+    "transfer_min": 0.5,
+    "operators": 1,
+    "asset": "prop_machine"
+   },
+   {
+    "id": "l3-m4",
+    "line_id": "l3",
+    "rank": 4,
+    "name": "M4 · Ébavurage et perçage",
+    "operation": "Ébavurage et perçage",
+    "cycle_min": 1.0,
+    "run_min": 480.0,
+    "stop_min": 0.0,
+    "mtbf_h": 150.0,
+    "weibull_shape": 2.0,
+    "mttr_h": 0.5,
+    "setup_min": 5.0,
+    "tool_life": null,
+    "tool_change_min": 0.0,
+    "defect_rate": 0.01,
+    "buffer": 10,
+    "transfer_min": 0.0,
+    "operators": 1,
+    "asset": "prop_machine"
+   }
+  ],
+  "crew": [
+   {
+    "id": "op_l1-m1",
+    "job": "operateur",
+    "department_id": "production",
+    "machine_id": "l1-m1",
+    "character": "char_worker_m"
+   },
+   {
+    "id": "op_l1-m2",
+    "job": "operateur",
+    "department_id": "production",
+    "machine_id": "l1-m2",
+    "character": "char_worker_f"
+   },
+   {
+    "id": "op_l1-m3",
+    "job": "operateur",
+    "department_id": "production",
+    "machine_id": "l1-m3",
+    "character": "char_worker_m"
+   },
+   {
+    "id": "op_l1-m4",
+    "job": "operateur",
+    "department_id": "production",
+    "machine_id": "l1-m4",
+    "character": "char_worker_f"
+   },
+   {
+    "id": "op_l2-m1",
+    "job": "operateur",
+    "department_id": "production",
+    "machine_id": "l2-m1",
+    "character": "char_worker_m"
+   },
+   {
+    "id": "op_l2-m2",
+    "job": "operateur",
+    "department_id": "production",
+    "machine_id": "l2-m2",
+    "character": "char_worker_f"
+   },
+   {
+    "id": "op_l2-m3",
+    "job": "operateur",
+    "department_id": "production",
+    "machine_id": "l2-m3",
+    "character": "char_worker_m"
+   },
+   {
+    "id": "op_l2-m4",
+    "job": "operateur",
+    "department_id": "production",
+    "machine_id": "l2-m4",
+    "character": "char_worker_f"
+   },
+   {
+    "id": "op_l3-m1",
+    "job": "operateur",
+    "department_id": "production",
+    "machine_id": "l3-m1",
+    "character": "char_worker_m"
+   },
+   {
+    "id": "op_l3-m2",
+    "job": "operateur",
+    "department_id": "production",
+    "machine_id": "l3-m2",
+    "character": "char_worker_f"
+   },
+   {
+    "id": "op_l3-m3",
+    "job": "operateur",
+    "department_id": "production",
+    "machine_id": "l3-m3",
+    "character": "char_worker_m"
+   },
+   {
+    "id": "op_l3-m4",
+    "job": "operateur",
+    "department_id": "production",
+    "machine_id": "l3-m4",
+    "character": "char_worker_f"
+   },
+   {
+    "id": "chauffeur_fournisseur",
+    "job": "chauffeur_fournisseur",
+    "department_id": "fournisseur",
+    "machine_id": null,
+    "character": "char_driver_m"
+   },
+   {
+    "id": "chauffeur_client",
+    "job": "chauffeur_client",
+    "department_id": "client",
+    "machine_id": null,
+    "character": "char_driver_m"
+   }
+  ],
+  "clock": {
+   "days_per_turn": 5,
+   "minutes_per_day": 480,
+   "day_start_h": 8,
+   "frame_min": 5.0,
+   "breaks": [
+    [
+     120,
+     10
+    ],
+    [
+     240,
+     20
+    ],
+    [
+     360,
+     10
+    ]
+   ]
+  },
+  "logistics": {
+   "units_per_pallet_mp": 120,
+   "unload_min_per_pallet": 2.0,
+   "inspect_min_per_pallet": 5.0,
+   "supplier_nonconform_rate": 0.02,
+   "delivery_window_min": [
+    0,
+    120
+   ],
+   "mp_capacity_pallets": 24,
+   "kit_min": 8.0,
+   "qc_min_per_unit": 0.7,
+   "qc_block_threshold": 0.159,
+   "units_per_case": 4,
+   "cases_per_pallet": 6,
+   "pack_min_per_case": 2.0,
+   "wrap_min_per_pallet": 5.0,
+   "pf_capacity_pallets": 20,
+   "load_min_per_pallet": 2.0,
+   "repair_travel_min": 3.0,
+   "preventive_min": 20.0
+  },
+  "customer": {
+   "demand_per_day": 334,
+   "variability": 0.05,
+   "promised_days": 2,
+   "orders_per_day": 1,
+   "pickup_window_min": [
+    360,
+    450
+   ]
+  },
+  "resources": {
+   "docks": 1,
+   "forklifts": 1,
+   "technicians": 1,
+   "line_leads": 1
+  },
+  "costs": {
+   "repair_per_h": 75.0,
+   "preventive_per_intervention": 50.0,
+   "operator_per_h": 28.0,
+   "damage_per_failure": 200.0
+  },
+  "protect_buffer": 30
+ },
+ "panels": [
+  {
+   "id": "bandeau",
+   "type": "kpis",
+   "title": "Indicateurs",
+   "placement": "bandeau",
+   "audience": "joueur",
+   "station_kinds": [],
+   "source": "kpis",
+   "match": null,
+   "columns": [
+    {
+     "key": "otif",
+     "label": "OTIF",
+     "format": "pct",
+     "labels": {},
+     "target": "targets.otif",
+     "better": "higher",
+     "warn": 90.0
+    },
+    {
+     "key": "trs",
+     "label": "TRS",
+     "format": "pct",
+     "labels": {},
+     "target": "targets.trs",
+     "better": "higher",
+     "warn": 73.0
+    },
+    {
+     "key": "stockouts",
+     "label": "Jours-ligne sans MP",
+     "format": "int",
+     "labels": {},
+     "target": "targets.stockouts",
+     "better": "lower",
+     "warn": null
+    },
+    {
+     "key": "cash",
+     "label": "Trésorerie",
+     "format": "money",
+     "labels": {},
+     "target": "targets.cash_final",
+     "better": "higher",
+     "warn": null
+    }
+   ],
+   "min": null,
+   "max": null
+  },
+  {
+   "id": "bandeau_pf",
+   "type": "kpis",
+   "title": "Stock PF",
+   "placement": "bandeau",
+   "audience": "joueur",
+   "station_kinds": [],
+   "source": "factory.stocks.pf",
+   "match": null,
+   "columns": [
+    {
+     "key": "pallets",
+     "label": "Stock PF (palettes)",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "capacity_pallets",
+     "label": "Places",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    }
+   ],
+   "min": null,
+   "max": null
+  },
+  {
+   "id": "flux",
+   "type": "flow",
+   "title": "Flux de l'usine",
+   "placement": "tableau_de_bord",
+   "audience": "joueur",
+   "station_kinds": [],
+   "source": "factory.flow",
+   "match": null,
+   "columns": [],
+   "min": null,
+   "max": null
+  },
+  {
+   "id": "lignes",
+   "type": "table",
+   "title": "Lignes",
+   "placement": "tableau_de_bord",
+   "audience": "joueur",
+   "station_kinds": [],
+   "source": "factory.lines",
+   "match": null,
+   "columns": [
+    {
+     "key": "name",
+     "label": "Ligne",
+     "format": "text",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "bottleneck_id",
+     "label": "Goulot",
+     "format": "text",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "theoretical_h",
+     "label": "Débit théorique (/ h)",
+     "format": "dec1",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "expected_h",
+     "label": "Bons attendus (/ h)",
+     "format": "dec1",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "real_h",
+     "label": "Bons mesurés (/ h)",
+     "format": "dec1",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "production_rate",
+     "label": "Réalisation du plan",
+     "format": "pct",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "wip",
+     "label": "Encours",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    }
+   ],
+   "min": null,
+   "max": null
+  },
+  {
+   "id": "machines",
+   "type": "table",
+   "title": "Machines",
+   "placement": "tableau_de_bord",
+   "audience": "joueur",
+   "station_kinds": [],
+   "source": "factory.machines",
+   "match": null,
+   "columns": [
+    {
+     "key": "name",
+     "label": "Machine",
+     "format": "text",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "state",
+     "label": "État",
+     "format": "state",
+     "labels": {
+      "arret": "Arrêt",
+      "marche": "En marche",
+      "pause": "Pause",
+      "reglage": "Réglage",
+      "panne": "En panne",
+      "attente_matiere": "Attente matière",
+      "sortie_pleine": "Sortie pleine"
+     },
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "availability",
+     "label": "Disponibilité",
+     "format": "pct",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "produced",
+     "label": "Produits",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "failures",
+     "label": "Pannes",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "lower",
+     "warn": null
+    },
+    {
+     "key": "downtime_min",
+     "label": "Arrêt",
+     "format": "minutes",
+     "labels": {},
+     "target": null,
+     "better": "lower",
+     "warn": null
+    },
+    {
+     "key": "buffer",
+     "label": "Table d'attente",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    }
+   ],
+   "min": null,
+   "max": null
+  },
+  {
+   "id": "historique",
+   "type": "chart",
+   "title": "OTIF et TRS par semaine",
+   "placement": "tableau_de_bord",
+   "audience": "joueur",
+   "station_kinds": [],
+   "source": "history",
+   "match": null,
+   "columns": [
+    {
+     "key": "otif",
+     "label": "OTIF",
+     "format": "pct",
+     "labels": {},
+     "target": "targets.otif",
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "trs",
+     "label": "TRS",
+     "format": "pct",
+     "labels": {},
+     "target": "targets.trs",
+     "better": "higher",
+     "warn": null
+    }
+   ],
+   "min": null,
+   "max": null
+  },
+  {
+   "id": "ordres",
+   "type": "table",
+   "title": "Ordres de fabrication",
+   "placement": "tableau_de_bord",
+   "audience": "joueur",
+   "station_kinds": [],
+   "source": "factory.orders.production",
+   "match": null,
+   "columns": [
+    {
+     "key": "id",
+     "label": "OF",
+     "format": "text",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "line_id",
+     "label": "Ligne",
+     "format": "text",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "quantity",
+     "label": "Lancés",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "done",
+     "label": "Faits",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "status",
+     "label": "État",
+     "format": "state",
+     "labels": {
+      "attente": "En attente",
+      "en_cours": "En cours",
+      "termine": "Terminé"
+     },
+     "target": null,
+     "better": "higher",
+     "warn": null
+    }
+   ],
+   "min": null,
+   "max": null
+  },
+  {
+   "id": "poste_machine",
+   "type": "table",
+   "title": "Cette machine",
+   "placement": "poste",
+   "audience": "joueur",
+   "station_kinds": [
+    "machine"
+   ],
+   "source": "factory.machines",
+   "match": "id",
+   "columns": [
+    {
+     "key": "name",
+     "label": "Machine",
+     "format": "text",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "state",
+     "label": "État",
+     "format": "state",
+     "labels": {
+      "arret": "Arrêt",
+      "marche": "En marche",
+      "pause": "Pause",
+      "reglage": "Réglage",
+      "panne": "En panne",
+      "attente_matiere": "Attente matière",
+      "sortie_pleine": "Sortie pleine"
+     },
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "availability",
+     "label": "Disponibilité",
+     "format": "pct",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "produced",
+     "label": "Produits",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "failures",
+     "label": "Pannes",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "lower",
+     "warn": null
+    },
+    {
+     "key": "downtime_min",
+     "label": "Arrêt",
+     "format": "minutes",
+     "labels": {},
+     "target": null,
+     "better": "lower",
+     "warn": null
+    },
+    {
+     "key": "buffer",
+     "label": "Table d'attente",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    }
+   ],
+   "min": null,
+   "max": null
+  },
+  {
+   "id": "commandes_client",
+   "type": "table",
+   "title": "Commandes client",
+   "placement": "poste",
+   "audience": "joueur",
+   "station_kinds": [
+    "pilotage"
+   ],
+   "source": "factory.orders.customer",
+   "match": null,
+   "columns": [
+    {
+     "key": "id",
+     "label": "Commande",
+     "format": "text",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "quantity",
+     "label": "Produits",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "due_day",
+     "label": "Jour promis",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "shipped",
+     "label": "Expédiés",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "status",
+     "label": "État",
+     "format": "state",
+     "labels": {
+      "ouverte": "Ouverte",
+      "livree": "Livrée",
+      "en_retard": "En retard"
+     },
+     "target": null,
+     "better": "higher",
+     "warn": null
+    }
+   ],
+   "min": null,
+   "max": null
+  },
+  {
+   "id": "stock_matiere",
+   "type": "table",
+   "title": "Matière première",
+   "placement": "poste",
+   "audience": "joueur",
+   "station_kinds": [
+    "pilotage"
+   ],
+   "source": "factory.stocks.mp",
+   "match": null,
+   "columns": [
+    {
+     "key": "name",
+     "label": "Matière",
+     "format": "text",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "pallets",
+     "label": "Palettes",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "capacity_pallets",
+     "label": "Places",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "reorder_point",
+     "label": "Point de commande",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "pending",
+     "label": "En commande",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    }
+   ],
+   "min": null,
+   "max": null
+  },
+  {
+   "id": "pannes",
+   "type": "table",
+   "title": "Pannes et disponibilité",
+   "placement": "poste",
+   "audience": "joueur",
+   "station_kinds": [
+    "maintenance"
+   ],
+   "source": "factory.machines",
+   "match": null,
+   "columns": [
+    {
+     "key": "name",
+     "label": "Machine",
+     "format": "text",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "failures",
+     "label": "Pannes",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "lower",
+     "warn": null
+    },
+    {
+     "key": "downtime_min",
+     "label": "Arrêt",
+     "format": "minutes",
+     "labels": {},
+     "target": null,
+     "better": "lower",
+     "warn": null
+    },
+    {
+     "key": "availability",
+     "label": "Disponibilité",
+     "format": "pct",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "age_h",
+     "label": "Âge (h de marche)",
+     "format": "dec1",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    }
+   ],
+   "min": null,
+   "max": null
+  },
+  {
+   "id": "part_de_bons",
+   "type": "gauge",
+   "title": "Part de produits bons",
+   "placement": "poste",
+   "audience": "joueur",
+   "station_kinds": [
+    "poste_qualite"
+   ],
+   "source": "kpis",
+   "match": null,
+   "columns": [
+    {
+     "key": "good_share",
+     "label": "Part de bons",
+     "format": "pct",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    }
+   ],
+   "min": 80.0,
+   "max": 100.0
+  },
+  {
+   "id": "sup_indicateurs",
+   "type": "kpis",
+   "title": "Indicateurs de la partie",
+   "placement": "supervision",
+   "audience": "formateur",
+   "station_kinds": [],
+   "source": "kpis",
+   "match": null,
+   "columns": [
+    {
+     "key": "otif",
+     "label": "OTIF",
+     "format": "pct",
+     "labels": {},
+     "target": "targets.otif",
+     "better": "higher",
+     "warn": 90.0
+    },
+    {
+     "key": "trs",
+     "label": "TRS",
+     "format": "pct",
+     "labels": {},
+     "target": "targets.trs",
+     "better": "higher",
+     "warn": 73.0
+    },
+    {
+     "key": "stockouts",
+     "label": "Jours-ligne sans MP",
+     "format": "int",
+     "labels": {},
+     "target": "targets.stockouts",
+     "better": "lower",
+     "warn": null
+    },
+    {
+     "key": "good_share",
+     "label": "Part de bons",
+     "format": "pct",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "cash",
+     "label": "Trésorerie",
+     "format": "money",
+     "labels": {},
+     "target": "targets.cash_final",
+     "better": "higher",
+     "warn": null
+    }
+   ],
+   "min": null,
+   "max": null
+  },
+  {
+   "id": "sup_lignes",
+   "type": "table",
+   "title": "Lignes et goulots",
+   "placement": "supervision",
+   "audience": "formateur",
+   "station_kinds": [],
+   "source": "factory.lines",
+   "match": null,
+   "columns": [
+    {
+     "key": "name",
+     "label": "Ligne",
+     "format": "text",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "bottleneck_id",
+     "label": "Goulot",
+     "format": "text",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "expected_h",
+     "label": "Bons attendus (/ h)",
+     "format": "dec1",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "real_h",
+     "label": "Bons mesurés (/ h)",
+     "format": "dec1",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "production_rate",
+     "label": "Réalisation du plan",
+     "format": "pct",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "wip",
+     "label": "Encours",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    }
+   ],
+   "min": null,
+   "max": null
+  },
+  {
+   "id": "sup_machines",
+   "type": "table",
+   "title": "Machines",
+   "placement": "supervision",
+   "audience": "formateur",
+   "station_kinds": [],
+   "source": "factory.machines",
+   "match": null,
+   "columns": [
+    {
+     "key": "name",
+     "label": "Machine",
+     "format": "text",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "state",
+     "label": "État",
+     "format": "state",
+     "labels": {
+      "arret": "Arrêt",
+      "marche": "En marche",
+      "pause": "Pause",
+      "reglage": "Réglage",
+      "panne": "En panne",
+      "attente_matiere": "Attente matière",
+      "sortie_pleine": "Sortie pleine"
+     },
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "availability",
+     "label": "Disponibilité",
+     "format": "pct",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "produced",
+     "label": "Produits",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "failures",
+     "label": "Pannes",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "lower",
+     "warn": null
+    },
+    {
+     "key": "downtime_min",
+     "label": "Arrêt",
+     "format": "minutes",
+     "labels": {},
+     "target": null,
+     "better": "lower",
+     "warn": null
+    },
+    {
+     "key": "buffer",
+     "label": "Table d'attente",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    }
+   ],
+   "min": null,
+   "max": null
+  },
+  {
+   "id": "sup_historique",
+   "type": "chart",
+   "title": "OTIF et TRS par semaine",
+   "placement": "supervision",
+   "audience": "formateur",
+   "station_kinds": [],
+   "source": "history",
+   "match": null,
+   "columns": [
+    {
+     "key": "otif",
+     "label": "OTIF",
+     "format": "pct",
+     "labels": {},
+     "target": "targets.otif",
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "trs",
+     "label": "TRS",
+     "format": "pct",
+     "labels": {},
+     "target": "targets.trs",
+     "better": "higher",
+     "warn": null
+    }
+   ],
+   "min": null,
+   "max": null
+  },
+  {
+   "id": "sup_commandes",
+   "type": "table",
+   "title": "Commandes client",
+   "placement": "supervision",
+   "audience": "formateur",
+   "station_kinds": [],
+   "source": "factory.orders.customer",
+   "match": null,
+   "columns": [
+    {
+     "key": "id",
+     "label": "Commande",
+     "format": "text",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "quantity",
+     "label": "Produits",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "due_day",
+     "label": "Jour promis",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "shipped",
+     "label": "Expédiés",
+     "format": "int",
+     "labels": {},
+     "target": null,
+     "better": "higher",
+     "warn": null
+    },
+    {
+     "key": "status",
+     "label": "État",
+     "format": "state",
+     "labels": {
+      "ouverte": "Ouverte",
+      "livree": "Livrée",
+      "en_retard": "En retard"
+     },
+     "target": null,
+     "better": "higher",
+     "warn": null
+    }
+   ],
+   "min": null,
+   "max": null
+  }
+ ],
+ "provenance": {
+  "fournisseur.delai_jours": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §2, délai de livraison ; profil standard."
+  },
+  "fournisseur.fiabilite_delai": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §2 ; profil standard."
+  },
+  "fournisseur.taux_non_conforme": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §2 (« livraisons non conformes ») ; appliqué palette par palette, la palette part en quarantaine."
+  },
+  "fournisseur.commande_min_palettes": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §2 ; profils rapide et standard."
+  },
+  "fournisseur.camion_palettes": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §2 : camion de 4 à 6 palettes ; le maximum borne une commande (une commande = un camion)."
+  },
+  "fournisseur.creneau_livraison_min": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §2 : créneau 8 h - 10 h."
+  },
+  "fournisseur.stock": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §2 : stock du fournisseur illimité par défaut."
+  },
+  "fournisseur.retard_jours": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Une livraison en retard arrive le jour ouvré suivant ; le cahier ne dit pas de combien."
+  },
+  "fournisseur.profils": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Standard = fournisseur du cahier. Arbitrage voulu : le rapide coûte 12 % de plus ; l'économique coûte 12 % de moins mais livre en 5 jours, moins souvent à l'heure et par 4 palettes, ce qui demande plus de stock de sécurité et peut saturer les 24 places de racks à 3 lignes. Écarts indicatifs, non sourcés. Ordre des fournisseurs d'un produit (themes) = ordre des profils."
+  },
+  "fournisseur.ecart_fiabilite": {
+   "status": "calibre",
+   "citation": null,
+   "note": "difficulties.reliability_shift : points ajoutés à la fiabilité des trois profils (+3, 0, -8), plafonnée à 100."
+  },
+  "reception.dechargement_min_palette": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §3.1."
+  },
+  "reception.controle_min_palette": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §3.1."
+  },
+  "reception.zone_depose_palettes": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §3.1 (décor et file d'attente du contrôle)."
+  },
+  "reception.quarantaine_palettes": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §3.1."
+  },
+  "reception.quais": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §3.1 : un quai partagé avec l'expédition (décision de l'utilisateur du 28/10/2026)."
+  },
+  "stock_mp.capacite_palettes": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §3.2 : racks de 24 emplacements."
+  },
+  "stock_mp.chariots": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §3.2 : chariot de 1 200 kg (batterie : tranche 2)."
+  },
+  "stock_mp.kit_min": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Cahier sans valeur : prélever la matière d'un lot de 24 et la livrer en tête de ligne. Indicatif ; à 3 lignes, environ 15 kits par jour occupent le chariot 2 h."
+  },
+  "stock_mp.sortie_fifo": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §3.2 : sortie dans l'ordre d'arrivée. Pratique décrite par wikipedia-en-stock-rotation (notion rotation_fifo)."
+  },
+  "stock_mp.commande_initiale": {
+   "status": "calibre",
+   "citation": null,
+   "note": "D9 (a), codé (factory_generation._initial_order) et mesuré le 19/11/2026 ; choix de calibrage, non sourcé. Calibrage valable pour le fournisseur standard à la distance proche (délai 3 j), seule permise depuis le 21/11/2026 : en national (4 j), ni cover_extra_days 2, ni deux camions au départ, ni 3,5 j de stock en expert ne gardaient le pilote sous le partiel des ruptures (J02, graines 202 et 5 à 8 : 9 à 11 jours-ligne à 3 lignes). cover_extra_days 2 a été essayé : il supprime les ruptures de semaine 1 en expert, mais donne à l'équilibré (4 j < 3 + 2) une commande qui arrive au jour 4, quand le stock s'épuise, et qui retarde la première commande du pilote (ruptures en équilibré) : 1 gardé. Seulement si mp_stock_days < délai + cover_extra_days (comparaison en jours, sans arrondi) : au départ, une commande `offer` déjà en route de min(fournisseur.camion_palettes, place libre du magasin, ceil(round((délai + cover_extra_days - mp_stock_days) x conso, 2))) palettes, conso = mp_day ÷ unités par palette (toutes lignes, rendement compris), arrivée au jour floor(mp_stock_days), payée à la réception. Découverte (5 j) et équilibré (4 j) : aucune, délai standard 3 + 1 = 4. Expert, J01 (2 000 u./sem., 5 j, 120 u./palette, rendement omis, conso 3,33) : (4 - 2,5) x 3,33 = 5 palettes, arrivée au jour 2 ; le stock reste bas sans rupture certaine."
+  },
+  "stock_mp.stock_securite_jours": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Pilote automatique : point de commande = consommation pendant (délai du fournisseur standard + période de révision de 1 jour + ce stock de sécurité). En révision périodique, la couverture vaut délai + période de révision (wikipedia-en-safety-stock, § Inventory policy). Le moteur lit cette valeur (factory.mp_safety_days) : point = délai + 1 + 2 jours. 1 jour jusqu'au 19/11/2026 ; 2 mesurés ce jour-là (standard proche) : en expert à 3 lignes, 0 à 7 jours-ligne sans matière au lieu de 0 à 27 (partie de référence et jeux J01 à J10, graines 5 à 8) ; 1,5 laisse des ruptures en équilibré à une ligne. La formule de la fiche (l. 31, SS = z x racine(E(L) sigma_D² + E(D)² sigma_L²)) donne environ 0,6 jour en expert à 95 % (z = 1,65 ; 393 unités par jour, ± 15 % ; délai 3 jours, en retard d'un jour 13 fois sur 100) : l'écart couvre ce que la formule ignore ici, les palettes en quarantaine, un seul camion par commande livré entre 8 h et 10 h, après le démarrage des lignes, et les achats bornés par la trésorerie. Choix de calibrage, non sourcé."
+  },
+  "stock_mp.stock_initial_jours": {
+   "status": "calibre",
+   "citation": null,
+   "note": "difficulties.mp_stock_days (5, 4, 2,5 jours de consommation) : au plus 15 palettes à 3 lignes, sous les 24 places."
+  },
+  "stock_mp.unites_par_palette": {
+   "status": "calibre",
+   "citation": null,
+   "note": "themes.*.mp.units_per_pallet (120 à 150) : à 3 lignes, environ 3 palettes consommées par jour, un camion de 6 tous les 2 jours, racks de 24 suffisants ; kits de quelques kilos, palette sous les 1 200 kg du chariot. Indicatif."
+  },
+  "machine.cycle_min": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §5.2 : 2 ; 1,5 ; 3 ; 1 min. M3 est le goulot (20 / h)."
+  },
+  "machine.mtbf_h": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §5.2 : 40, 80, 60, 100 h. Convention du jeu (maintenance.convention_mtbf) : temps moyen de marche entre deux pannes, réparation exclue."
+  },
+  "machine.mttr_h": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §5.2 : 1 ; 0,5 ; 1 ; 0,5 h de réparation active ; l'arrêt réel ajoute l'attente et le trajet du technicien."
+  },
+  "machine.weibull_shape": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Forme 2 : risque de panne croissant avec l'âge (usure), pour que le préventif ait un effet, comme sur une machine qui s'use (wikipedia-en-reliability-centered-maintenance : le préventif ne vaut que si l'équipement s'use). Le goulot prend la forme du profil (difficulties.bottleneck_shape : 3, 2, 1) : usure marquée en découverte, pannes au hasard en expert (forme 1 = loi exponentielle, taux constant), où le préventif du goulot n'évite rien ; valeurs 1, 2, 3 = choix de calibrage, non sourcés. Loi de Weibull : fiche nist-sematech-weibull (NIST appelle gamma la forme) : forme 1 = modèle exponentiel, taux de panne constant (l.68-69) ; taux de panne polynomial d'exposant forme - 1 (l.77-78), donc croissant avec l'âge si la forme dépasse 1 (déduction de la formule, l.30 ; le texte ne dit pas « usure »)."
+  },
+  "machine.facteur_mtbf": {
+   "status": "calibre",
+   "citation": null,
+   "note": "difficulties.mtbf_factor (1,5 ; 1 ; 0,6) appliqué aux MTBF du cahier."
+  },
+  "machine.setup_min": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §5.2 : 10, 5, 0, 5 min à chaque changement de lot (aucun sur le goulot)."
+  },
+  "machine.defect_rate": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §5.2 : 2 %, 1 %, 3 %, 2 % ; rendement cumulé de la ligne = 98 x 99 x 97 x 98 % = 92,2 %."
+  },
+  "machine.buffer": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §5.2 : table d'attente de 10 produits en sortie de chaque machine."
+  },
+  "machine.transfer_min": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §8 : 0,5 min ; 3 transferts pour 4 machines (le cahier en compte 4), M4 envoie au contrôle."
+  },
+  "machine.operators": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §3.3 : un opérateur par machine."
+  },
+  "machine.pauses": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Cahier : 110 min de marche / 10 min d'arrêt. Remplacé par les pauses du personnel (clock.breaks) qui arrêtent toute la ligne au même moment ; run_min = 480 et stop_min = 0 (aucun arrêt propre à la machine)."
+  },
+  "machine.outil": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Usure d'outil : tranche 2 (le cahier ne donne aucune durée de vie) ; tool_life absent."
+  },
+  "machine.protect_buffer": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Factory.protect_buffer, action proteger_goulot, mode tampon_avant : table devant le goulot portée de 10 à 30 produits, soit 90 min de travail du goulot, plus qu'une réparation de M1 (1 h) ; prix : 20 produits d'encours en plus (loi de Little)."
+  },
+  "qualite.controle_min_produit": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Cahier : 1 min, soit 60 / h, autant que 3 lignes au goulot (60 / h) : le contrôle deviendrait le goulot de l'usine. 0,7 min donne 60 / 0,7 = 85,7 / h >= 1,2 x 60 = 72 / h (annexe §5). Indicatif."
+  },
+  "qualite.frequence": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §3.4 : 100 % (1 sur N : module qualité, tranche 2)."
+  },
+  "qualite.facteur_defauts": {
+   "status": "calibre",
+   "citation": null,
+   "note": "difficulties.defect_factor (0,5 ; 1 ; 1,5) appliqué aux taux de défaut du cahier."
+  },
+  "qualite.seuil_blocage": {
+   "status": "source",
+   "citation": "Wikipédia (en), « P-chart », révision 1322280790 : https://en.wikipedia.org/wiki/P-chart?oldid=1322280790",
+   "note": "Tranche 2. Limite haute de la carte p = p + 3 x racine(p (1 - p) / n), p = part de défauts attendue, n = produits contrôlés du lot ; calculée par la génération dans qc_block_threshold. Avec p = 7,8 % et n = 24 : 24 %, soit 6 rebuts ou plus sur 24 (fausse alerte : 0,9 % des lots, loi binomiale). Le seuil fixe de 15 % du cahier (4 rebuts sur 24) bloquerait 11 % des lots sans aucune dérive du procédé."
+  },
+  "emballage.produits_par_colis": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Cahier : 1, soit 6 produits par palette en 6 x 2 + 5 = 17 min, 21 / h : l'emballage serait le goulot de l'usine. Avec 4 : 60 x 4 x 6 / (6 x 2 + 5) = 84,7 / h >= 72 / h (annexe §5) et des palettes de 24."
+  },
+  "emballage.colis_par_palette": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §3.5."
+  },
+  "emballage.min_par_colis": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §3.5 (mettre en carton, fermer, étiqueter, peser)."
+  },
+  "emballage.filmage_min_palette": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §3.5."
+  },
+  "entrepot_pf.capacite_palettes": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §4 : 480 produits, environ 2 jours de demande à 2 lignes."
+  },
+  "entrepot_pf.chargement_min_palette": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §4."
+  },
+  "entrepot_pf.stock_initial_jours": {
+   "status": "calibre",
+   "citation": null,
+   "note": "difficulties.pf_stock_days (1,2 ; 1 ; 0,5 jour de demande), toujours sous les 20 palettes."
+  },
+  "client.charge": {
+   "status": "calibre",
+   "citation": null,
+   "note": "difficulties.load (0,80 ; 0,85 ; 0,92) : demande par jour = charge x débit réel attendu (expected_h) des machines de la partie, facteurs de difficulté compris, x lignes actives x 8 h ; la génération vérifie une charge réelle < 0,95. Au-delà de 0,9, l'attente croît très vite (wikipedia-en-kingman-s-formula). Expert porté à 0,92 au calibrage du 05/11/2026 (232 produits par jour, graine 5). Le cahier (100 / jour) chargeait l'usine à 23 %."
+  },
+  "client.variabilite": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §4.1 : ± 10 % (équilibré) ; 5 % et 15 % en découverte et expert (difficulties.demand_variability, calibre)."
+  },
+  "client.delai_promis_jours": {
+   "status": "calibre",
+   "citation": null,
+   "note": "difficulties.promised_days : J+2 (J+1 en expert). Le cahier promet 5 jours, une semaine entière : aucun retard possible."
+  },
+  "client.orders_per_day": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Customer.orders_per_day : une commande par jour ouvré, passée à 8 h, d'environ une journée de demande."
+  },
+  "client.pickup_window_min": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Customer.pickup_window_min : camion du client entre 14 h et 15 h 30, après les livraisons MP (8 h - 10 h) ; le quai partagé n'est en conflit qu'en cas de retard."
+  },
+  "maintenance.techniciens": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §3.6 : une seule réparation à la fois."
+  },
+  "maintenance.trajet_min": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §3.6 : déplacement jusqu'à la machine."
+  },
+  "maintenance.convention_mtbf": {
+   "status": "source",
+   "citation": "Wikipédia (en), « Availability », révision 1378432007 : https://en.wikipedia.org/wiki/Availability?oldid=1378432007",
+   "note": "MTBF = temps moyen de marche entre deux pannes, réparation exclue (wikipedia-en-mean-time-between-failures, wikipedia-fr-temps-moyen-entre-pannes) ; disponibilité intrinsèque = MTBF / (MTBF + MTTR) ; disponibilité opérationnelle = MTBF / (MTBF + arrêt moyen), arrêt = attente du technicien + trajet + MTTR. Le MTTR exclut les délais logistiques (wikipedia-en-mean-time-to-repair). wikipedia-fr-disponibilite prend l'autre convention (MTBF = MTTF + MTTR) : ne pas la mélanger."
+  },
+  "maintenance.preventif_min": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Graissage, contrôle, pièce d'usure : indicatif. Égal à la pause de 20 min pour qu'un préventif fait pendant cette pause n'arrête pas la production."
+  },
+  "maintenance.preventif_regle": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Une intervention par machine ciblée et par tour, faite pendant les pauses du personnel (les plus longues d'abord), goulots d'abord ; la part qui dépasse la pause arrête la machine ; une panne passe avant ; l'âge de la machine revient à zéro. Règle détaillée : annexe §5 (29/10)."
+  },
+  "maintenance.cout_reparation_h": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Technicien et pièces courantes : ordre de grandeur indicatif, non sourcé."
+  },
+  "maintenance.cout_preventif": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Indicatif, non sourcé. Une heure d'arrêt du goulot ne coûte des ventes que si la ligne est saturée : quand le marché limite l'usine, elle se rattrape sur l'attente du goulot (wikipedia-fr-theorie-des-contraintes l.32 ; audit du préventif du 19/11/2026, J04 : 0 produit perdu)."
+  },
+  "maintenance.cout_degats_panne": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Pièces cassées et dégâts en chaîne d'une panne, en plus de la réparation (factory.costs.damage_per_failure, P3 de docs/audits/preventif-2026-11-19.md). Principe sourcé : le correctif coûte plus que le préventif à cause des dégâts consécutifs (wikipedia-en-maintenance l.50) ; montant : choix de calibrage, non sourcé, indicatif. Mesure du 21/11/2026 (J04, 3 lignes, sans aléas, graines 5 à 8 ; préventif du goulot contre aucun ; Δ trésorerie moyen) : forme 2 au MTBF du jeu +262 € (-425 à +1 225, neutre au bruit près) ; forme 2 au MTBF x 0,4 +451 € ; forme 3 +265 € ; forme 1 -3 038 € (le préventif n'évite rien). 0 € : -1 238 € même en usure ; 150 € : -112 € à x 1 mais -137 € à x 0,4 (le préventif ne paie jamais) : 200 retenu."
+  },
+  "pilotage.journee_min": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §3.7 : journée de 8 h simulées."
+  },
+  "pilotage.jours_par_tour": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Décision de l'utilisateur du 28/10/2026 : un tour = une semaine de 5 jours rejouée."
+  },
+  "pilotage.pauses": {
+   "status": "calibre",
+   "citation": null,
+   "note": "2 x 10 + 1 x 20 min (40 min sur 480, comme les 4 x 10 du cahier : disponibilité 440 / 480 = 91,7 %). La pause de 20 min consécutives dès 6 h de travail quotidien est le minimum du Code du travail, art. L3121-16 (texte lu sur des reprises secondaires, Légifrance à vérifier ; hors corpus) ; les deux pauses de 10 min sont un usage d'entreprise."
+  },
+  "pilotage.chefs_de_ligne": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §3.3 : un chef de ligne pour toutes les lignes."
+  },
+  "pilotage.releve_pauses": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Mode releve_pauses : le chef de ligne fait tourner le goulot pendant les pauses ; seul, il ne relève qu'une ligne à la fois (une autre demande est refusée). Gain : 40 min de goulot par jour, environ +9 % ; coût : minutes de relève x pilotage.cout_operateur_h. Règle détaillée : annexe §5 (29/10)."
+  },
+  "pilotage.taille_lot": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Cahier : 20. 24 = une palette de 24 (4 colis x 6) : les lots font des palettes entières, la palettisation continue d'un lot à l'autre. Avec 0 min de réglage au goulot, la taille du lot ne coûte rien au débit."
+  },
+  "pilotage.lancement_avec_rebut": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Pilote automatique : lots à lancer = besoin en bons / (24 x rendement cumulé attendu), arrondi au-dessus. Le « x (1 + taux de rebut) » du cahier sous-estime le surplus : écart faible à 7,8 % de rebut (1,078 contre 1,084), net à 20 % (1,20 contre 1,25)."
+  },
+  "pilotage.pf_min_jours": {
+   "status": "calibre",
+   "citation": null,
+   "note": "pf_min : le pilote automatique lance un OF quand stock PF + encours < une journée de demande."
+  },
+  "pilotage.pf_max_jours": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Lancement par campagne : sous pf_min, le pilote lance jusqu'à pf_max = 3 jours de demande, borné par le magasin PF, au lieu d'un jour ; évite de vider et redémarrer la ligne chaque jour. Mesure du 05/11/2026 (graines 5 à 8, équilibré) : 3 jours = plafond du magasin PF (4 ou 5 jours ne changent rien), TRS 77,0-78,0 % ; 2 jours donne 77,5-79,1 % mais une rupture en découverte (graine 7) et 73,8 % en expert : 3 gardé. Indicatif, non sourcé."
+  },
+  "pilotage.temps_de_lot": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier §8 : temps d'un lot de n = premier produit + (n - 1) x cycle du goulot, sans attente ; premier produit = somme des cycles + 3 transferts = 9 min. Formule du cahier sans fiche : montrée au débrief comme exemple."
+  },
+  "pilotage.trs": {
+   "status": "source",
+   "citation": "Wikipédia (fr), « Taux de rendement synthétique », révision 234398211 : https://fr.wikipedia.org/wiki/Taux_de_rendement_synth%C3%A9tique?oldid=234398211",
+   "note": "TRS = disponibilité x performance x qualité sur le temps planifié : jours ouvrés d'une ligne qui a un OF ; le temps sans OF (sous-charge) n'est pas planifié, comme le distingue la fiche (OEE et OOE). Depuis b6f1cf8 (décision de l'orchestrateur), le moteur retire aussi les pauses du temps planifié (factory_game._snapshot). C'est une convention, pas une règle : wikipedia-fr-taux-de-rendement-synthetique l.48 dit qu'une pause réglementaire est, « selon les organisations », un arrêt ou une réduction du temps d'ouverture (l.11 : « standard propre à chaque organisation ») ; l'exemple de la fiche OEE anglaise (l.66-71) suit l'autre convention (pause de 30 min comptée en perte, 390 / 480). NF E60-182 : non lue (à vérifier). Différent du taux de réalisation du plan = bons réalisés / bons prévus par les OF (lines[].production_rate)."
+  },
+  "pilotage.objectif_otif": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Repris de l'atelier ; OTIF commande par commande (wikipedia-en-supply-chain-operations-reference)."
+  },
+  "pilotage.objectif_trs": {
+   "status": "calibre",
+   "citation": null,
+   "note": "80 % depuis le 19/11/2026 (choix de calibrage, non sourcé) : le TRS exclut désormais les pauses, le pilote mesure 82,7-92,0 % à une ligne et 79,5-82,3 % à trois lignes (graines 5 à 8, partie de référence et jeux J01 à J10) ; 80 est atteint partout sauf l'équilibré à trois lignes (partiel, 79,5-80,5 %), le passif est à 0 %. Une cible unique reste plus basse que le TRS à une ligne : la sous-charge des trois lignes (charge répartie, magasin PF borné) baisse le TRS sans faute du joueur. Les attentes de matière comptent comme pertes de disponibilité sur le temps planifié (machine « No Input », wikipedia-en-overall-equipment-effectiveness)."
+  },
+  "pilotage.tresorerie_initiale_semaines": {
+   "status": "calibre",
+   "citation": null,
+   "note": "difficulties.cash_weeks (6, 4, 3 semaines d'achats de MP), comme l'atelier. Expert porté de 2,5 à 3 le 19/11/2026 : à une ligne (J02, graine 5), le pilote, qui n'achète que dans la limite de sa trésorerie, ne pouvait plus recommander en semaine 2 (2 jours-ligne sans matière) ; mesure : docs/audits/preventif-2026-11-19.md § 5."
+  },
+  "pilotage.taux_possession_semaine": {
+   "status": "calibre",
+   "citation": null,
+   "note": "25 % par an, ordre de grandeur usuel du coût de possession, repris de l'atelier ; indicatif, non sourcé."
+  },
+  "pilotage.taux_interet_semaine": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Agios repris de l'atelier ; indicatif."
+  },
+  "pilotage.cout_operateur_h": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Coût employeur d'un opérateur, ordre de grandeur indicatif (à vérifier : INSEE, coût horaire de la main-d'œuvre) ; sert aux heures de relève."
+  },
+  "pilotage.prix_et_couts": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Prix de vente, coût de transformation (main-d'œuvre comprise, environ 4 opérateurs x 3 min = 0,2 h par produit) et coût de la MP des themes : ordres de grandeur indicatifs, non sourcés."
+  },
+  "pilotage.effets_aleas": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Ampleur des effets des aléas (events) : indicative, non sourcée."
+  },
+  "interface.seuils_attention": {
+   "status": "calibre",
+   "citation": null,
+   "note": "panels[].columns[].warn : OTIF 90 pour 95 (5 points sous la cible, écart de l'exemple de l'annexe 0008 §2) ; TRS 73 pour 80 depuis le 19/11/2026 (7 points : seuil d'une semaine, sous la zone partielle 75-80 de la moyenne, voir l'alerte trs_low). Marge de 5 points de criteria = bas de la zone partielle ; n'entre dans aucun calcul de la simulation."
+  },
+  "reseau.conduite_h_jour": {
+   "status": "source",
+   "citation": "Règlement (CE) n° 561/2006 du Parlement européen et du Conseil du 15 mars 2006 (harmonisation de certaines dispositions de la législation sociale dans le domaine des transports par route), articles 6 et 7. Texte lu dans la reproduction de l'OPPBTP (« Droit de la prévention », mise à jour du 1er juin 2022) : https://content.preventionbtp.fr/pdf/droit_de_la_prevention/article-6-du-reglement-ce-n-561-2006-du-15-mars-2006-relatif-a-l-harmonisation-de-certaines-dispositions-de-la-legislation-sociale-dans-le-domaine-des-transports-par-route.pdf (art. 6) et .../article-7-du-reglement-ce-n-561-2006-... (art. 7, même schéma d'URL). Consulté le 2026-10-29.",
+   "note": "Règlement (CE) n° 561/2006, art. 6 § 1 : conduite journalière de 9 h au plus (10 h au plus deux fois par semaine) ; art. 6 § 2 : 56 h par semaine ; art. 7 : pause d'au moins 45 min après 4 h 30 de conduite. Texte lu dans la reproduction de l'OPPBTP (mise à jour du 1er juin 2022), EUR-Lex non ouvert : à vérifier avant publication. Le passage des kilomètres aux jours est une dérivation du jeu."
+  },
+  "reseau.vitesse.route": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Vitesse moyenne d'un camion porteur sur la journée de conduite (autoroute, nationale, traversées) : ordre de grandeur indicatif. Le règlement 561/2006 ne donne aucune vitesse ; limites du Code de la route pour les poids lourds : à vérifier."
+  },
+  "reseau.distance.proche": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Fournisseur de la région ou d'une région voisine : 250 / 70 = 3,6 h de conduite, 1 jour. Indicatif."
+  },
+  "reseau.distance.national": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Autre bout du pays : 800 / 70 = 11,4 h, au-delà des 9 h de l'art. 6 du règlement 561/2006, donc 2 jours. Indicatif."
+  },
+  "reseau.distance.import": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Pays voisin d'Europe : 1 300 / 70 = 18,6 h, 3 jours à 9 h par jour. Indicatif."
+  },
+  "reseau.preparation.fournisseur_rapide": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Expédition le jour de la commande : avec la classe proche, 0 + 1 = 1 jour, délai du profil rapide."
+  },
+  "reseau.preparation.fournisseur_standard": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Préparation et chargement : avec la classe proche, seule permise, 2 + 1 = 3 jours, délai du fournisseur du cahier (exemple). Classe national (4 jours) retirée le 21/11/2026 : voir network.sites.fournisseur_standard."
+  },
+  "reseau.preparation.fournisseur_economique": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Commandes groupées par 4 palettes : avec la classe national, 3 + 2 = 5 jours, délai du profil économique. Classe import : 6 jours."
+  },
+  "reseau.preparation.client": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Le client enlève lui-même (client.pickup_window_min) : la distance du client ne change aucun calcul du moteur, elle place seulement son site sur la carte."
+  },
+  "placement_rules.allee_chariot_inrs": {
+   "status": "source",
+   "citation": "INRS ED 949, § 2.2.2, p. 19-20, et ED 6350, annexe 3, p. 38 (fiche inrs-allees-chariots-et-pietons) : allée à sens unique = largeur du chariot (ou de sa charge) + 1 m ; double sens = largeur des deux + 1,40 m ; passage piéton d'au moins 0,80 m séparé par un garde-corps.",
+   "note": "2,15 m = largeur du chariot veh_forklift (1,15 m, ai/assets.yaml) + 1 m, sens unique."
+  },
+  "placement_rules.allees_chariot": {
+   "status": "calibre",
+   "citation": null,
+   "note": "2,5 m n'est pas dans la source : c'est 5 cellules, la plus petite allée du plan, au-dessus des 2,15 m de la règle INRS à sens unique. Le double sens (2 chariots : 3,70 m ; chariot et transpalette : 3,10 m) et le passage piéton séparé ne sont pas garantis : allées à sens unique, à vérifier avant d'y voir un plan réel."
+  },
+  "placement_rules.marche_en_avant": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Ordre du cahier (plan en U) ; l'expression et l'ordre ne sont pas dans INRS ED 6350 (fiche inrs-implantation-plateformes-logistiques, « Ce que la source NE dit pas »)."
+  },
+  "placement_rules.quai_reception": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier : quai partagé réception et expédition ; contiguïté non énoncée par la source lue (INRS ED 6350)."
+  },
+  "placement_rules.quai_entrepot_pf": {
+   "status": "exemple",
+   "citation": null,
+   "note": "Cahier : l'entrepôt PF charge le camion du client au quai partagé ; non énoncé par la source lue."
+  },
+  "placement_rules.quarantaine_separee": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Quarantaine des palettes non conformes (ref quarantine) à une allée au moins des racks MP (ref mp), pour qu'une palette bloquée ne soit pas rangée ni consommée par erreur. Maîtrise des éléments de sortie non conformes : ISO 9001, § 8.7, non lue (à vérifier) ; 2,5 m = une allée du plan."
+  },
+  "placement_rules.ecran_indicateurs": {
+   "status": "calibre",
+   "citation": null,
+   "note": "Mise en scène : un écran se lit de face, depuis l'allée où l'on passe ; aucune source, n'entre dans aucun calcul."
+  },
+  "placement_rules.postes_proteges_chariots": {
+   "status": "source",
+   "citation": "INRS ED 6350, § 4.4, p. 15 (fiche inrs-implantation-plateformes-logistiques) : les zones de travail (conditionnement, marquage, contrôle) sont « séparées des flux chariots par des protections fixées au sol ».",
+   "note": "Chemin des chariots de la production à l'entrepôt PF, qui longe le contrôle (qualite) et le conditionnement (emballage). Valeurs de calibrage, non sourcées : bande de 1,5 m de part et d'autre du chemin où un poste exige une barrière (PROTECT_M du moteur) ; crossings_max 0 = aucune route de camion ne coupe ce chemin intérieur (transposition des flux dissociés du § 4.1, p. 10, la source ne chiffre rien pour les chariots)."
+  }
+ },
+ "tools": [
+  {
+   "id": "tableau",
+   "label": "Tableau de bord",
+   "audience": "joueur",
+   "kind": "tableau_de_bord",
+   "action_id": null,
+   "menu": [],
+   "bar": true
+  },
+  {
+   "id": "aide",
+   "label": "Aide",
+   "audience": "joueur",
+   "kind": "aide",
+   "action_id": null,
+   "menu": [],
+   "bar": true
+  },
+  {
+   "id": "lancement",
+   "label": "Lancer des OF",
+   "audience": "joueur",
+   "kind": "action",
+   "action_id": "lancer_of",
+   "menu": [
+    "station:pilotage"
+   ],
+   "bar": true
+  },
+  {
+   "id": "commande",
+   "label": "Commande MP",
+   "audience": "joueur",
+   "kind": "action",
+   "action_id": "commander_mp",
+   "menu": [
+    "station:pilotage",
+    "site:fournisseur"
+   ],
+   "bar": true
+  },
+  {
+   "id": "protection",
+   "label": "Protéger goulot",
+   "audience": "joueur",
+   "kind": "action",
+   "action_id": "proteger_goulot",
+   "menu": [
+    "station:tableau_ligne",
+    "station:machine"
+   ],
+   "bar": true
+  },
+  {
+   "id": "preventif",
+   "label": "Préventif",
+   "audience": "joueur",
+   "kind": "action",
+   "action_id": "preventif",
+   "menu": [
+    "station:maintenance",
+    "station:machine"
+   ],
+   "bar": false
+  },
+  {
+   "id": "reparations",
+   "label": "Réparations",
+   "audience": "joueur",
+   "kind": "action",
+   "action_id": "priorite_reparation",
+   "menu": [
+    "station:maintenance",
+    "station:machine"
+   ],
+   "bar": false
+  },
+  {
+   "id": "camera",
+   "label": "Caméra",
+   "audience": "joueur",
+   "kind": "camera",
+   "action_id": null,
+   "menu": [],
+   "bar": true
+  },
+  {
+   "id": "parler",
+   "label": "Parler",
+   "audience": "joueur",
+   "kind": "parler",
+   "action_id": null,
+   "menu": [
+    "agent:*"
+   ],
+   "bar": false
+  },
+  {
+   "id": "fiche",
+   "label": "Fiche",
+   "audience": "joueur",
+   "kind": "fiche",
+   "action_id": null,
+   "menu": [
+    "station:poste_reception",
+    "station:magasin_mp",
+    "station:tableau_ligne",
+    "station:machine",
+    "station:poste_qualite",
+    "station:poste_emballage",
+    "station:maintenance",
+    "station:pilotage",
+    "station:entrepot_pf",
+    "agent:*",
+    "site:fournisseur",
+    "site:client"
+   ],
+   "bar": false
+  },
+  {
+   "id": "demarrer",
+   "label": "Démarrer",
+   "audience": "formateur",
+   "kind": "demarrer",
+   "action_id": null,
+   "menu": [],
+   "bar": true
+  },
+  {
+   "id": "avancer",
+   "label": "Semaine suivante",
+   "audience": "formateur",
+   "kind": "avancer",
+   "action_id": null,
+   "menu": [],
+   "bar": true
+  },
+  {
+   "id": "rejeu",
+   "label": "Rejeu",
+   "audience": "formateur",
+   "kind": "rejeu",
+   "action_id": null,
+   "menu": [],
+   "bar": true
+  },
+  {
+   "id": "memoire",
+   "label": "Mémoire agents",
+   "audience": "formateur",
+   "kind": "memoire",
+   "action_id": null,
+   "menu": [
+    "agent:*"
+   ],
+   "bar": true
+  },
+  {
+   "id": "debrief",
+   "label": "Débrief",
+   "audience": "formateur",
+   "kind": "debrief",
+   "action_id": null,
+   "menu": [],
+   "bar": true
+  }
+ ],
+ "tutorial": [
+  {
+   "id": "indicateurs",
+   "title": "Vos indicateurs",
+   "text": "Le bandeau montre l'OTIF, le TRS, les jours-ligne sans matière et la trésorerie face à leur cible.",
+   "anchor": "panel:bandeau"
+  },
+  {
+   "id": "machines",
+   "title": "Chaque machine",
+   "text": "Approchez une machine : son panneau donne son état, sa disponibilité, ses pannes et sa table d'attente.",
+   "anchor": "station:machine"
+  },
+  {
+   "id": "goulot",
+   "title": "Le goulot de chaque ligne",
+   "text": "La machine la plus lente d'une ligne fixe son débit maximal : quand la demande l'atteint, chaque minute qu'elle perd est perdue pour la ligne.",
+   "anchor": "dept:production"
+  },
+  {
+   "id": "tableau",
+   "title": "Le tableau de bord",
+   "text": "Il montre le flux, les lignes et les machines : comparez le débit de bons attendu et le débit mesuré de chaque ligne.",
+   "anchor": "tool:tableau"
+  },
+  {
+   "id": "decisions",
+   "title": "Vos décisions",
+   "text": "Approchez le poste de votre module ou utilisez la barre d'actions pour décider ; l'aide rouvre ce guide.",
+   "anchor": "tool:aide"
+  }
+ ],
+ "design": null,
+ "layout_edits": [],
+ "criteria": [
+  {
+   "id": "otif",
+   "label": "OTIF moyen",
+   "op": ">=",
+   "target": 95.0,
+   "partial": 90.0
+  },
+  {
+   "id": "trs",
+   "label": "TRS moyen",
+   "op": ">=",
+   "target": 80.0,
+   "partial": 75.0
+  },
+  {
+   "id": "stockouts",
+   "label": "Jours-ligne arrêtés faute de matière (sur la partie)",
+   "op": "<=",
+   "target": 0.0,
+   "partial": 3.0
+  },
+  {
+   "id": "cash",
+   "label": "Trésorerie finale",
+   "op": ">=",
+   "target": 142300.0,
+   "partial": 83500.0
+  }
+ ],
+ "game_rules": [
+  {
+   "id": "objectifs",
+   "text": "En 4 semaines : OTIF (à l'heure et complet) moyen d'au moins 95 %, TRS (rendement des lignes) moyen d'au moins 80 %, au plus 0 jour-ligne sans matière, trésorerie finale d'au moins 142 300 €.",
+   "citation": null
+  },
+  {
+   "id": "otif_par_commande",
+   "text": "Une commande compte pour l'OTIF si elle part complète au plus tard le jour promis ; l'OTIF de la semaine est la part de ces commandes.",
+   "citation": "Fiche wikipedia-en-supply-chain-operations-reference (SCOR) : livraisons à temps et en totalité à la date promise, comptées ici par commande."
+  },
+  {
+   "id": "trs_par_ligne",
+   "text": "Le TRS d'une ligne vaut les produits bons fois leur temps de cycle idéal, divisés par le temps planifié hors pauses (convention du jeu) ; objectif : moyenne des lignes et des semaines.",
+   "citation": "Fiche wikipedia-fr-taux-de-rendement-synthetique : TRS = Tb x Tf x Tq (l.40) ; une pause compte comme un arrêt ou réduit le temps d'ouverture selon les organisations (l.48)."
+  },
+  {
+   "id": "ruptures_jours_ligne",
+   "text": "Une ligne arrêtée faute de matière au cours d'un jour compte un jour-ligne ; le bilan les additionne sur la partie, et une usine qui ne produit rien manque ce critère.",
+   "citation": null
+  },
+  {
+   "id": "matiere_payee_reception",
+   "text": "La matière est payée à la réception des palettes acceptées ; une palette mise en quarantaine n'est pas payée.",
+   "citation": null
+  },
+  {
+   "id": "camion_six_palettes",
+   "text": "Une commande de matière est un camion de 6 palettes au plus.",
+   "citation": null
+  },
+  {
+   "id": "alea_annonce",
+   "text": "Chaque aléa est annoncé une semaine à l'avance : il reste un tour pour s'y préparer.",
+   "citation": null
+  },
+  {
+   "id": "pilote_automatique",
+   "text": "Un module sans joueur est tenu par le pilote automatique : point de commande, lancement d'OF par campagne, préventif sur le goulot.",
+   "citation": null
+  }
+ ]
+}

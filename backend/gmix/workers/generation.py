@@ -104,7 +104,11 @@ async def process(event: Envelope, llm: LLMService, producer: Any) -> None:
         await progress("concept", 10)
         old = game.spec or {}
         keep, pack_id = _keep(game, section)
-        design = await design_factory(llm, game.brief, seed=seed, pack_id=pack_id, keep=keep, note=request.get("note"))
+        # valeurs actuelles de la section régénérée (= params hors `keep`) ; rien pour une conception
+        current = {k: v for k, v in (old.get("params") or {}).items() if k not in keep} if section else None
+        design = await design_factory(
+            llm, game.brief, seed=seed, pack_id=pack_id, keep=keep, note=request.get("note"), current=current
+        )
         await progress("simulation", 40)
         dropped: list[dict[str, Any]] = []
         if section and design.fallback:  # repli : la spec ne change pas
