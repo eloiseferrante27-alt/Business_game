@@ -80,7 +80,10 @@ L'audit de l'exactitude (exigence n° 1) est clos.
 
 ## Condition de validité
 1. La signature porte sur le pack (sha256 3b51658f… ci-dessus), le prompt v5 et le code du commit qui suit cette
-   décision. devops ajoute le hash de ce commit ici après le commit : ____________.
+   décision. Hash de ce commit : `ffed981ac042657a69e56258d7c24920481263ad` (poussé le 24/11/2026, plage
+   2920a79..ffed981). Toute modification après ce commit de `ai/packs/usine.yaml`, de `ai/simulation.yaml` ou du
+   code de génération et du moteur (`backend/gmix/game/`) rend un nouvel audit nécessaire avant de réutiliser
+   cette signature.
 2. Une correction du prompt (D14, C6) crée la v6 et rouvre la relecture de **tous** les jeux, J05, J08 et J09
    compris (§ 6) : ce sera le nouvel audit de T9.
 3. Relances en T9 : J01, J02, J03, J04, J06, J10 même entrée et même graine ; J07 régénéré depuis le nouveau J03 ;
