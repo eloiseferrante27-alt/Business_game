@@ -7,6 +7,7 @@ contient que des choix dans les listes du pack ; ici sont refusés tout chiffre 
 référence inconnue et toute interface au-delà des limites de lisibilité `UI_LIMITS`."""
 
 import re
+import uuid
 from functools import lru_cache
 from typing import Annotated, Any, Literal, get_args
 
@@ -61,12 +62,25 @@ ATELIER_STATION_KINDS = frozenset(
 # Conception par l'IA (ADR 0008, annexe 0008 §1)
 Audience = Literal["lycee", "bac_plus_2", "licence", "master", "formation_continue"]
 Bloom = Literal["identifier", "expliquer", "calculer", "appliquer", "comparer", "arbitrer", "evaluer"]
-Section = Literal["concept", "cast", "journey"]  # scénario et objectifs ; personnages ; interface et débrief
+# clés de DesignOrigin.sections ; domain et world : ADR 0013 §3.2 (étapes 1 et 4)
+Section = Literal["domain", "concept", "world", "cast", "journey"]
 SectionMode = Literal["ia", "repli", "edition"]
+# `stage` de generation.progress (annexe 0013 §6) ; le worker v0 émet encore `checks` (-> controle en T9)
+DesignStage = Literal[
+    "domaine", "concept", "simulation", "monde", "placement", "personnages", "parcours", "controle",
+]  # fmt: skip
 FIXABLE = frozenset(
     {"theme", "modules", "extra_agents", "agent_tone", "difficulty", "weeks", "events", "products", "options",
-     "company_name"}
+     "company_name", "buildings", "suppliers", "clients", "ambiance"}
 )  # fmt: skip  # champs de GameParams que le formateur peut imposer
+# Monde à plusieurs bâtiments (ADR 0013 §3.5, annexe 0013 §2) : types de règle de zonage du pack
+ZONING_KINDS = ("together", "apart", "same_building", "max_walk_m")
+# Module finance du moteur factory (ADR 0013 §3.5, annexe 0013 §4) : actif si spec.finance est présent
+FINANCE_INDICATORS = ("net_cash", "wcr_days", "dso", "dpo", "agios")
+FINANCE_ACTIONS = frozenset(
+    {"proposer_escompte", "relancer_client", "affacturer", "payer_fournisseur", "emprunter", "investir"}
+)  # fmt: skip
+MACHINE_EFFECTS = frozenset({"cycle_min", "mtbf_h", "mttr_h", "setup_min", "defect_rate"})  # Investment.effects
 # textes conçus : ni chiffre ni lien (les chiffres viennent du moteur). \d ne voit pas ², ½, Ⅻ, ① : isnumeric() les voit
 _FORBIDDEN_IN_TEXT = re.compile(r"\d|https?://")
 TEXT_CHARS = (
@@ -101,6 +115,14 @@ class PlannedEvent(BaseModel):
     event_id: str
 
 
+class PlannedBuilding(BaseModel):
+    """Un bâtiment du `WorldPlan` (étape 4 de l'ADR 0013, entrée de layout.place_campus) : archétype et départements
+    logés ; la géométrie vient du placeur."""
+
+    archetype: Code  # clé de pack["building_archetypes"]
+    department_ids: list[Code] = Field(min_length=1)
+
+
 class GameParams(BaseModel):
     """Tout ce que choisit le formateur : aucun texte libre, la génération est entièrement paramétrée."""
 
@@ -124,6 +146,14 @@ class GameParams(BaseModel):
     event_plan: list[PlannedEvent] = Field(default_factory=list, max_length=3)
     network: dict[str, str] = Field(
         default_factory=dict, description="site du pack -> classe de distance permise ; absent : défaut du pack"
+    )
+    # ADR 0013 §3.5 (annexe 0013 §1) : None ou vide = comportement actuel (défauts du pack, hall unique)
+    suppliers: int | None = Field(default=None, ge=1, le=8)  # bornes : pack["limits"]["suppliers"]
+    clients: int | None = Field(default=None, ge=1, le=4)  # bornes : pack["limits"]["clients"]
+    buildings: int | None = Field(default=None, ge=1, le=4)  # bornes : pack["limits"]["buildings"]
+    ambiance: Code | None = None  # clé de pack["ambiances"]
+    world_plan: list[PlannedBuilding] = Field(
+        default_factory=list, max_length=4, description="sortie de design.world ; vide : programme de référence"
     )
 
     @model_validator(mode="before")
@@ -186,9 +216,34 @@ class GameParams(BaseModel):
                 errors.append(f"plan d'aléas : aléa inconnu du pack {self.pack} : {planned.event_id}")
             elif not set(event["modules"]) & set(self.modules):
                 errors.append(f"plan d'aléas : {planned.event_id} ne touche aucun module joué")
+        errors += self._world_choice_errors(pack)
         if errors:
             raise ValueError("; ".join(errors[:10]))
         return self
+
+    def _world_choice_errors(self, pack: dict[str, Any]) -> list[str]:
+        """Champs de l'ADR 0013 : refusés si le pack ne les déclare pas (une contrainte n'est jamais ignorée)."""
+        errors = []
+        limits = pack.get("limits", {})
+        for key in ("suppliers", "clients", "buildings"):
+            value = getattr(self, key)
+            if value is None:
+                continue
+            if key not in limits:
+                errors.append(f"{key} : non réglable pour le pack {self.pack}")
+            elif not limits[key][0] <= value <= limits[key][1]:
+                errors.append(f"{key} : entre {limits[key][0]} et {limits[key][1]} pour le pack {self.pack}")
+        if self.ambiance is not None and self.ambiance not in pack.get("ambiances", {}):
+            errors.append(f"ambiance inconnue du pack {self.pack} : {self.ambiance}")
+        archetypes = pack.get("building_archetypes", {})
+        errors += [f"bâtiment : archétype inconnu du pack {self.pack} : {b.archetype}"
+                   for b in self.world_plan if b.archetype not in archetypes]  # fmt: skip
+        housed = [d for b in self.world_plan for d in b.department_ids]
+        if len(set(housed)) != len(housed):
+            errors.append("plan du monde : un département est logé dans un seul bâtiment")
+        if self.world_plan and self.buildings is not None and len(self.world_plan) != self.buildings:
+            errors.append(f"plan du monde : {len(self.world_plan)} bâtiments pour {self.buildings} imposés")
+        return errors
 
 
 class Product(BaseModel):
@@ -250,7 +305,10 @@ class ActionField(BaseModel):
     id: str
     label: str
     type: Literal["choice", "int"]
-    source: Literal["offers", "lines", "products", "machines"] | None = None
+    # module finance (annexe 0013 §4) : receivables, payables (état) ; loan_offers, investments (spec.finance)
+    source: Literal[
+        "offers", "lines", "products", "machines", "receivables", "payables", "loan_offers", "investments",
+    ] | None = None  # fmt: skip
     options: list[Option] | None = None
     min: int | None = None
     max: int | None = None
@@ -411,8 +469,39 @@ class Link(BaseModel):
     vehicle: str | None = None  # id d'asset (veh_box_truck)
 
 
+def _empty_rect(r: Rect) -> bool:
+    return r[0] >= r[2] or r[1] >= r[3]
+
+
+def _inside(inner: Rect, outer: Rect) -> bool:
+    return outer[0] <= inner[0] and outer[1] <= inner[1] and inner[2] <= outer[2] and inner[3] <= outer[3]
+
+
+class Building(BaseModel):
+    """Bâtiment du campus (ADR 0013 §3.5, annexe 0013 §2) : sortie de layout.place_campus."""
+
+    id: str = Field(pattern=r"^b[1-4]$")
+    archetype: Code  # clé de pack["building_archetypes"]
+    label: str = Field(min_length=2, max_length=40)
+    area: Rect  # repère du monde (m), aligné sur la grille du campus (pack["campus"]["cell_m"])
+    entrance: Point  # porte principale, sur le bord de `area`
+    style: Code  # façade : pack["ambiances"][world.ambiance]["styles"]
+
+
+class Room(BaseModel):
+    """Pièce d'un bâtiment ; un département est logé dans une seule pièce, une pièce peut en loger plusieurs."""
+
+    id: str = Field(pattern=r"^b[1-4]\.[a-z_]{2,30}$")  # <bâtiment>.<pièce>
+    building_id: str
+    kind: Code  # clé de pack["building_archetypes"][archetype]["rooms"]
+    label: str = Field(min_length=2, max_length=40)
+    area: Rect
+    department_ids: list[Code] = Field(min_length=1)
+    doors: list[Point] = Field(min_length=1)
+
+
 class World(BaseModel):
-    template: Literal["atelier", "usine"] = "atelier"
+    template: Literal["atelier", "usine", "campus"] = "atelier"  # campus : buildings non vide (ADR 0013)
     size: Point = (32, 24)  # hall du site principal
     spawn: Point
     objects: list[WorldObject]
@@ -420,6 +509,9 @@ class World(BaseModel):
     sites: list[Site] = Field(default_factory=list)  # site principal (external=False) en premier
     links: list[Link] = Field(default_factory=list)
     bounds: Rect | None = None  # tout le monde
+    buildings: list[Building] = Field(default_factory=list, max_length=4)  # vide : hall unique actuel
+    rooms: list[Room] = Field(default_factory=list)
+    ambiance: Code | None = None  # clé de pack["ambiances"]
 
 
 class Notion(BaseModel):
@@ -515,10 +607,11 @@ class Department(BaseModel):
     block: Code | None = None  # type de bloc du pack
     site_id: str | None = None  # zone externe : site qui la porte (son area est celle du site)
     grid: BlockGrid | None = None
+    room_id: str | None = None  # pièce qui le loge (world.rooms) ; None : hall unique
 
     @model_validator(mode="after")
     def _area(self) -> "Department":
-        if self.area[0] >= self.area[2] or self.area[1] >= self.area[3]:
+        if _empty_rect(self.area):
             raise ValueError(f"département {self.id} : zone vide ou inversée (x_min, z_min, x_max, z_max)")
         return self
 
@@ -543,11 +636,13 @@ class Machine(BaseModel):
     transfer_min: float = Field(ge=0)
     operators: int = Field(default=1, ge=0, le=4)
     asset: str
+    type: Code | None = None  # type de machine du pack pour son opération (ADR 0013, T4) ; None : type unique
 
 
 class BomItem(BaseModel):
     component_id: str
     per_unit: float = Field(gt=0)
+    product_id: str | None = None  # plusieurs produits (ADR 0013, T4) ; None : Factory.product_id
 
 
 class CrewMember(BaseModel):
@@ -597,6 +692,16 @@ class Logistics(BaseModel):
     load_min_per_pallet: float = Field(ge=0)
     repair_travel_min: float = Field(ge=0)
     preventive_min: float = Field(ge=0)
+    # ADR 0013 §3.5 (annexe 0013 §3) : renseignées ensemble, le trajet vient de layout.travel_min et kit_min ne compte
+    # plus que la préparation ; None : kit_min et repair_travel_min fixes (comportement actuel)
+    walk_m_per_min: float | None = Field(default=None, gt=0)
+    forklift_m_per_min: float | None = Field(default=None, gt=0)
+
+    @model_validator(mode="after")
+    def _speeds(self) -> "Logistics":
+        if (self.walk_m_per_min is None) != (self.forklift_m_per_min is None):
+            raise ValueError("logistique : walk_m_per_min et forklift_m_per_min se renseignent ensemble")
+        return self
 
 
 class Customer(BaseModel):
@@ -607,6 +712,15 @@ class Customer(BaseModel):
     pickup_window_min: tuple[int, int] = Field(
         default=(360, 450), description="camion du client, en minutes depuis day_start_h"
     )
+
+
+class Client(Customer):
+    """Un client parmi 1 à 4 (ADR 0013, T4) ; Factory.clients vide : `customer` seul, acheteur de product_id."""
+
+    id: str = Field(pattern=r"^c[1-4]$")
+    name: str = Field(min_length=2, max_length=40)
+    product_id: str
+    site_id: str | None = None  # site client de world.sites
 
 
 class Resources(BaseModel):
@@ -636,7 +750,9 @@ class InitialOrder(BaseModel):
 class Factory(BaseModel):
     """Usine à lignes de machines en série (modèle `factory` du moteur, ADR 0007)."""
 
-    product_id: str  # toutes les lignes font ce produit (cahier) ; Product.line_id = l1
+    # un seul produit : toutes les lignes le font (cahier) ; plusieurs (ADR 0013, T4) : produit de référence (le
+    # premier), chaque ligne fait Line.product_id et chaque produit a sa nomenclature (BomItem.product_id)
+    product_id: str
     lot_size: int = Field(gt=0, le=1000)
     pf_min: int = Field(ge=0, description="sous ce stock PF, le pilote automatique relance un OF")
     pf_max: int | None = Field(
@@ -649,12 +765,75 @@ class Factory(BaseModel):
     crew: list[CrewMember] = Field(default_factory=list)
     clock: Clock = Field(default_factory=Clock)
     logistics: Logistics
-    customer: Customer
+    customer: Customer  # ignoré par le moteur si `clients` est non vide (le générateur y recopie clients[0])
+    clients: list[Client] = Field(default_factory=list, max_length=4)
     resources: Resources = Field(default_factory=Resources)
     costs: FactoryCosts
     protect_buffer: int = Field(
         default=30, ge=1, le=500, description="table devant le goulot en mode tampon_avant (proteger_goulot)"
     )
+
+
+# Module finance du moteur factory (ADR 0013 §3.5 et §6.2, annexe 0013 §4). Chaque nombre a sa clé dans
+# spec.provenance (« finance.<champ> », « finance.loan_offers.<id>.<champ> », « finance.investments.<id>.<champ> »).
+class LoanOffer(BaseModel):
+    id: Code
+    kind: Literal["credit_court_terme", "emprunt"]  # court terme : in fine ; emprunt : amortissement constant
+    label: str = Field(min_length=2, max_length=40)
+    rate_year: float = Field(ge=0, le=0.3)  # taux nominal annuel ; rate_week = rate_year / 52 (annexe 0013 §4.3)
+    max_principal: float = Field(gt=0)
+    weeks: int = Field(ge=1, le=520)
+
+
+class Investment(BaseModel):
+    """Investissement machine jugé à la VAN (fonction pure du moteur, annexe 0013 §4.4)."""
+
+    id: Code
+    label: str = Field(min_length=2, max_length=40)
+    machine_id: str  # machine de spec.factory remplacée ou améliorée
+    capex: float = Field(gt=0)
+    life_years: int = Field(ge=1, le=20)
+    annual_cash_flow: float  # flux net annuel attendu (estimation du dossier d'investissement)
+    residual_value: float = Field(default=0, ge=0)
+    effects: dict[str, float] = Field(default_factory=dict, description="champ de Machine -> facteur (>0)")
+
+
+class Finance(BaseModel):
+    """Paramètres du module finance ; échéanciers et prêts vivent dans l'état (Due, Loan)."""
+
+    customer_terms_days: int = Field(ge=0, le=60)  # délai de paiement accordé aux clients (jours calendaires)
+    supplier_terms_days: int = Field(ge=0, le=60)  # délai obtenu des fournisseurs
+    customer_late_share: float = Field(default=0, ge=0, le=1)  # part des factures clients payées en retard
+    customer_late_weeks: int = Field(default=0, ge=0, le=12)  # retard d'une facture en retard, sans relance
+    overdraft_limit: float = Field(ge=0)  # découvert autorisé ; agios au taux economy.interest_rate_week
+    discount_rate: float = Field(default=0, ge=0, le=0.1)  # escompte pour paiement anticipé (client ou fournisseur)
+    factoring_fee_rate: float = Field(default=0, ge=0, le=0.1)  # coût d'une cession à l'affactureur, en part
+    dunning_cost: float = Field(default=0, ge=0)  # coût d'une relance
+    late_penalty_rate_year: float = Field(default=0, ge=0, le=0.5)  # pénalités de retard (Code de commerce L441-10)
+    recovery_fee: float = Field(default=0, ge=0)  # indemnité forfaitaire pour frais de recouvrement (D441-5)
+    discount_rate_year: float = Field(ge=0, le=0.3)  # taux d'actualisation de la VAN
+    loan_offers: list[LoanOffer] = Field(default_factory=list, max_length=4)
+    investments: list[Investment] = Field(default_factory=list, max_length=3)
+
+
+class Due(BaseModel):
+    """Élément de state["finance"]["receivables"|"payables"] (même mécanique que pending / arrival_week)."""
+
+    id: str  # r<semaine>-<n> (créance), p<semaine>-<n> (dette)
+    counterparty: str  # Client.id (« c1 » si Factory.clients est vide) ou Supplier.id
+    amount: float = Field(gt=0)
+    due_week: int = Field(ge=1)
+    late: bool = False  # échéance dépassée : due_week reportée (retard client tiré à l'échéance, ou dette impayée)
+
+
+class Loan(BaseModel):
+    """Élément de state["finance"]["loans"] : prêt en cours."""
+
+    id: str
+    offer_id: str
+    principal: float = Field(ge=0)  # capital restant dû
+    rate_week: float = Field(ge=0)
+    weeks_left: int = Field(ge=0)
 
 
 class PanelColumn(BaseModel):
@@ -834,8 +1013,27 @@ class DesignObjective(BaseModel):
     verb: Bloom
     text: str = Field(min_length=10, max_length=140)  # complément du verbe : « le goulot de chaque ligne »
     notion_ids: list[str] = Field(min_length=1, max_length=3)
-    indicator: str  # dans INDICATORS (moteur de la spec)
+    indicator: str  # dans INDICATORS (moteur de la spec), plus FINANCE_INDICATORS si spec.finance
     module_ids: list[ModuleId] = Field(min_length=1, max_length=3)
+    excerpt_ids: list[str] = Field(default_factory=list, max_length=2)  # passages cités (spec.trainer_excerpts)
+
+
+class TrainerExcerpt(BaseModel):
+    """Passage d'un document du formateur, cité tel quel (ADR 0013 §3.5, T8). Jamais la provenance d'une valeur :
+    affiché « source du formateur, non vérifiée par G-mix »."""
+
+    id: str  # <document_id>#<n° de segment, à partir de 1>
+    document_id: uuid.UUID
+    title: str = Field(min_length=1, max_length=120)  # titre du document
+    text: str = Field(min_length=1, max_length=600)
+    validated: bool = False  # coché par le formateur ; publication refusée (422) si un passage cité ne l'est pas
+
+    @model_validator(mode="after")
+    def _id(self) -> "TrainerExcerpt":
+        document, _, n = self.id.partition("#")
+        if document != str(self.document_id) or not n.isdigit() or int(n) < 1:
+            raise ValueError(f"passage {self.id} : identifiant <document_id>#<n> attendu")
+        return self
 
 
 class DebriefQuestion(BaseModel):
@@ -904,12 +1102,18 @@ class DesignRequest(BaseModel):
     players_min: int = Field(default=2, ge=1, le=60)
     players_max: int = Field(default=6, ge=1, le=60)
     seed: int | None = Field(default=None, ge=0, le=2**31 - 1)
+    domain: str | None = Field(default=None, pattern=r"^[a-z0-9-]{2,40}$")  # imposé ; None : choisi à l'étape 1
+    document_ids: list[uuid.UUID] = Field(default_factory=list, max_length=5)  # T8 : documents du formateur
 
     @model_validator(mode="after")
     def _check(self) -> "DesignRequest":
         unknown = sorted(set(self.fixed) - FIXABLE)
         if unknown:
             raise ValueError(f"contrainte non imposable : {', '.join(unknown)}")
+        if len(set(self.document_ids)) != len(self.document_ids):
+            raise ValueError("document en double")
+        if self.domain and self.domain != load_pack(self.pack).get("domain", "supply-chain"):
+            raise ValueError(f"le pack {self.pack} n'appartient pas au domaine {self.domain}")
         players = {"players_min": self.players_min, "players_max": self.players_max}
         GameParams(**(default_params(self.pack) | self.fixed | players))  # ValueError si le pack ou une valeur refuse
         return self
@@ -917,6 +1121,8 @@ class DesignRequest(BaseModel):
 
 # F3 de l'usine (ADR 0012 §1, livraison v0 en un appel factory.design) : clés de GameParams que régénère chaque
 # section ; toutes les autres, graine du jeu comprise, restent celles du jeu
+# Section « monde » (ADR 0013 §3.5) : ajoutée en T9 avec design.world, pas avant (elle ne régénérerait rien) :
+# FactorySection += "monde" ; FACTORY_SECTIONS["monde"] = frozenset({"world_plan", "ambiance"}) (annexe 0013 §5)
 FactorySection = Literal["entreprise", "objectifs", "personnages"]
 FACTORY_SECTIONS: dict[str, frozenset[str]] = {
     "entreprise": frozenset({"theme", "company_name"}),
@@ -1033,6 +1239,8 @@ class SimSpec(BaseModel):
     layout_edits: list[LayoutEdit] = Field(default_factory=list, max_length=200)
     criteria: list[Criterion] = Field(default_factory=list, description="vide : dérivé de targets, sans partiel")
     game_rules: list[GameRule] = Field(default_factory=list)
+    finance: Finance | None = None  # module finance du moteur factory (ADR 0013) ; None : inactif
+    trainer_excerpts: list[TrainerExcerpt] = Field(default_factory=list, max_length=10)  # passages cités (T8)
 
     @model_validator(mode="after")
     def _references(self) -> "SimSpec":
@@ -1102,7 +1310,8 @@ class SimSpec(BaseModel):
         errors += [f"rôle {r.id} : département inconnu {r.department_id}" for r in self.roles
                    if r.department_id and r.department_id not in ids["departments"]]  # fmt: skip
         errors += self._criteria_errors()
-        errors += self._world_errors() + self._layout_errors()
+        errors += self._world_errors() + self._layout_errors() + self._campus_errors(pack)
+        errors += self._finance_errors() + self._excerpt_errors()
         posted = {s.kind for s in self.stations}
         if len({p.id for p in self.panels}) != len(self.panels):
             errors.append("identifiants de panneau en double")
@@ -1122,9 +1331,95 @@ class SimSpec(BaseModel):
             raise ValueError("; ".join(errors[:10]))
         return self
 
+    def _indicators(self) -> tuple[str, ...]:
+        base = INDICATORS["factory" if self.factory else "weekly"]
+        return base + FINANCE_INDICATORS if self.finance else base
+
+    def _campus_errors(self, pack: dict[str, Any]) -> list[str]:
+        """Bâtiments et pièces (annexe 0013 §2) : références, pièces dans leur bâtiment, chaque département
+        intérieur dans une seule pièce, aucun bâtiment sans pièce. Géométrie fine : layout.check_placement."""
+        world = self.world
+        room_of = {d.id: d.room_id for d in self.departments if d.room_id}
+        if not world.buildings:
+            errors = ["monde : world.template « campus » sans bâtiment"] if world.template == "campus" else []
+            errors += ["monde : pièces sans bâtiment"] if world.rooms else []
+            return errors + [f"département {d} : pièce inconnue {r}" for d, r in sorted(room_of.items())]
+        errors = [] if world.template == "campus" else ["monde : bâtiments hors d'un world.template « campus »"]
+        archetypes, ambiances = pack.get("building_archetypes", {}), pack.get("ambiances", {})
+        if world.ambiance is not None and world.ambiance not in ambiances:
+            errors.append(f"monde : ambiance inconnue du pack {self.params.pack} : {world.ambiance}")
+        chosen = [ambiances.get(world.ambiance, {})] if world.ambiance else list(ambiances.values())
+        styles = {s for a in chosen for s in a.get("styles", [])}
+        buildings = {b.id: b for b in world.buildings}
+        if len(buildings) != len(world.buildings):
+            errors.append("identifiants de bâtiment en double")
+        for b in world.buildings:
+            if _empty_rect(b.area) or (world.bounds and not _inside(b.area, world.bounds)):
+                errors.append(f"bâtiment {b.id} : zone vide, inversée ou hors de world.bounds")
+            if b.archetype not in archetypes:
+                errors.append(f"bâtiment {b.id} : archétype inconnu du pack {self.params.pack} : {b.archetype}")
+            if b.style not in styles:
+                errors.append(f"bâtiment {b.id} : style inconnu de l'ambiance : {b.style}")
+        if len({r.id for r in world.rooms}) != len(world.rooms):
+            errors.append("identifiants de pièce en double")
+        internal = {d.id for d in self.departments if not d.external}
+        housed: dict[str, str] = {}
+        for r in world.rooms:
+            building = buildings.get(r.building_id)
+            if building is None or not r.id.startswith(f"{r.building_id}."):
+                errors.append(f"pièce {r.id} : bâtiment inconnu ou préfixe différent ({r.building_id})")
+                continue
+            if r.kind not in archetypes.get(building.archetype, {}).get("rooms", {}):
+                errors.append(f"pièce {r.id} : type {r.kind} non permis dans l'archétype {building.archetype}")
+            if _empty_rect(r.area) or not _inside(r.area, building.area):
+                errors.append(f"pièce {r.id} : zone vide, inversée ou hors du bâtiment {building.id}")
+            for d in r.department_ids:
+                if d not in internal:
+                    errors.append(f"pièce {r.id} : département intérieur inconnu {d}")
+                elif d in housed:
+                    errors.append(f"département {d} : logé dans {housed[d]} et {r.id}")
+                housed.setdefault(d, r.id)
+        errors += [f"département {d} : room_id {room_of.get(d)} au lieu de {r}" for d, r in sorted(housed.items())
+                   if room_of.get(d) != r]  # fmt: skip
+        errors += [f"département {d} : dans aucune pièce" for d in sorted(internal - housed.keys())]
+        errors += [f"département {d} : pièce inconnue {r}" for d, r in sorted(room_of.items()) if d not in housed]
+        empty = sorted(set(buildings) - {r.building_id for r in world.rooms})
+        errors += [f"bâtiment {b} : aucune pièce (un bâtiment de pur décor est interdit)" for b in empty]
+        return errors
+
+    def _finance_errors(self) -> list[str]:
+        """Module finance (annexe 0013 §4) : sur le moteur factory, ids uniques, machine connue, actions réservées."""
+        actions = {a.id for m in self.modules for a in m.actions}
+        if self.finance is None:
+            return [f"action {a} : module finance absent (spec.finance)" for a in sorted(actions & FINANCE_ACTIONS)]
+        finance = self.finance
+        if self.factory is None:
+            return ["finance : moteur factory requis"]
+        errors = []
+        for what, items in (("offre de prêt", finance.loan_offers), ("investissement", finance.investments)):
+            if len({x.id for x in items}) != len(items):
+                errors.append(f"{what} : identifiants en double")
+        machines = {m.id for m in self.factory.machines}
+        for inv in finance.investments:
+            if inv.machine_id not in machines:
+                errors.append(f"investissement {inv.id} : machine inconnue {inv.machine_id}")
+            errors += [f"investissement {inv.id} : effet {k} inconnu ou facteur non positif"
+                       for k, v in inv.effects.items() if k not in MACHINE_EFFECTS or v <= 0]  # fmt: skip
+        return errors
+
+    def _excerpt_errors(self) -> list[str]:
+        """Passages du formateur (T8) : ids uniques, chacun cité par un objectif, chaque citation connue. La
+        validation par le formateur se vérifie à la publication (API, 422), pas dans un brouillon."""
+        known = {e.id for e in self.trainer_excerpts}
+        errors = [] if len(known) == len(self.trainer_excerpts) else ["passages du formateur : identifiants en double"]
+        cited = {x for o in self.design.objectives for x in o.excerpt_ids} if self.design else set()
+        errors += [f"passage {x} cité mais absent de trainer_excerpts" for x in sorted(cited - known)]
+        errors += [f"passage {x} : cité par aucun objectif" for x in sorted(known - cited)]
+        return errors
+
     def _criteria_errors(self) -> list[str]:
         """Critères : indicateur du moteur (hors good_share), sans doublon, `partial` du côté « raté » de la cible."""
-        allowed = set(INDICATORS["factory" if self.factory else "weekly"]) - {"good_share"}
+        allowed = set(self._indicators()) - {"good_share"}
         errors = [f"critère {c.id} : indicateur inconnu ({', '.join(sorted(allowed))})" for c in self.criteria
                   if c.id not in allowed]  # fmt: skip
         errors += [
@@ -1272,7 +1567,7 @@ class SimSpec(BaseModel):
         design = self.design
         assert design is not None
         pack_notions = pack.get("notions", {})
-        indicators = set(INDICATORS["factory" if self.factory else "weekly"])
+        indicators = set(self._indicators())
         errors = []
         objective_ids = [o.id for o in design.objectives]
         if len(set(objective_ids)) != len(objective_ids):
@@ -1310,7 +1605,7 @@ class SimSpec(BaseModel):
     def _factory_errors(self, ids: dict[str, set[str]]) -> list[str]:
         factory = self.factory
         assert factory is not None
-        errors = [] if self.world.template == "usine" else ["usine : world.template doit valoir « usine »"]
+        errors = [] if self.world.template in ("usine", "campus") else ["usine : world.template usine ou campus"]
         day = factory.clock.minutes_per_day
         for name, (start, end) in (
             ("créneau d'enlèvement du client", factory.customer.pickup_window_min),
@@ -1322,16 +1617,28 @@ class SimSpec(BaseModel):
             errors.append(f"usine : produit inconnu {factory.product_id}")
         if factory.initial_order and factory.initial_order.offer_id not in {o.id for o in self.offers}:
             errors.append(f"usine : commande initiale sur une offre inconnue {factory.initial_order.offer_id}")
+        if not any(b.product_id for b in factory.bom):  # nomenclature unique : un seul produit fabriqué
+            errors += [
+                f"ligne {line.id} : produit {line.product_id} différent de celui de l'usine ({factory.product_id})"
+                for line in self.lines
+                if line.product_id != factory.product_id
+            ]
+        else:  # plusieurs produits (ADR 0013, T4) : chacun sa ligne et sa nomenclature
+            made = {line.product_id for line in self.lines}
+            bom_of = {b.product_id or factory.product_id for b in factory.bom}
+            errors += [f"usine : produit {p} sans ligne" for p in sorted(ids["products"] - made)]
+            errors += [f"usine : produit {p} sans nomenclature" for p in sorted(ids["products"] - bom_of)]
         errors += [
-            f"ligne {line.id} : produit {line.product_id} différent de celui de l'usine ({factory.product_id})"
-            for line in self.lines
-            if line.product_id != factory.product_id
-        ]
-        errors += [
-            f"nomenclature : composant inconnu {b.component_id}"
+            f"nomenclature : composant ou produit inconnu ({b.component_id}, {b.product_id})"
             for b in factory.bom
-            if b.component_id not in ids["components"]
+            if b.component_id not in ids["components"] or (b.product_id and b.product_id not in ids["products"])
         ]
+        clients = [c.id for c in factory.clients]
+        if len(set(clients)) != len(clients):
+            errors.append("identifiants de client en double")
+        site_ids = {s.id for s in self.world.sites}
+        errors += [f"client {c.id} : produit ou site inconnus" for c in factory.clients
+                   if c.product_id not in ids["products"] or (c.site_id and c.site_id not in site_ids)]  # fmt: skip
         machine_ids = [m.id for m in factory.machines]
         if len(set(machine_ids)) != len(machine_ids):
             errors.append("identifiants de machine en double")
@@ -1441,6 +1748,7 @@ def _check_design_keys(pack_id: str, pack: dict[str, Any]) -> None:
         if not isinstance(indicators, list) or not all(isinstance(i, str) for i in indicators):
             raise ValueError(f"pack {pack_id} : notions.{notion_id}.indicators doit être une liste d'identifiants")
         known = INDICATORS["factory" if pack.get("engine") == "factory" else "weekly"]
+        known += FINANCE_INDICATORS if "finance" in pack else ()  # section `finance` du pack (annexe 0013 §4)
         if not set(indicators) <= set(known):
             raise ValueError(f"pack {pack_id} : notions.{notion_id}.indicators : inconnus du moteur : {indicators}")
     tools = [Tool.model_validate(t) for t in pack.get("tools", [])]

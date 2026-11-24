@@ -1,7 +1,8 @@
 # 0013 : générer des mondes et des business games vraiment différents selon la demande du formateur
 
-Date : 2026-11-21. Statut : **accepté** (décisions de l'utilisateur du 21/11, §6). Les contrats de code (`spec.py`,
-`topics.py`, annexe 0013) s'écrivent en tranche T2 ; jusque-là le code suit les ADR 0006 à 0012.
+Date : 2026-11-21. Statut : **accepté** (décisions de l'utilisateur du 21/11, §6). Contrats de code écrits en T2
+(24/11) : `spec.py` et [annexe 0013](0013-annexe-contrats.md), qui fait foi pour les champs, invariants et routes ;
+`topics.py` inchangé.
 Amende : ADR 0007 d.9 (plan en U : plan de référence et repli) ; ADR 0008 d.3, d.4 et d.6, et son annexe §4.1, §5,
 §8, §9, §10 (pipeline en cinq agents, RAG à l'étape 1, série V) ; ADR 0009 d.1, d.2, contrat de `place_world` et
 « Après » (placeur à graine, bâtiments simulés, tranches 2 et 3) ; ADR 0010 §3 et §7.3, annexe 0010 §7 (portée de la
@@ -145,7 +146,13 @@ plus (avec la liste des erreurs), puis son repli : le formateur reçoit toujours
   domaine ; l'atelier (moteur `weekly`) reste gelé, puisque le second domaine choisi, la finance d'entreprise,
   réutilise le moteur `factory` (§6.2).
 
-### 3.5 Contrats (à fixer en T2 dans `spec.py`, `topics.py` si besoin et l'annexe 0013 ; aucun n'est écrit aujourd'hui)
+### 3.5 Contrats (fixés en T2 le 24/11 : `spec.py` et [annexe 0013](0013-annexe-contrats.md))
+
+Esquisse d'origine, gardée pour l'historique ; **l'annexe fait foi**. Écarts de T2 : `Room` est aussi lié par
+`Department.room_id` (deux sens, vérifiés) ; le plan du monde vit dans `GameParams.world_plan` (rejouable) ; la section
+`monde` de la régénération n'entre dans le code qu'en T9 ; les passages sont cités par `DesignObjective.excerpt_ids`
+et jamais par un PNJ ; `POST /games/documents` (sans jeu) s'ajoute pour déposer avant la conception ; usine variée
+(produits, clients, types de machine) et module finance sont typés (annexe §3 et §4).
 
 `spec.py`, champs facultatifs, `version` reste 2 (une spec existante reste valide) :
 

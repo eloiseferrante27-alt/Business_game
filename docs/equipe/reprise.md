@@ -1,4 +1,4 @@
-# Reprise de session (après /clear) - état au 21/11/2026 (le détail des tranches B date du 06/11)
+# Reprise de session (après /clear) - état au 24/11/2026 (le détail des tranches B date du 06/11)
 
 VS Code s'ouvre sur le dossier parent `G_mix-Generateur-Business_Games` (choix de l'utilisateur, 05/11). L'équipe y vit,
 hors git : `../CLAUDE.md` et `../.claude/` (agents, réglages, `ownership.json`), retirés du dépôt le 05/11 (ils restent
@@ -53,11 +53,11 @@ dans l'historique). Commandes à lancer en `.\Business_game-contribution_Romain\
 
 **Décision de l'utilisateur, 21/11** (ADR 0013 §6, `docs/decisions/0013-generation-de-mondes-et-de-jeux-differents.md`) : ADR complet avant la Première version ; second domaine jouable, la finance d'entreprise (trésorerie et BFR d'une PME), en plus de la supply chain (`finance-entreprise`, moteur `factory`, D0 fait le 21/11) ; documents du formateur comme source (chaque passage validé, provenance « formateur », aucun chiffre de document dans le moteur) ; orchestrateur en code et 5 agents IA en série ; budget de conception inchangé (3 min en médiane, 10 au plus) ; 3b partout (interprétation de l'architecte, à confirmer par l'utilisateur : le 7b est un choix fait à l'éval, tâche par tâche, sans bascule en cours de job). Rien de cela n'est livré : le monde reste le hall en U, un seul domaine est jouable, le brief ne produit aucun texte.
 
-**Fait le 21/11, non commité** : préventif P2 et P3 (formes du goulot 3/2/1, 200 € de dégâts, cible TRS 80 %), pannes évitées exposées dans le débrief, textes du préventif ; deux fiches au corpus (TRS fr, Weibull NIST), corpus réingéré, couverture 34/37 ; TRS présenté comme une convention ; champ `damage_per_failure` dans `spec.py` ; affichage `bottlenecks` dans Godot ; C1 de l'audit fiabilisé ; `test.ps1 -Fast` 805 passés.
+**Fait le 21/11 (commité)** : préventif P2 et P3 (formes du goulot 3/2/1, 200 € de dégâts, cible TRS 80 %), pannes évitées exposées dans le débrief, textes du préventif ; deux fiches au corpus (TRS fr, Weibull NIST), corpus réingéré, couverture 34/37 ; TRS présenté comme une convention ; champ `damage_per_failure` dans `spec.py` ; affichage `bottlenecks` dans Godot ; C1 de l'audit fiabilisé ; `test.ps1 -Fast` 805 passés.
 
 **Audit T0, second tour** (`docs/audits/liste-a-signer.md`, fiches `jeux-ia/J01-t2.md` à `J10-t2.md`, sorties `ai/evals/results/audit-2026-11-21/`) : 0 conforme, 5 à corriger, 5 refusés.
 
-**T0 clos le 21/11 (non commité depuis 2920a79)**
+**T0 clos le 21/11, commité (ffed981 et 352fce5)**
 
 Troisième tour (`ai/evals/results/audit-2026-11-21-t3/`, fiches `docs/audits/jeux-ia/J0x-t3.md`) : aucun échec automatique ; 3 jeux conformes, J05, J08 et J09, **signés par l'utilisateur le 21/11** ; 7 jeux « exacts, respect de la demande à améliorer », repris en T9 ; aucun refusé. Liste : `docs/audits/liste-a-signer.md` (tenue par game-designer).
 
@@ -69,21 +69,24 @@ Troisième tour (`ai/evals/results/audit-2026-11-21-t3/`, fiches `docs/audits/je
 | Godot | avertissements dans la relecture et le brouillon ; le parcours usine joue les semaines et vérifie les goulots (bug « margin » corrigé) |
 | ADR 0010 | second domaine décidé |
 
-Reporté : D17 (critère « pannes évitées au goulot », refus si le passif gagne, tranche T3 de l'audit) ; D8 (coïncidences de C1) ; couverture RAG `trs_oee` (rag-knowledge) ; interprétation « 3b partout » (7b, à confirmer par l'utilisateur). Vérifications chiffrées du T0 : point d'étape qa-reviewer du 21/11 (avant les corrections du 3e tour) `test.ps1 -Integration` 858 passés, `-Flow -NoLlm` 686, `-Flow -Pack usine` 428, `-Tour` 236 écrans 0 défaut ; **à relancer avant commit** (non relancé depuis les corrections v5).
+Reporté : D17 (critère « pannes évitées au goulot », refus si le passif gagne, tranche T3 de l'audit) ; D8 (coïncidences de C1) ; couverture RAG `trs_oee` (rag-knowledge) ; interprétation « 3b partout » (7b, à confirmer par l'utilisateur). Vérifications chiffrées du T0 : point d'étape qa-reviewer du 21/11 (avant les corrections du 3e tour) `test.ps1 -Integration` 858 passés, `-Flow -NoLlm` 686, `-Flow -Pack usine` 428, `-Tour` 236 écrans 0 défaut ; remplacées par les mesures de T2 ci-dessous.
 
 Écarts de propriété pour la prochaine rétro : ia-runtime a encore modifié docs/ai-runtime.md ; godot-dev a relancé la pile (`start.ps1 -NoGame`), réservé à devops ; trois agents interrompus le 21/11 par la limite d'API.
 
-**Prochaine session : T2 (ADR 0013 §5, ligne T2)**
+**T2 fait le 24/11, à commiter (devops)** : contrats de la § 3.5 de l'ADR 0013 dans `backend/gmix/game/spec.py` : `Building`, `Room`, `World` (gabarit `campus`), `PlannedBuilding`, `Client`, `Finance`, `LoanOffer`, `Investment`, `Due`, `Loan`, `TrainerExcerpt`, plus `DesignRequest.domain` et `document_ids`. Champs facultatifs, `version` reste 2. Annexe `docs/decisions/0013-annexe-contrats.md` nouvelle ; aucun topic Kafka changé ; tests : `backend/tests/test_spec_0013.py` (38).
+
+Mesures qa-reviewer, 24/11 : `test.ps1 -Integration` ruff OK, pytest 903 passés, Godot 148 fichiers OK ; `-Flow -NoLlm` 686 vérifications, 0 échec ; `-Flow -NoLlm -Pack usine` 514, 0 échec (nouvelle référence, c'était 428) ; `-Tour` 236 écrans, 0 défaut. Verdict : bon pour commit. Le hash du commit sera noté ensuite.
+
+**Prochaine session : T3 (ADR 0013 § 4.2)**
 
 | Point | Contenu |
 |---|---|
-| Propriétaire | `architecte` (seul) |
-| Travail | fixer les contrats de la § 3.5 : `Building`, `Room`, `TrainerExcerpt` et le reste de la § 3.5 dans `backend/gmix/game/spec.py` (champs facultatifs, `version` reste 2) ; `topics.py` si besoin ; `docs/kafka.md` ; écrire `docs/decisions/0013-annexe-contrats.md` (absent aujourd'hui) ; `ai/domains.yaml` gagne `audit: signe` seulement à la signature de D3 |
-| Critère de fin | `test.ps1 -Fast` vert ; les specs v2 existantes restent valides |
-| Taille | 1 session ; conditions (T1, D0) remplies |
-| Ensuite | qa-reviewer ; devops commite T0 et T2 ; puis T3 (docs, documentaliste) en parallèle de T4 (moteur-jeu, game-designer, godot-dev) et D1 (rag-knowledge, game-designer) |
+| Travail | T3 : révision des docs (documentaliste), en parallèle de T4 (moteur-jeu, game-designer, godot-dev) et de D1 (rag-knowledge, game-designer) |
+| Ordre ensuite | inchangé |
 
-Ordre complet : T2, (T3, T4, D1), T5 avec T6, T7, (T8, D2), T9, D3, T10, T11 (Première version), environ 25 sessions.
+Points ouverts venus de T2 : D1 : base de jours 365 avec CA hors taxe, contre 360 avec CA TTC à la Banque de France, et taux proportionnel des prêts `rate_year / 52` ; D2 : test de la VAN (100 000, 30 000, 5 ans, 8 % donnent 19 781,30) à écrire avec `gmix.game.finance` ; T8 : route `POST /games/documents` (corps brut), les PNJ ne citent jamais les passages du formateur ; T9 : section « monde » de la régénération ; à confirmer par l'utilisateur : « 3b partout ».
+
+Ordre complet : T3, T4 et D1 en parallèle, T5 avec T6, T7, (T8, D2), T9, D3, T10, T11 (Première version), environ 24 sessions.
 
 Notés pour plus tard : règle `events: aucun` avec un `event_plan` dans `GameParams` (architecte) ; `numbers()` lit « 62.7054 » comme 62705 (T6) ; J10 sort en industrie si le secteur n'est que dans le texte du brief (le formateur peut l'imposer).
 
