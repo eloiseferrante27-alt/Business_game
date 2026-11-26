@@ -500,6 +500,19 @@ class Room(BaseModel):
     doors: list[Point] = Field(min_length=1)
 
 
+class DecorItem(BaseModel):
+    asset: Code  # id d'asset de nature (nat_tree, nat_bush…)
+    position: Point  # (x, z), repère du monde (m)
+    rotation: float = 0.0  # degrés autour de l'axe vertical
+
+
+class Decor(BaseModel):
+    """Décor du monde (ADR 0013 T4, annexe 0013 §2) : sortie de layout.place_world, lu par Godot."""
+
+    seed: int
+    items: list[DecorItem] = Field(default_factory=list, max_length=45)
+
+
 class World(BaseModel):
     template: Literal["atelier", "usine", "campus"] = "atelier"  # campus : buildings non vide (ADR 0013)
     size: Point = (32, 24)  # hall du site principal
@@ -512,6 +525,7 @@ class World(BaseModel):
     buildings: list[Building] = Field(default_factory=list, max_length=4)  # vide : hall unique actuel
     rooms: list[Room] = Field(default_factory=list)
     ambiance: Code | None = None  # clé de pack["ambiances"]
+    decor: Decor | None = None  # None ou items vide : Godot tire son décor (graine 42)
 
 
 class Notion(BaseModel):
@@ -636,7 +650,9 @@ class Machine(BaseModel):
     transfer_min: float = Field(ge=0)
     operators: int = Field(default=1, ge=0, le=4)
     asset: str
-    type: Code | None = None  # type de machine du pack pour son opération (ADR 0013, T4) ; None : type unique
+    # clé de pack["machine_types"] (ADR 0013, T4 ; m1..m4 : chiffre permis, la clé vient du pack, jamais d'un texte
+    # conçu) ; None : type unique
+    type: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]{1,29}$")
 
 
 class BomItem(BaseModel):
@@ -1290,6 +1306,9 @@ class SimSpec(BaseModel):
         known_refs |= {"dock_in", "dock_out", "kpi", "quality"}
         if self.factory:
             errors += self._factory_errors(ids)
+            types = pack.get("machine_types", {})
+            errors += [f"machine {m.id} : type inconnu du pack {m.type}" for m in self.factory.machines
+                       if m.type is not None and m.type not in types]  # fmt: skip
             machines = {m.id for m in self.factory.machines}
             known_refs |= {f"{kind}:{i}" for kind in ("machine", "buffer") for i in machines}
             known_refs |= {f"mp:{i}" for i in ids["components"]} | {f"dept:{i}" for i in ids["departments"]}

@@ -40,7 +40,7 @@ Les routes et les droits sont dans docs/roles.md.
 | Secteurs | industrie, automobile (un produit) |
 | Difficultés | découverte (charge 80 %), équilibré (85 %), expert (92 %, livraison à J+1) |
 | Aléas | niveau aucun, rares (probabilité 0,25) ou fréquents (0,5) ; 6 aléas : retard de transport, hausse des matières, commande exceptionnelle, creux de demande, lot de matière non conforme, vague de chaleur |
-| Cibles | OTIF 95 %, TRS : la valeur de `criteria` dans `ai/packs/usine.yaml` (recalibrée le 19/11, convention du jeu ; non recopiée ici avant la signature de T0), 0 jour-ligne en rupture de matière, trésorerie finale >= départ + 60 % du gain du pilote automatique |
+| Cibles | OTIF 95 %, TRS 80 % (`criteria.trs` de `ai/packs/usine.yaml`, recalibré le 19/11 de 78 à 80, convention du jeu ; T0 signé le 21/11), 0 jour-ligne en rupture de matière, trésorerie finale >= départ + 60 % du gain du pilote automatique |
 | Notions | 17 (goulot, TRS, loi de Little, point de commande, OTIF, etc.), chacune rattachée à une fiche du corpus |
 
 Réglages que l'IA peut choisir (`tunables`) : fréquence des pannes, défauts des machines, charge, délai promis,
@@ -69,7 +69,7 @@ Un module sans titulaire tourne en pilote automatique (sauf la semaine où le fo
 | Visuel | variantes d'assets importés | variante par objet, décor | ambiance | rien |
 | Sources du formateur (T8) | aucune | aucun | passages validés cités | aucun chiffre de document |
 
-Aujourd'hui : 1 produit, 3 fournisseurs, 1 client, hall en U, 3 rôles, aucun texte conçu. Règle : le moteur seul calcule, une disposition vient de la graine, l'IA choisit dans un schéma fermé.
+Aujourd'hui (26/11, T4 livré) : 1 produit, 3 à 8 fournisseurs (`params.suppliers`), 1 client, types de machine m1 à m4 par rang, hall en U de taille et décor tirés de la graine, 3 rôles, aucun texte conçu. Multi-produits et clients : T4b (après T5, avant D2). Règle : le moteur seul calcule, une disposition vient de la graine, l'IA choisit dans un schéma fermé.
 
 **Second domaine** : la finance d'entreprise (trésorerie et BFR d'une PME), décidé le 21/11 (ADR 0013 §6.2) (`finance-entreprise`, moteur `factory`, D0 fait) ; pack, corpus et audit en D1 à D3, non livrés.
 

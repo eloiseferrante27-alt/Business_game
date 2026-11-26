@@ -1,0 +1,14 @@
+{"id": "bfr", "question": "Comment calcule-t-on le besoin en fonds de roulement d'une entreprise ?", "must_contain_any": ["créances clients + stocks", "besoin en fonds de roulement"], "expected_docs": ["Besoin en fonds de roulement"]}
+{"id": "tresorerie_nette", "question": "Qu'est-ce que la trésorerie nette et comment se calcule-t-elle ?", "must_contain_any": ["trésorerie nette = fr - bfr", "trésorerie nette"], "expected_docs": ["Besoin en fonds de roulement"]}
+{"id": "dso", "question": "Comment la Banque de France calcule-t-elle le délai de paiement des clients (DSO) ?", "must_contain_any": ["ttc / 360", "multiplié par 360"], "expected_docs": ["DSO et DPO"]}
+{"id": "dpo", "question": "Quel est le délai fournisseurs moyen des entreprises françaises en 2024 ?", "must_contain_any": ["50 jours d'achats"], "expected_docs": ["DSO et DPO"]}
+{"id": "plafond_delai", "question": "Quel est le délai de paiement maximal entre entreprises selon le Code de commerce ?", "must_contain_any": ["soixante jours après la date d'émission de la facture"], "expected_docs": ["L441-10"]}
+{"id": "penalites", "question": "Quelles pénalités et indemnité sont dues en cas de retard de paiement d'une facture ?", "must_contain_any": ["trois fois le taux d'intérêt légal", "40 euros"], "expected_docs": ["L441-10"]}
+{"id": "escompte", "question": "Qu'est-ce que l'escompte d'un effet de commerce ?", "must_contain_any": ["effet de commerce non échu"], "expected_docs": ["Escompte"]}
+{"id": "affacturage", "question": "Comment fonctionne l'affacturage et combien coûte-t-il ?", "must_contain_any": ["factor"], "expected_docs": ["Affacturage"]}
+{"id": "decouvert", "question": "Quelle différence entre un découvert et une facilité de caisse ?", "must_contain_any": ["facilité de caisse"], "expected_docs": ["Découvert"]}
+{"id": "credit_court_terme", "question": "À quoi sert un crédit de trésorerie à court terme et quelle est sa durée ?", "must_contain_any": ["besoins résiduels de trésorerie"], "expected_docs": ["Crédit de trésorerie"]}
+{"id": "emprunt", "question": "Quels sont les modes de remboursement d'un emprunt bancaire ?", "must_contain_any": ["amortissement constant"], "expected_docs": ["Emprunt bancaire"]}
+{"id": "van", "question": "Comment calcule-t-on la valeur actuelle nette d'un investissement et quand le retenir ?", "must_contain_any": ["cft / (1 + k)"], "expected_docs": ["Valeur actuelle nette"]}
+{"id": "taux_credit", "question": "Quel est le taux moyen des crédits aux entreprises en 2026 et de quel type de taux s'agit-il ?", "must_contain_any": ["taux actuariels annualisés"], "expected_docs": ["Taux des crédits"]}
+{"id": "base_360_365", "question": "Sur quelle base de jours et quel chiffre d'affaires calcule-t-on les délais clients et fournisseurs ?", "must_contain_any": ["multiplié par 360"], "expected_docs": ["DSO et DPO"]}

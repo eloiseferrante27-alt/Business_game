@@ -79,6 +79,7 @@ var _marker: MeshInstance3D  # repère de la destination du clic
 var _hand := false
 var _denied_at := -DENIED_PAUSE_MS
 var _declutter_left := 0.0
+var _decor_count := 0  # éléments plantés depuis `spec.world.decor` (contrôlé par flow_test)
 
 
 func _ready() -> void:
@@ -867,8 +868,19 @@ func _build_environment() -> void:
 		[Vector3(_site.end.x + 1, 5, middle.y), Vector3(1, 10, _site.size.y + 2)],
 	]:
 		_solid(side[1], side[0])  # bords invisibles du site
+	var decor_spec: Variant = Session.spec().get("world", {}).get("decor")  # null si absent
+	var decor: Array = (decor_spec as Dictionary).get("items", []) if decor_spec is Dictionary else []
+	if not decor.is_empty():  # décor dérivé de la graine du jeu par le serveur
+		for item: Dictionary in decor:
+			var plant := _instance(str(item["asset"]))
+			if plant != null:
+				plant.position = Vector3(item["position"][0], 0, item["position"][1])
+				plant.rotation.y = deg_to_rad(float(item.get("rotation", 0)))
+				add_child(plant)
+				_decor_count += 1
+		return
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 42  # même décor pour tous les joueurs
+	rng.seed = 42  # jeux publiés sans décor : même décor pour tous les joueurs
 	var planted := 0
 	var garden := _site.grow(-1.0)
 	while planted < 45:

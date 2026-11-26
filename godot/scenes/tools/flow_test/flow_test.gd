@@ -178,6 +178,10 @@ func _fixture_world(pack: String) -> void:
 		_check(not volume.is_empty() and (volume[0] as MeshInstance3D).mesh is BoxMesh, "asset sans scène : un volume plein à la place")
 	_check(await _until(func() -> bool: return world.is_navigation_ready(), 60.0) != null, "le maillage de navigation est cuit")
 	await _check_world(world)
+	var fixture_decor: Variant = (loaded["spec"]["world"] as Dictionary).get("decor")
+	var decor: Array = (fixture_decor as Dictionary).get("items", []) if fixture_decor is Dictionary else []
+	if not decor.is_empty():
+		_check(world.get("_decor_count") == decor.size(), "le décor affiché vient de world.decor (%s sur %d éléments)" % [world.get("_decor_count"), decor.size()])
 	var checked := 0
 	for npc: GmixNpc in (world.get("_agents") as Array) + (world.get("_crew") as Array):
 		if npc.activity == "deplacement":  # marche entre les points de sa route : il bouge et reste sur le maillage
@@ -269,6 +273,11 @@ func _trainer_journey() -> void:
 	if world == null:
 		return
 	await _check_world(world)
+	var served_decor: Variant = Session.spec().get("world", {}).get("decor")
+	var served: Array = (served_decor as Dictionary).get("items", []) if served_decor is Dictionary else []
+	_check(world.get("_decor_count") == served.size(), "le décor affiché vient de world.decor (%s sur %d éléments)" % [world.get("_decor_count"), served.size()])
+	if _pack == "usine":
+		_check(served.size() > 0, "pack usine : décor non vide (%d éléments)" % served.size())
 	await _check_zone_click(world)
 	if _pack == "usine":
 		_begin("A.12u", "Pack usine : semaines simulées jusqu'à la fin, débrief (goulots exigés)")
@@ -276,6 +285,8 @@ func _trainer_journey() -> void:
 		if factory_back == null:
 			return
 		await _play_to_the_end(factory_back)
+		_begin("A.12v", "Pack usine à 8 fournisseurs : les 8 offres de « commander_mp » dans le poste, sans débordement")
+		await _check_eight_suppliers()
 		return
 
 	_begin("A.6b", "Vue Sims par défaut : clic pour marcher, menu contextuel, caméra, bascule de vue")
@@ -1631,6 +1642,50 @@ func _play_to_the_end(lobby: Control) -> void:
 	var decisions := (report["data"]["log"] as Array).filter(func(entry: Variant) -> bool: return entry is Dictionary and entry.get("kind") == "decision")
 	_check(decisions.size() == _accepted, "le journal du débrief garde les %d actions acceptées" % _accepted, str(decisions.size()))
 	_close_dialog(window as AcceptDialog)
+
+
+## Jeu usine à 8 fournisseurs (API), session ouverte sans la lancer : le poste de commande liste les 8 offres dans une liste
+## de choix (OptionButton : sa fenêtre défile seule) qui reste dans la largeur de la tablette.
+func _check_eight_suppliers() -> void:
+	var params := USINE_PARAMS.duplicate()
+	params["suppliers"] = 8
+	params["company"] = "QA 8 fournisseurs"
+	var made := await _raw(_trainer, HTTPClient.METHOD_POST, "/api/v1/games", params, 120.0)
+	if not _check(made["ok"] and made["data"]["status"] == "ready", "jeu à 8 fournisseurs généré", str(made["error"])):
+		return
+	var spec: Dictionary = made["data"]["spec"]
+	_check((spec["suppliers"] as Array).size() == 8 and (spec["offers"] as Array).size() == 8, "la spec compte 8 fournisseurs et 8 offres", "%d / %d" % [(spec["suppliers"] as Array).size(), (spec["offers"] as Array).size()])
+	var created := await _raw(_trainer, HTTPClient.METHOD_POST, "/api/v1/lobbies", {"name": "QA 8 fournisseurs %d" % (Time.get_ticks_msec() % 100000), "business_game_id": made["data"]["id"], "advance_mode": "auto"})
+	var lobby := await _raw(_trainer, HTTPClient.METHOD_GET, "/api/v1/lobbies/%s" % created["data"]["id"]) if created["ok"] else created
+	if not _check(lobby["ok"], "session du jeu à 8 fournisseurs", str(lobby["error"])):
+		return
+	Session.open(lobby["data"])
+	var world := (load(WORLD) as PackedScene).instantiate() as GmixWorld
+	get_tree().root.add_child(world)
+	await _frames(3)
+	var hud := _hud_of(world)
+	for station: Dictionary in Session.spec()["stations"]:
+		var has_order := false
+		for module: Dictionary in Session.spec()["modules"]:
+			if module["id"] in station["modules"]:
+				has_order = has_order or (module["actions"] as Array).any(func(a: Dictionary) -> bool: return a["id"] == "commander_mp")
+		if not has_order:
+			continue
+		hud.open_station(station)
+		await _frames(3)
+		var panel := (hud.get("_panels") as Dictionary)["station"] as Control
+		var selects := (hud.get("_station_actions") as Node).find_children("*", "OptionButton", true, false).filter(func(n: Node) -> bool: return (n as OptionButton).item_count == 8)
+		if _check(not selects.is_empty(), "poste %s : une liste de 8 offres" % station["id"]):
+			var select := selects[0] as OptionButton
+			var names: Dictionary = {}
+			for i in 8:
+				names[select.get_item_text(i)] = true
+			_check(names.size() == 8, "les 8 offres sont distinctes", str(names.keys()))
+			var inside := get_tree().root.get_visible_rect().encloses(panel.get_global_rect()) and select.get_global_rect().end.x <= panel.get_global_rect().end.x + 1.0
+			_check(inside, "le poste et la liste restent dans la fenêtre", "%s / %s" % [panel.get_global_rect(), select.get_global_rect()])
+		hud.close_panels()
+		break
+	world.queue_free()
 
 
 func _back_home_lists_lobby() -> void:

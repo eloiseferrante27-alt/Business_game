@@ -29,7 +29,7 @@ flowchart LR
 
 État (2026-11-06) : comptes et rôles, deux packs de jeu (l'usine, `ai/packs/usine.yaml`, est le pack principal ;
 l'atelier, `ai/simulation.yaml`, est gelé), conception du jeu par l'IA (tâche `factory.design`, docs/decisions/0008
-et 0010) avec repli par paramètres (docs/decisions/0006), régénération d'une section (docs/decisions/0012, accepté), moteur hebdomadaire, groupes d'équipes (docs/decisions/0011), « prêt », pause et aléa du
+et 0010) avec repli par paramètres (docs/decisions/0006), régénération d'une section (docs/decisions/0012, accepté), moteur hebdomadaire, groupes d'équipes (docs/decisions/0011), contrats de la cible ADR 0013 (paramètres, monde, finance, conception, Kafka : [annexe](decisions/0013-annexe-contrats.md), `game/spec.py`), « prêt », pause et aléa du
 formateur, lobbies, agents PNJ à mémoire, client Godot et présence multijoueur sont en place. L'ingestion RAG
 passe par `.\scripts\ingest.ps1` (pas de worker `rag`).
 
@@ -84,7 +84,7 @@ obtient un code d'accès. Détail des routes et des droits : docs/roles.md.
 ## Mondes et assets
 
 L'IA ne crée jamais de géométrie : elle choisit des paramètres dans les listes du pack, et le placeur
-(`gmix.game.layout`, sans hasard aujourd'hui, ADR 0009 ; cible : placeur déterministe à graine, ADR 0013 §3.4, T4 ; `apply_edits` sans graine) pose les objets du catalogue `ai/assets.yaml` sur les grilles du
+(`gmix.game.layout`, ADR 0009 ; depuis T4 (26/11) à graine : taille du hall et décor `world.decor` tirés de la graine de la partie, ADR 0013 §3.4 ; `apply_edits` sans graine ; plusieurs bâtiments : T5) pose les objets du catalogue `ai/assets.yaml` sur les grilles du
 pack, contrôlés par les règles de placement (`check_placement`).
 
 | Pack | Monde (`spec.world`) | Statut |

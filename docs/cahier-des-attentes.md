@@ -90,7 +90,7 @@ demande règle des chiffres d'une usine unique ; le plan en U, les 3 fournisseur
 | Qui décide | Quoi | État |
 |---|---|---|
 | Données sourcées du pack | faits et chiffres (catalogue fermé, provenance par valeur), archétypes de bâtiment, zonage | pack usine livré ; archétypes et second domaine : cible (T4, T5, D2) |
-| Procédural à graine | dispositions : tailles dans des bornes, positions, variantes d'assets, décor ; mêmes paramètres, même graine, mêmes retouches = même monde | cible T4 ; aujourd'hui le placeur ne lit pas la graine |
+| Procédural à graine | dispositions : tailles dans des bornes, positions, variantes d'assets, décor ; mêmes paramètres, même graine, mêmes retouches = même monde | partiel : taille du hall et décor à graine livrés (T4, 26/11) ; positions, variantes d'assets et plusieurs bâtiments : T5 |
 | Agents IA (schéma fermé) | choix du domaine, des mécaniques, du programme de bâtiments, des rôles et PNJ, textes sans chiffre | cible T9 : cinq tâches en série ; aujourd'hui un appel `factory.design` et aucun texte conçu |
 | Moteur seul | effets, durées, coûts, délais, trajets, indicateurs, verdict, faits dits par un PNJ | livré (trajets entre bâtiments : cible T5) |
 | Documents du formateur | passages validés par le formateur, provenance `formateur` ; aucun chiffre dans le moteur | cible T8 |
@@ -102,7 +102,7 @@ demande règle des chiffres d'une usine unique ; le plan en U, les 3 fournisseur
 | Conception par l'IA | Aujourd'hui un appel ; cible T9 : domaine, mécaniques, monde, personnages, parcours + contrôle ; l'IA **choisit** dans les catalogues du pack, n'écrit ni chiffre, ni coordonnée, ni lien (ADR 0008, 0013) |
 | Documents du formateur | Cible T8 : interrogés par le RAG pour nourrir le choix et les textes, chaque passage validé par le formateur ; une notion hors pack ou hors document cité est interdite |
 | Assets | Prédéfinis (`ai/assets.yaml`, `godot/assets/`) ; un pack n'est proposé que si tous ses assets sont importés |
-| Placement | Placeur déterministe (`backend/gmix/game/layout.py`) sur grilles carte, site, bloc ; règles d'implantation avec provenance ; cible T4 et T5 : à graine, plusieurs bâtiments |
+| Placement | Placeur déterministe (`backend/gmix/game/layout.py`) sur grilles carte, site, bloc ; règles d'implantation avec provenance ; à graine depuis T4 (taille du hall, décor) ; plusieurs bâtiments : T5 |
 | Chiffres | Ceux du pack, chacun avec `source`, `calibre` ou `exemple` ; les non sourcés sont listés |
 | Justesse | Validation `SimSpec` -> `check_design` -> essai en pilote automatique ; 2 réparations au plus, puis repli déterministe |
 | Parties de code simples | Connexions déclaratives choisies dans les énumérations du pack (P1 A, ADR 0011 §3) |
@@ -161,7 +161,7 @@ Détail : docs/architecture.md, docs/kafka.md.
 | EX-12 | Documents du formateur alimentent la génération (RAG) | Un document déposé est ingéré et cité dans le jeu conçu | à faire, avant la Première version (ADR 0013, T8) : chaque passage cité est validé par le formateur, provenance `formateur`, aucun chiffre d'un document dans le moteur ; aujourd'hui aucune route de dépôt par jeu | knowledge/ ; point P4 ; ADR 0013 §6.3 |
 | EX-13 | Parties de code simples pour les connexions | Connexions produites, validées, jamais exécutées telles quelles | à faire : forme déclarative retenue (P1 A) | ADR 0011 §3 |
 | EX-14 | Mode de saisie des décisions choisi par le formateur | Un paramètre par jeu ou module ; client le respecte | à faire, après la Première version : seuls `choice` et `int` existent | spec.py `ActionField` ; section 3.1 |
-| EX-15 | Monde posé sur grilles, déterministe | Même spec, même monde ; `check_placement` sans erreur | partiel (cible ADR 0013, T4 : déterministe à graine, mêmes paramètres et même graine = même monde) : moteur et tests présents, `test.ps1 -Fast` 772 passés le 2026-11-06 (reprise.md) ; `check_placement` du pack usine non rejoué à part | ADR 0009 ; backend/gmix/game/layout.py |
+| EX-15 | Monde posé sur grilles, déterministe | Même spec, même monde ; `check_placement` sans erreur | partiel (T4 livré le 26/11 : taille du hall et décor à graine, `world_fingerprint` 9 mondes distincts sur 12 graines ; reste T5) : moteur et tests présents, `test.ps1 -Fast` 772 passés le 2026-11-06 (reprise.md) ; `check_placement` du pack usine non rejoué à part | ADR 0009 ; backend/gmix/game/layout.py |
 | EX-16 | Placement fondé sur le métier, règles sourcées | Chaque règle a une provenance ; violation refusée | partiel : règles `calibre` sans source, règles `protected_path` de la voie PL manquantes ; audit : source retirée du pack, textes alignés sur le moteur ; pack corrigé le 21/11 (fournisseur standard limité à `proche`, marge expert 6, notes de calibrage) ; 3 jeux signés le 21/11 | ADR 0010 annexe §12 ; docs/blocages.md |
 | EX-17 | Assets prédéfinis, pack proposé si couvert à 100 % | `pack_coverage("usine")["ratio"] == 1.0` | partiel : à relancer, assets en cours de modification | ADR 0009 d.7 ; ai/assets.yaml |
 | EX-18 | Mode créateur : ajuster assets, modules, activités | Éditeur utilisable dans le client avant publication | partiel, écran après la Première version (B4c c1 reporté le 06/11) : routes `/layout` et `/params` existent, aucun écran client trouvé | ADR 0009 d.8 ; section 3.2 |

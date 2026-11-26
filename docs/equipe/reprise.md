@@ -77,12 +77,22 @@ Reporté : D17 (critère « pannes évitées au goulot », refus si le passif ga
 
 Mesures qa-reviewer, 24/11 : `test.ps1 -Integration` ruff OK, pytest 903 passés, Godot 148 fichiers OK ; `-Flow -NoLlm` 686 vérifications, 0 échec ; `-Flow -NoLlm -Pack usine` 514, 0 échec (nouvelle référence, c'était 428) ; `-Tour` 236 écrans, 0 défaut. Verdict : bon pour commit. Le hash du commit sera noté ensuite.
 
-**Prochaine session : T3 (ADR 0013 § 4.2)**
+**Session du 24-26/11 : T3, T4 (sauf T4b), D1 — à commiter**
 
-| Point | Contenu |
+T2 commité et poussé (b11aa8f). T3 fait le 24/11. Validé par qa-reviewer le 26/11, avant commit.
+
+| Livré | Détail |
 |---|---|
-| Travail | T3 : révision des docs (documentaliste), en parallèle de T4 (moteur-jeu, game-designer, godot-dev) et de D1 (rag-knowledge, game-designer) |
-| Ordre ensuite | inchangé |
+| T4 (sauf multi-produits) | `layout.place_world` tire de la graine la taille du hall (48 x 30 m plus 0, 4, 8 ou 12 m) et le décor `world.decor` (45 éléments au plus ; `DecorItem`, `Decor` dans `spec.py`) ; `world_fingerprint` : 9 mondes distincts sur 12 graines par secteur ; Godot lit le décor de la spec (repli sur sa graine 42 pour les anciens jeux) ; 3 à 8 fournisseurs (`params.suppliers`) ; types de machine m1 à m4 par rang (`Machine.type`). Produits et clients restent à 1 (bornes du pack `[1,1,1]`) |
+| D1 | `knowledge/finance-entreprise/` : 12 fiches (dont R314-2 et VAN de l'OQLF) ; `ai/evals/finance-entreprise.rag.jsonl` : Rappel@4 14/14 ; `docs/audits/finance-entreprise-conventions.md` : jours calendaires base 365, tout hors taxe, taux `rate_year/52`. Réserves pour D3 : R314-2 lu seulement en traduction (Légifrance refuse la lecture automatique) ; base 365 des pénalités de retard : simple hypothèse |
+
+Mesures qa-reviewer, 26/11 : `test.ps1 -Integration` 935 passés, 0 échec, Godot 148 fichiers OK ; `-Flow -NoLlm` 687 ; `-Flow -NoLlm -Pack usine` 522 ; `-Flow -Design` 72, tous à 0 échec ; `-Tour` 236 écrans, 0 défaut ; `smoke.ps1` OK. Verdict : bon pour commit. Le hash sera noté après le commit.
+
+Défauts mineurs ouverts : `test_game_flow.py:174` (test de budget sensible à la charge du poste, moteur-jeu) ; `spec.py:137` `GameParams.products` vaut 3 par défaut alors que le pack usine borne à 1 (à confirmer par l'architecte) ; contrôle `clients >= products` à écrire dans `GameParams` en T4b.
+
+**Prochaine session : T5 (avec T6)**, selon l'ordre de l'ADR 0013 (l.265). **T4b (multi-produits et clients, variantes `batiment` et `machine`) vient après T5 et avant D2** (annexe 0013 § 3 bis). Machines de ligne à 7 états (assets-3d) en T5.
+
+Écarts pour la rétro : le 24/11, moteur-jeu a fait `git stash` puis `stash pop` (git est à devops) ; rag-knowledge a tenté d'écrire dans `ai/evals/` ; l'ajout d'un contrôle dans `GameParams` a été refusé à l'architecte par les permissions ; le brief de 4a supposait le champ `decor` déjà dans le contrat.
 
 Points ouverts venus de T2 : D1 : base de jours 365 avec CA hors taxe, contre 360 avec CA TTC à la Banque de France, et taux proportionnel des prêts `rate_year / 52` ; D2 : test de la VAN (100 000, 30 000, 5 ans, 8 % donnent 19 781,30) à écrire avec `gmix.game.finance` ; T8 : route `POST /games/documents` (corps brut), les PNJ ne citent jamais les passages du formateur ; T9 : section « monde » de la régénération ; à confirmer par l'utilisateur : « 3b partout ».
 

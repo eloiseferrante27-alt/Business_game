@@ -325,5 +325,7 @@ def test_clients_and_speeds(usine_pack) -> None:  # noqa: F811
     refused(raw, "se renseignent ensemble")
     raw["factory"]["logistics"]["forklift_m_per_min"] = 120
     SimSpec.model_validate(raw)
-    raw["factory"]["machines"][0] = machine(1, 1, type="tour_cn")  # Machine.type est un code facultatif
+    raw["factory"]["machines"][0] = machine(1, 1, type="m3")  # Machine.type : clé du pack, facultative
     SimSpec.model_validate(raw)
+    raw["factory"]["machines"][0] = machine(1, 1, type="zz")
+    refused(raw, "type inconnu du pack")

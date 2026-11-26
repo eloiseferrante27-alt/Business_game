@@ -33,8 +33,13 @@ def generate_factory(params: GameParams) -> dict[str, Any]:
     item = theme["products"][rng.randrange(len(theme["products"]))]
     n_lines = int(params.options.get("lines", DEFAULT_LINES))
     played = list(params.modules)
+    limits = pack["limits"]
+    if (params.products, params.clients or 1) != (limits["products"][2], limits["clients"][2]):
+        # shortcut: factory.Plant ne joue qu'un produit et un client ; à lever avec le moteur multi-produits
+        raise ValueError("Plusieurs produits ou clients : l'usine n'en joue qu'un (ADR 0013, T4)")
+    varied = (params.suppliers or limits["suppliers"][2]) != limits["suppliers"][2]
 
-    machines = _machines(pack, item, level, n_lines)
+    machines = _machines(pack, item, level, n_lines, random.Random(f"{seed}:types") if varied else None)
     suppliers, offers = _offers(pack, item, level, params)
     spec: dict[str, Any] = {
         "kind": "simulation", "version": 2, "seed": seed,
@@ -116,7 +121,7 @@ def _provenance(pack: dict[str, Any]) -> dict[str, Any]:
     return {k: {f: v[f] for f in ("status", "citation", "note") if f in v} for k, v in out.items()}
 
 
-def _machines(pack, item, level, n_lines) -> list[dict[str, Any]]:
+def _machines(pack, item, level, n_lines, rng=None) -> list[dict[str, Any]]:
     """Une ligne = les opérations du produit, chacune sur la machine du type indiqué (annexe §1)."""
     asset = next(
         e["asset"]
@@ -126,16 +131,22 @@ def _machines(pack, item, level, n_lines) -> list[dict[str, Any]]:
         if e["role"] == "machine"
     )  # 6c : l'asset de la machine est celui de l'élément « machine » du département production
     machines = []
+    types = pack["machine_types"]
+    ops = item["operations"]
+    if rng:  # type tiré par rang parmi ceux qui le permettent (machine.types_par_operation), le même sur chaque ligne
+        ops = [(op, rng.choice([k for k, v in types.items() if rank in v["ranks"]]))
+               for rank, (op, _) in enumerate(ops, start=1)]  # fmt: skip
     for line in range(1, n_lines + 1):
-        for rank, (operation, type_id) in enumerate(item["operations"], start=1):
-            t = pack["machine_types"][type_id]
+        for rank, (operation, type_id) in enumerate(ops, start=1):
+            t = types[type_id]
             machines.append({
                 "id": f"l{line}-m{rank}", "line_id": f"l{line}", "rank": rank, "name": f"M{rank} · {operation}",
                 "operation": operation, "cycle_min": t["cycle_min"], "run_min": t["run_min"], "stop_min": t["stop_min"],
                 "mtbf_h": round(t["mtbf_h"] * level["mtbf_factor"], 1), "weibull_shape": t["weibull_shape"],
                 "mttr_h": t["mttr_h"], "setup_min": t["setup_min"],
                 "defect_rate": round(t["defect_rate"] * level["defect_factor"], 4), "buffer": t["buffer"],
-                "transfer_min": t["transfer_min"], "operators": t["operators"], "asset": asset,
+                "transfer_min": types[item["operations"][rank - 1][1]]["transfer_min"], "type": type_id,
+                "operators": t["operators"], "asset": asset,
             })  # fmt: skip
     if (shape := level.get("bottleneck_shape")) is not None:  # P2 : forme propre au goulot (la plus lente de la ligne)
         for line in range(n_lines):
@@ -148,7 +159,12 @@ def _offers(pack, item, level, params) -> tuple[list[dict[str, Any]], list[dict[
     profiles = _val(pack, "fournisseur.profils")
     mp = item["mp"]
     suppliers, offers = [], []
-    for index, ((name, city), (profile, p)) in enumerate(zip(mp["suppliers"], profiles.items(), strict=True), start=1):
+    base = [(n, c, pr) for (n, c), pr in zip(mp["suppliers"], profiles, strict=True)]
+    # règle de jeu : les 3 de la référence, puis les extra_suppliers du secteur (fournisseur.supplementaires)
+    extra = [(e["name"], e["city"], e["profile"]) for e in pack["themes"][params.theme].get("extra_suppliers", [])]
+    chosen = (base + extra)[: params.suppliers or len(base)]
+    for index, (name, city, profile) in enumerate(chosen, start=1):
+        p = profiles[profile]
         lead = layout.site_lead_days({"params": params.model_dump()}, pack, f"fournisseur_{profile}")
         reliability = max(30.0, min(100.0, p["reliability"] + level["reliability_shift"]))
         cost = round(mp["cost"] * p["cost_factor"], 2)

@@ -30,11 +30,16 @@ domains:
       - Lire un bilan et un compte de résultat
       - Calculer et piloter le BFR et la trésorerie nette (FR - BFR)
       - Évaluer un investissement (VAN, TRI, délai de récupération)
-      - Choisir un financement (emprunt, fonds propres, crédit-bail, affacturage, Dailly)
-    kpis: [Trésorerie nette, BFR en jours de CA, DSO / DPO / DIO, Capacité d'autofinancement, Excédent brut d'exploitation, Ratio d'endettement]
+      - Choisir un financement d'investissement (emprunt, fonds propres, crédit-bail)
+      - Choisir un financement de trésorerie (escompte et Dailly, affacturage, découvert, crédit de trésorerie)
+      - Comparer délais clients et fournisseurs (DSO, DPO)
+    kpis: [Trésorerie nette, BFR en jours de CA, DSO / DPO / DIO, Solde commercial (jours de CA), Capacité d'autofinancement, Excédent brut d'exploitation, Ratio d'endettement]
     references:
       - Plan comptable général (règlement ANC n° 2014-03)
-      - Code de commerce, art. L441-10 (plafond des délais de paiement entre entreprises)
+      - Code de commerce, art. L441-10 et D441-5 (délais de paiement, pénalités, indemnité de 40 €)
+      - Code de la consommation, art. R314-2 (TEG des crédits professionnels, taux proportionnel)
+      - Observatoire des délais de paiement (Banque de France), rapport annuel
+      - Banque de France, Référentiel des financements des entreprises (fiches 412, 421, 422, 424, 425 A)
       - Actualisation des flux (VAN, TRI)
     roles: [Directeur·rice administratif·ve et financier·ère, Trésorier·ère, Contrôleur·se de gestion, Chargé·e d'affaires bancaire]
 

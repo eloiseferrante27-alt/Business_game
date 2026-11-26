@@ -28,10 +28,11 @@ def _spec(
     lines: int = 2,
     seed: int = 5,
     extra: tuple[str, ...] = (),
+    suppliers: int | None = None,
 ) -> str:
     params = GameParams(
         pack="usine", theme=theme, difficulty=difficulty, modules=list(modules), seed=seed, weeks=6,
-        options={"lines": lines}, extra_agents=list(extra),
+        options={"lines": lines}, extra_agents=list(extra), suppliers=suppliers,
     )  # fmt: skip
     return json.dumps(generate(params))
 
@@ -118,6 +119,74 @@ def test_the_player_bar_holds_at_most_the_limit_and_the_extra_agent_is_added() -
     assert len(bar) <= UI_LIMITS["tools"]
     assert any(a["id"] == "agent_direction" for a in spec["agents"])
     SimSpec.model_validate(spec)
+
+
+def test_the_seed_changes_the_world_and_the_same_seed_gives_the_same_world() -> None:
+    from gmix.game import layout
+    from gmix.game.layout import check_placement, world_fingerprint
+    from gmix.game.spec import load_pack
+
+    pack = load_pack("usine")
+    prints = {}
+    for theme in ("industrie", "automobile"):
+        for seed in range(1, 13):
+            spec = spec_of(theme=theme, seed=seed)
+            assert check_placement(spec, pack) == [], (theme, seed)
+            prints[theme, seed] = world_fingerprint(spec["world"])
+    assert spec_of(seed=3)["world"] == spec_of(seed=3)["world"]
+    assert spec_of(seed=3)["world"]["decor"]["items"]  # le décor survit à la validation SimSpec
+    bundle = layout.place_world(spec_of(seed=3), pack)
+    assert bundle["world"]["decor"]["items"]
+    assert bundle["world"]["decor"] == layout.place_world(spec_of(seed=3), pack)["world"]["decor"]
+    assert bundle["world"]["decor"] != layout.place_world(spec_of(seed=4), pack)["world"]["decor"]
+    for theme in ("industrie", "automobile"):
+        assert len({prints[theme, s] for s in range(1, 13)}) >= 8, theme
+
+
+def test_default_variety_is_the_reference_game_and_suppliers_come_from_the_sector() -> None:
+    from gmix.game.layout import check_placement
+    from gmix.game.spec import load_pack
+
+    pack = load_pack("usine")
+    ref = spec_of()
+    assert {**spec_of(suppliers=3), "params": 0} == {**ref, "params": 0}
+    assert len(ref["suppliers"]) == 3 and len(ref["offers"]) == 3
+    assert all(m["type"] in pack["machine_types"] for m in ref["factory"]["machines"])
+    for theme in ("industrie", "automobile"):
+        extra = pack["themes"][theme]["extra_suppliers"]
+        for n in (3, 8):  # bornes de limits.suppliers
+            spec = spec_of(theme=theme, suppliers=n, seed=7)
+            assert [s["name"] for s in spec["suppliers"][3:]] == [e["name"] for e in extra[: n - 3]]
+            assert len(spec["offers"]) == n and check_placement(spec, pack) == []
+            assert {s["supplier_id"] for s in spec["world"]["sites"] if s.get("supplier_id")} == {
+                s["id"] for s in spec["suppliers"]
+            }  # un site par fournisseur
+            assert autopilot_check(spec)["playable"], (theme, n)
+    big = spec_of(suppliers=8, seed=7)
+    by_profile = {o["supplier_id"]: o["profile"] for o in big["offers"]}
+    for site in big["world"]["sites"]:  # un fournisseur ajouté a le délai de son profil (site cloné)
+        if site.get("supplier_id") and by_profile[site["supplier_id"]] == "economique":
+            assert site["distance_class"] == "national"
+
+
+def test_varied_factories_draw_machine_types_by_rank_and_keep_the_bottleneck() -> None:
+    from gmix.game.spec import load_pack
+
+    types = load_pack("usine")["machine_types"]
+    for seed in range(1, 7):
+        machines = spec_of(suppliers=8, seed=seed)["factory"]["machines"]
+        first = [m for m in machines if m["line_id"] == "l1"]
+        assert [m["cycle_min"] for m in first] == [m["cycle_min"] for m in machines if m["line_id"] == "l2"]
+        for m in first:
+            assert any(m["cycle_min"] == t["cycle_min"] and m["rank"] in t["ranks"] for t in types.values())
+        assert first[-1]["transfer_min"] == 0 and all(m["transfer_min"] for m in first[:-1])
+        assert max(first, key=lambda m: m["cycle_min"])["rank"] == 3
+
+
+def test_several_products_or_clients_are_refused_until_the_engine_plays_them() -> None:
+    for extra in ({"products": 2}, {"clients": 2}):
+        with pytest.raises(ValueError, match="entre 1 et 1"):
+            generate(GameParams(pack="usine", theme="industrie", modules=MODULES, seed=1, **extra))
 
 
 def test_the_world_is_placed_and_every_agent_has_a_route() -> None:

@@ -29,7 +29,10 @@ Règles communes :
 `ambiance` (`products` y était). `generate` reste déterministe : mêmes paramètres (plan compris) et même graine, même
 spec ; le plan vit dans les paramètres pour qu'une retouche des paramètres (`PUT /games/{id}/params`) rejoue le monde.
 Bornes de jeu à poser par game-designer (provenance `calibre`, note) : usine `limits.suppliers: [3, 8, 3]`,
-`limits.clients: [1, 4, 1]`, `limits.products: [1, 4, 1]` en T4, `limits.buildings: [1, 3, 1]` en T5.
+`limits.clients: [1, 4, 1]`, `limits.products: [1, 3, 1]` (la zone de production tient 3 lignes au plus, une ligne
+par produit), `limits.buildings: [1, 3, 1]` en T5. **Repli (26/11)** : tant que le moteur ne joue qu'un produit et un
+client (§3 bis, tranche T4b), le pack usine porte `products: [1, 1, 1]` et `clients: [1, 1, 1]` ; `GameParams` refuse
+donc 2 et plus (422 à l'API, jamais 500). Les bornes cibles reviennent avec T4b.
 
 ## 2. Monde à plusieurs bâtiments (`Building`, `Room`, `World`, `Department.room_id`)
 
@@ -38,8 +41,17 @@ class Building:  id: "b1".."b4" ; archetype: Code ; label: str (2-40) ; area: Re
 class Room:      id: "<bâtiment>.<pièce>" ; building_id ; kind: Code ; label (2-40) ; area: Rect
                  department_ids: list[Code] (1 au moins) ; doors: list[Point] (1 au moins)
 class World:     template: "atelier" | "usine" | "campus" ; buildings: [] (4 au plus) ; rooms: [] ; ambiance: None
+                 decor: Decor | None = None
+class Decor:     seed: int ; items: list[DecorItem] (45 au plus)
+class DecorItem: asset: Code ; position: Point (x, z) ; rotation: float (degrés, 0 par défaut)
 class Department: room_id: str | None = None
 ```
+
+Décor (T4) : produit par `layout.place_world` (moteur-jeu), graine dérivée de `spec["seed"]`, avec la taille du hall
+(`world.size`, jusqu'à 60 x 42 m ; `Point` sans borne dans `SimSpec`). Éléments `nat_tree`, `nat_tree_oak`,
+`nat_tree_pine`, `nat_bush` dans une couronne de 8 m autour de la carte, hors des sites (2 m) et des liens (3 m) ;
+ces marges sont garanties par le producteur, `SimSpec` ne vérifie que le format. Consommateur : Godot, qui place
+`items` tels quels. `decor` absent ou `items` vide : Godot garde son tirage à graine fixe 42 (specs v2 existantes).
 
 Invariants vérifiés par `SimSpec` (`_campus_errors`) :
 1. `buildings` vide : `template` n'est pas `campus`, `rooms` est vide, aucun `room_id` (comportement actuel).
@@ -105,11 +117,41 @@ Exemple (extrait) :
 |---|---|---|
 | `BomItem.product_id: str \| None` | None = `Factory.product_id` | dès qu'un article le porte, mode plusieurs produits : chaque produit a au moins une ligne (`Line.product_id`) et une nomenclature ; sinon, règle actuelle (toutes les lignes font `Factory.product_id`) |
 | `Factory.clients: list[Client]` (4 au plus) | [] : `customer` seul, acheteur de `product_id` | `Client = Customer + {id: "c1".."c4", name, product_id, site_id}` ; ids uniques, produit et site connus ; `customer` est alors ignoré par le moteur (le générateur y recopie `clients[0]`) |
-| `Machine.type: Code \| None` | None : type unique | type du catalogue du pack pour l'opération (clé de provenance du type) |
+| `Machine.type: str \| None`, motif `^[a-z][a-z0-9_]{1,29}$` | None : type unique | clé de `pack["machine_types"]` (`m1`..`m4` dans l'usine ; le chiffre est permis ici car la clé vient du pack, jamais d'un texte conçu), vérifiée par `SimSpec` (« type inconnu du pack ») |
 | `Logistics.walk_m_per_min`, `forklift_m_per_min` | None (ensemble, ou aucune) | renseignées : trajets calculés, `kit_min` ne compte plus que la préparation ; None : `kit_min` et `repair_travel_min` fixes |
 
 `Factory.product_id` reste le produit de référence (le premier). Les fournisseurs (3 à 8) n'ont besoin d'aucun champ :
-`suppliers`, `offers` et les sites fournisseurs existent déjà.
+`suppliers`, `offers` et les sites fournisseurs existent déjà. Un site par fournisseur : le premier d'un profil garde
+le site du pack (`fournisseur_<profil>`), les suivants le clonent en `fournisseur_<profil>_b`, `_c`… dans l'ordre des
+offres (lettres : un code n'a pas de chiffre), même classe de distance donc même délai (`layout._build_network`).
+
+Clients et produits : **chaque produit a au moins un client et un client n'achète qu'un produit**, donc
+`clients >= products` (`clients` None : autant que de produits). Contrôle à poser en T4b dans
+`GameParams._world_choice_errors` (422 à l'API) ; d'ici là, les bornes du §1 à 1 suffisent, et le garde-fou
+`ValueError` de `generate_factory` reste en place pour un appel direct.
+
+## 3 bis. Moteur à plusieurs produits et clients (tranche T4b)
+
+Change l'intérieur de `factory.simulate` (forme de l'état, kit, emballage, client) : hors T4, reporté en T4b (ADR 0013
+§5). L'ordre de `factory_game.advance` ne change pas ; aucune action ne gagne de champ.
+
+| Sujet | Règle |
+|---|---|
+| Lignes | une ligne fait un seul produit (`Line.product_id`) ; lignes = max(option `lines`, `products`), 3 au plus ; produit k sur les lignes k, k + P… ; machines propres à chaque ligne (déjà le cas), types tirés par les opérations du produit |
+| Matière | une MP par produit (`item.mp` du secteur) : composant `c<k>`, `BomItem(product_id, component_id, per_unit)` |
+| Fournisseurs | chaque fournisseur propose chaque matière : une offre par (matière, fournisseur), ids `o1`, `o2`… par matière puis fournisseur (1 produit : ids actuels) ; coût = coût de la MP x `cost_factor` du profil |
+| Stocks | MP par composant, PF par produit ; capacités `mp_capacity_pallets` et `pf_capacity_pallets` communes (un magasin, un entrepôt) ; `lot_size`, `pf_min`, `pf_max` communs (§9) |
+| Ressources | quai, chariot, contrôle réception, contrôle qualité, emballage, technicien : partagés, files FIFO déjà en place ; chaque lot, palette et commande porte son produit ou son composant |
+| Clients | client i achète le produit ((i - 1) mod P) + 1 ; demande calibrée du produit (comme aujourd'hui) divisée entre ses clients (au moins 1 par jour) ; un camion et un site par client (`client`, puis `client_b`, `_c`, `_d`, comme les fournisseurs) ; une commande porte `client_id` et `product_id` ; l'enlèvement ne prend que le PF de son produit |
+| Pilote automatique | OF par ligne sur le PF de son produit ; point de commande par composant, offre standard de chaque composant |
+| Recette | `advance` : chiffre d'affaires = somme par produit de (expédié x `products[k].price`) |
+| Indicateurs | OTIF, TRS, ruptures, trésorerie : agrégés (cibles inchangées) ; table par produit (expédié, OTIF, stock PF) dans `public_state` et le débrief |
+| PNJ | faits par produit ou composant (3 au plus) pour stock MP, entrepôt PF, production ; le PNJ client parle du client `c1` seul (ses commandes, ses faits) |
+| État | une partie en cours à l'ancienne forme (`mp.units`, `pf.units`) est relue par une mise à niveau pure dans `factory` (testée) ; jamais de migration de base |
+
+Tests attendus (moteur-jeu) : 2 et 3 produits, 1 à 4 clients jouables au pilote sur les 2 secteurs ; 1 produit et
+1 client : spec et rapport de tour identiques à la référence ; conservation de la matière par composant et du PF par
+produit ; un client n'emporte jamais un autre produit ; mise à niveau de l'ancien état ; budget de génération tenu.
 
 Trajets (moteur-jeu, T5) : `layout.travel_min(spec, a: str, b: str, mode: Literal["marche", "chariot"]) -> float`,
 pure, `a` et `b` ids de département ; plus court chemin par les portes et les entrées (distance de Manhattan sur la
@@ -282,8 +324,11 @@ clé `correlation_id = document_id`, traitement idempotent (une réindexation re
 
 ## 9. Points ouverts
 
-- Base des jours (365 calendaires et CA hors taxe dans le jeu, contre 360 et CA TTC à la Banque de France) et taux
-  proportionnel des prêts (`rate_year / 52`) : à confirmer par game-designer en D1, avec citation, avant D2.
+- Base des jours, assiette et taux des prêts : tranchés en D1 (`docs/audits/finance-entreprise-conventions.md`).
+  Jours calendaires (7 par semaine) comme L441-10 ; la BdF compte 360 jours (DSO 1,4 % plus court, dit au débrief).
+  Tout hors taxe : sans TVA, le ratio HT/HT égale le ratio TTC/TTC de la BdF. Taux proportionnel `rate_year / 52`,
+  convention du TEG des crédits professionnels (Code de la consommation, R314-2) ; `rate_year` est un taux nominal,
+  converti depuis le taux actuariel BdF dans le pack.
 - Même `discount_rate` côté clients et fournisseurs : simplification, à séparer en D2 si les sources divergent.
 - `Factory.lot_size`, `pf_min` et `pf_max` restent communs à tous les produits en T4 ; un réglage par produit serait un
   ajout facultatif (règle commune).

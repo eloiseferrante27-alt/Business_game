@@ -1,6 +1,7 @@
 """Placeur déterministe de l'usine sur grilles (ADR 0009).
 
-Fonctions pures : une spec (dict) et un pack en entrée, un dictionnaire en sortie, aucun hasard, aucune entrée-sortie.
+Fonctions pures : une spec (dict) et un pack en entrée, un dictionnaire en sortie, aucune entrée-sortie ; le seul
+hasard (taille du hall, décor) dérive de `spec["seed"]` : même spec, même monde. `apply_edits` reste sans hasard.
 Trois niveaux de grille : la carte (cellules de 60 m, sites et routes), le site (0,5 m) et le bloc (grille locale
 d'un département, motifs `edge`, `rows`, `line`, `single`). Repères : nord = -z, sud = +z, est = +x, ouest = -x ;
 rotation 0 = face au sud (modèles Godot orientés +Z), 90 = est, 180 = nord, 270 = ouest.
@@ -12,7 +13,10 @@ Dans un bloc, on raisonne dans un repère abstrait (U le long du mur du fond, V 
 from __future__ import annotations
 
 import copy
+import hashlib
+import json
 import math
+import random
 from collections import Counter
 from functools import lru_cache
 from typing import Any
@@ -361,19 +365,26 @@ def _build_network(spec: dict[str, Any], pack: dict[str, Any], hall: list[float]
     net = pack["network"]
     cell, off = net["map"]["cell_m"], net["map"]["road_offset_m"]
     hpd = net["driving_h_per_day"]
-    supplier_of: dict[str, str] = {}
+    suppliers_of: dict[str, list[str]] = {}  # fournisseurs par profil, dans l'ordre des offres
     for o in spec.get("offers", []):
-        supplier_of.setdefault(o["profile"], o["supplier_id"])
+        if o["supplier_id"] not in suppliers_of.setdefault(o["profile"], []):
+            suppliers_of[o["profile"]].append(o["supplier_id"])
+    names_of = {s["id"]: s["name"] for s in spec.get("suppliers", [])}
     referenced = {d["site"] for d in pack.get("departments", []) if d.get("site")}
     names = [
         n for n, s in net["sites"].items()
-        if s["kind"] == "client" or n in referenced or s.get("supplier_profile") in supplier_of
+        if s["kind"] == "client" or n in referenced or s.get("supplier_profile") in suppliers_of
     ]  # fmt: skip
-    info = {}
-    for n in names:
+    info, base, owner = {}, {}, {}
+    for n in list(names):
         s = net["sites"][n]
         cls = chosen_class(spec, pack, n)
-        info[n] = (s, cls, net["distance_classes"][cls])
+        ids = suppliers_of.get(s.get("supplier_profile")) or [None]
+        for k, sid in enumerate(ids):  # un site par fournisseur : le premier garde celui du pack, les autres le clonent
+            site = n if k == 0 else f"{n}_{chr(97 + k)}"  # _b, _c… (pas de chiffre dans un code)
+            info[site], base[site], owner[site] = (s, cls, net["distance_classes"][cls]), n, sid
+            if k:
+                names.append(site)
     columns: dict[str, int] = {}
     for side in ("ouest", "est"):
         ordered = sorted((n for n in names if info[n][0]["side"] == side), key=lambda n: (info[n][2]["ring"], n))
@@ -396,9 +407,10 @@ def _build_network(spec: dict[str, Any], pack: dict[str, Any], hall: list[float]
         speed = net["link_types"][s["link"]]["speed_kmh"]
         travel_h = dc["km"] / speed
         sites.append({
-            "id": n, "kind": s["kind"], "label": site_label(n, s), "external": True,
+            "id": n, "kind": s["kind"], "external": True,
+            "label": site_label(n, s) if base[n] == n else names_of[owner[n]],
             "area": [x0, z0, x0 + cell, z0 + cell], "gate": [cx, z0],
-            "supplier_id": supplier_of.get(s.get("supplier_profile")),
+            "supplier_id": owner[n],
             "distance_class": cls, "km": dc["km"], "travel_h": round(travel_h, 2),
             "transit_days": math.ceil(travel_h / hpd - EPS),
         })  # fmt: skip
@@ -414,9 +426,52 @@ def _build_network(spec: dict[str, Any], pack: dict[str, Any], hall: list[float]
 # --- placement du monde -----------------------------------------------------------------------------------------
 
 
-def _hall(pack: dict[str, Any]) -> list[float]:
+HALL_GROWTH_M = (0, 4, 8, 12)  # m gagnés en largeur et en profondeur selon la graine ; départements en place
+DECOR_ASSETS = ("nat_tree", "nat_tree_oak", "nat_tree_pine", "nat_bush")
+
+
+def _world_rng(spec: dict[str, Any], key: str) -> random.Random:
+    """Hasard du monde : graine de la spec et clé (jamais `hash()` : variable d'un processus à l'autre)."""
+    return random.Random(f"{spec.get('seed', 0)}:world:{key}")
+
+
+def _hall_size(spec: dict[str, Any], pack: dict[str, Any]) -> list[float]:
     w, d = pack["world"]["size"]
+    if "seed" not in spec:  # spec sans graine (tests, anciennes specs) : hall du pack
+        return [w, d]
+    rng = _world_rng(spec, "hall")
+    return [w + rng.choice(HALL_GROWTH_M), d + rng.choice(HALL_GROWTH_M)]
+
+
+def _hall(spec: dict[str, Any], pack: dict[str, Any]) -> list[float]:
+    w, d = _hall_size(spec, pack)
     return [-w / 2, -d / 2, w / 2, d / 2]
+
+
+def _decor(spec: dict[str, Any], boxes: list[list[float]], links: list[dict[str, Any]]) -> dict[str, Any]:
+    """Décor naturel autour des sites, écrit dans la spec (Godot ne tire plus rien) : hors des sites (2 m) et des
+    liens (3 m), dans la couronne de 8 m autour de la carte."""
+    rng = _world_rng(spec, "decor")
+    x0, z0 = min(b[0] for b in boxes) - 8, min(b[1] for b in boxes) - 8
+    x1, z1 = max(b[2] for b in boxes) + 8, max(b[3] for b in boxes) + 8
+    segments = [(p, q) for lk in links for p, q in zip(lk["points"], lk["points"][1:], strict=False)]
+    items: list[dict[str, Any]] = []
+    for _ in range(2000):  # bornée : une carte pleine donne moins d'arbres, jamais une boucle infinie
+        if len(items) >= 45:
+            break
+        x, z = round(rng.uniform(x0, x1), 1), round(rng.uniform(z0, z1), 1)
+        if any(b[0] - 2 <= x <= b[2] + 2 and b[1] - 2 <= z <= b[3] + 2 for b in boxes):
+            continue
+        if any(_seg_dist([x, z], p, q) < 3 for p, q in segments):
+            continue
+        items.append({"asset": rng.choice(DECOR_ASSETS), "position": [x, z], "rotation": float(rng.randrange(360))})
+    return {"seed": spec.get("seed", 0), "items": items}
+
+
+def world_fingerprint(world: dict[str, Any]) -> str:
+    """Empreinte courte d'un monde (taille, objets, sites, décor) : deux mondes différents, deux empreintes."""
+    keys = {k: world.get(k) for k in ("size", "objects", "sites", "decor")}
+    return hashlib.sha1(json.dumps(keys, sort_keys=True).encode()).hexdigest()[:12]
 
 
 def _make_dept(dep: dict[str, Any], pack: dict[str, Any], area: list[float], origin=None, size=None) -> _Dept:
@@ -531,7 +586,7 @@ def _forklift_route(depts: dict[str, _Dept], pack: dict[str, Any]) -> list[list[
 def place_world(spec: dict[str, Any], pack: dict[str, Any]) -> dict[str, Any]:
     """Pose tout le monde, sans hasard. Retourne `world` (objets, sites, liens, bornes), `departments` (avec leur
     grille), `stations` et `agents` (positions et trajets recalculés), `aisles`, `unplaced`."""
-    hall = _hall(pack)
+    hall = _hall(spec, pack)
     areas = {d["id"]: d["area"] for d in spec.get("departments", []) if d.get("area")}
     depts: dict[str, _Dept] = {}
     pack_deps = {d["id"]: d for d in pack.get("departments", [])}
@@ -580,9 +635,9 @@ def place_world(spec: dict[str, Any], pack: dict[str, Any]) -> dict[str, Any]:
     bounds = [min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes)]
     return {
         "world": {
-            "template": pack["world"]["template"], "size": list(pack["world"]["size"]),
+            "template": pack["world"]["template"], "size": _hall_size(spec, pack),
             "spawn": list(pack["world"]["spawn"]), "objects": objects, "forklift_route": _forklift_route(depts, pack),
-            "sites": sites, "links": links, "bounds": bounds,
+            "sites": sites, "links": links, "bounds": bounds, "decor": _decor(spec, boxes, links),
         },
         "departments": [
             {

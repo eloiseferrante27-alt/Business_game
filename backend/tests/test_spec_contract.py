@@ -52,7 +52,7 @@ from gmix.settings import get_settings
 TOUCHSTONE = "wikipedia-en-theory-of-constraints"  # fiche du corpus dont l'en-tête « > Source : » sert de citation
 PACK = {
     "version": 1, "id": "usine", "domain": "supply-chain", "engine": "factory",
-    "limits": {"weeks": [4, 12, 6], "products": [1, 1, 1]},
+    "limits": {"weeks": [4, 12, 6], "products": [1, 1, 1]}, "machine_types": {"m3": {}},
     "params": [
         {"id": "lines", "label": "Lignes", "type": "int", "min": 1, "max": 3, "default": 2},
         {"id": "plan", "label": "Plan", "type": "choice", "options": [{"id": "u", "label": "U"}]},

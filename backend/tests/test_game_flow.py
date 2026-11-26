@@ -148,7 +148,7 @@ async def test_pack_options_and_validation() -> None:
                 "modules",
                 "limits",
             } <= pack.keys()
-            assert pack["limits"].keys() == {"weeks", "products"}
+            assert {"weeks", "products"} <= pack["limits"].keys()
             assert all(low <= default <= high for low, high, default in pack["limits"].values())
             assert all(ActionField.model_validate(p) for p in pack["params"])
         atelier, usine = packs["atelier"], packs["usine"]
@@ -161,7 +161,8 @@ async def test_pack_options_and_validation() -> None:
         atelier_params = USINE | {"pack": "atelier", "modules": ["production"], "products": 2, "options": {}}
         for bad in (
             USINE | {"pack": "inconnu"}, USINE | {"options": {"lines": 9}}, USINE | {"options": {"voies": 1}},
-            USINE | {"products": 2}, USINE | {"modules": ["approvisionnement"]},  # hors limites ou hors pack
+            USINE | {"products": 2}, USINE | {"clients": 2},  # hors limites (T4b)
+            USINE | {"modules": ["approvisionnement"]},  # hors pack
             atelier_params | {"options": {"lines": 2}},  # l'atelier n'a pas d'option
         ):  # fmt: skip
             answer = await client.post("/api/v1/games", json=bad, headers=headers)

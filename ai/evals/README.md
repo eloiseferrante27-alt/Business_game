@@ -13,6 +13,7 @@ Un jeu par tâche (`<tâche>.jsonl`), des cas étiquetés à la main :
 | `game.design.jsonl` | 27 briefs : séries R (réglage, 12), C (contrôle, 12) et N (réseau, 3) ; 18 atelier, 9 usine | `gmix.tools.eval_design` (étape 11 de l'ADR 0008, à écrire) |
 | `design.consignes.jsonl` | 10 briefs du protocole des jeux IA, avec attentes (5 points par jeu) | `gmix.tools.eval_design_consignes --label <nom> [--model main] [--no-guard]` (`GMIX_AI_DIR` : copie de ai/ pour un prompt à l'essai) |
 | `supply-chain.rag.jsonl` | 14 questions | `gmix.tools.eval_rag supply-chain [--k 4]` |
+| `finance-entreprise.rag.jsonl` | 14 questions (termes attendus et `expected_docs`) ; 24/11 : Rappel@4 13/14, document 14/14 | `gmix.tools.eval_rag finance-entreprise [--k 4]` |
 | `assets.retrieval.jsonl` | 12 besoins | `gmix.tools.assets evaluate` |
 
 | Tâche | Mesure | Seuil de départ |
