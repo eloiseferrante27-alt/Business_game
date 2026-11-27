@@ -345,6 +345,7 @@ class Action(BaseModel):
     id: str
     label: str
     fields: list[ActionField]
+    autopilot: str | None = None  # T7 : journal si cette action seule est en pilote automatique ; None : du module
 
 
 class Module(BaseModel):
@@ -364,6 +365,15 @@ class Role(BaseModel):
     mission: str
     module_id: ModuleId
     department_id: Code | None = None  # ADR 0010 annexe §5 : page de la tablette de ce rôle
+    # T7 (annexe 0013 §3 ter) : ids d'action de spec.modules ; vide : celles de module_id (qui en tient au moins une)
+    actions: list[str] = Field(default_factory=list)
+
+
+class RolePlan(BaseModel):
+    """Rôles tenus à `players` joueurs (annexe 0013 §3 ter) ; le plan couvre chaque action une fois."""
+
+    players: int = Field(ge=1, le=6)
+    roles: list[str] = Field(min_length=1, max_length=6)
 
 
 class Criterion(BaseModel):
@@ -1290,6 +1300,7 @@ class SimSpec(BaseModel):
     game_rules: list[GameRule] = Field(default_factory=list)
     finance: Finance | None = None  # module finance du moteur factory (ADR 0013) ; None : inactif
     trainer_excerpts: list[TrainerExcerpt] = Field(default_factory=list, max_length=10)  # passages cités (T8)
+    role_plans: list[RolePlan] = Field(default_factory=list)  # T7 ; vide : un seul plan, tous les spec.roles
 
     @model_validator(mode="after")
     def _references(self) -> "SimSpec":
@@ -1330,6 +1341,7 @@ class SimSpec(BaseModel):
             f"ligne {line.id} : produit inconnu" for line in self.lines if line.product_id not in ids["products"]
         ]
         errors += [f"module {m.id} : rôle inconnu" for m in self.modules if m.role_id not in ids["roles"]]
+        errors += self._role_errors()
         errors += [
             f"agent {a.id} : module inactif" for a in self.agents if a.module_id and a.module_id not in ids["modules"]
         ]
@@ -1382,6 +1394,31 @@ class SimSpec(BaseModel):
         if errors:
             raise ValueError("; ".join(errors[:10]))
         return self
+
+    def _role_errors(self) -> list[str]:
+        """Rôles répartis entre joueurs (annexe 0013 §3 ter) : actions des rôles, plans à n joueurs."""
+        actions = [a.id for m in self.modules for a in m.actions]
+        errors = [f"action {a} : identifiant en double" for a in sorted({a for a in actions if actions.count(a) > 1})]
+        by_module = {m.id: {a.id for a in m.actions} for m in self.modules}
+        owned = {r.id: set(r.actions) or by_module.get(r.module_id, set()) for r in self.roles}
+        for role in self.roles:
+            errors += [f"rôle {role.id} : action inconnue {a}" for a in role.actions if a not in actions]
+            if role.actions and not owned[role.id] & by_module.get(role.module_id, set()):
+                errors.append(f"rôle {role.id} : module {role.module_id} sans action de ce rôle")
+        players = [p.players for p in self.role_plans]
+        twice = sorted({n for n in players if players.count(n) > 1})
+        errors += [f"plans de rôles : {n} joueurs en double" for n in twice]
+        for plan in self.role_plans:
+            where = f"plan à {plan.players} joueurs"
+            errors += [f"{where} : rôle inconnu {r}" for r in plan.roles if r not in owned]
+            for a in dict.fromkeys(actions):
+                held = sum(a in owned.get(r, ()) for r in plan.roles)
+                if held != 1:
+                    errors.append(f"{where} : action {a} " + ("sans rôle" if not held else f"tenue par {held} rôles"))
+        if self.role_plans:  # un rôle de module reste exigé par `Module.role_id`, même hors des plans
+            planned = {r for p in self.role_plans for r in p.roles} | {m.role_id for m in self.modules}
+            errors += [f"rôle {r.id} : dans aucun plan" for r in self.roles if r.id not in planned]
+        return errors
 
     def _indicators(self) -> tuple[str, ...]:
         base = INDICATORS["factory" if self.factory else "weekly"]

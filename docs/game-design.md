@@ -55,7 +55,7 @@ de difficulté, jamais un nombre inventé.
 | Production | Chef·fe de ligne | `proteger_goulot` |
 | Maintenance | Responsable maintenance | `preventif`, `priorite_reparation` |
 
-Un module sans titulaire tourne en pilote automatique (sauf la semaine où le formateur y agit).
+Ce tableau est le plan à 3 joueurs. Depuis T7 (27/11), le pack déclare `roles` et `role_plans` : de 1 à 6 joueurs, 10 rôles de l'usine répartis par plan (docs/roles.md, « Rôles de jeu »). Une action sans titulaire tourne en pilote automatique, action par action (sauf la semaine où le formateur agit). Le HUD et la tablette grisent les actions des autres rôles ; la salle d'attente propose les rôles du plan, et le formateur y voit le plan.
 
 ## Ce qui varie selon la demande (cible ADR 0013 ; état livré au 21/11 : la demande règle des chiffres d'une usine unique)
 

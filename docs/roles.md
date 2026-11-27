@@ -47,9 +47,25 @@ de ses joueurs. Pas d'inscription libre en v1.
 | `WebSocket /ws` (en-tête `Authorization: Bearer`), `POST /system/ping` | tout compte / formateur et admin |
 
 - Un lobby, un groupe ou un jeu d'un autre formateur répond 404 (pas d'énumération) ; une partie de l'ancien modèle répond 410.
-- Actions (annexe 0010 §5, `engine.act`) : un joueur n'agit que sur le module de **son** rôle (409 « Cette action
-  revient au rôle X », ou « Choisissez un rôle ») ; le formateur et l'admin agissent partout ; un module sans titulaire
-  tourne en pilote automatique, sauf la semaine où le formateur y a agi.
+- Actions (annexe 0010 §5, `engine.act`) : un joueur n'agit que sur les actions de **son** rôle (409 « Cette action
+  revient au rôle « X » », ou « Choisissez un rôle ») ; le formateur et l'admin agissent partout ; une action sans
+  titulaire tourne en pilote automatique (`Action.autopilot`), sauf la semaine où le formateur y a agi.
+
+## Rôles de jeu (T7, ADR 0013 annexe §3 ter)
+
+- Le pack déclare `roles` et `role_plans` (tout pack). Usine : 10 rôles aux intitulés ROME v62 (`knowledge/supply-chain/rome-metiers-roles-usine.md`), 5 plans.
+- Le nombre de rôles suit les membres hors formateur jusqu'au lancement, puis se fige dans `lobbies.settings["seats"]` ; une arrivée n'efface les choix que si elle change le plan.
+
+| Joueurs | Rôles de l'usine |
+|---|---|
+| 1 | `responsable_usine` |
+| 2 | `responsable_flux`, `responsable_atelier` |
+| 3 | `responsable_production`, `chef_de_ligne`, `responsable_maintenance` (rôles des modules) |
+| 4 | `acheteur`, `ordonnanceur`, `chef_de_ligne`, `responsable_maintenance` |
+| 5 | `acheteur`, `ordonnanceur`, `chef_de_ligne`, `technicien_methodes`, `chef_equipe_maintenance` |
+| 6 | plan à 5 ; le 6e joueur double `acheteur` (U2, 27/11) |
+
+- `PUT /{id}/role` : 422 « Ce rôle n'est pas proposé à {n} joueurs » ; 409 tant qu'un rôle du plan est libre ; 409 après le lancement. `engine.assign_seats` attribue les rôles au lancement.
 - `GET …/memory` ne rend que les échanges du joueur qui le demande ; l'agent, lui, se souvient de ceux de
   tout le lobby.
 - Mots de passe scrypt, jeton d'accès de 8 h, 5 essais de connexion par identifiant et adresse en 5 min.

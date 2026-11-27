@@ -100,6 +100,10 @@ ce serveur et `OLLAMA_API_KEY` fournit le jeton exigé par le reverse proxy plac
 d'authentification propre : ne jamais l'exposer directement). Avec plus de VRAM, passer `player.intent` sur
 `decide` (tev1:4b) et `small` sur un modèle plus grand ne demande que de modifier ai/models.yaml.
 
+## Passerelle compatible OpenAI (merge du 27/11)
+
+`LLM_PROVIDER=openai` (`.env.example`) envoie toutes les tâches de texte à `OPENAI_MODEL` via `OPENAI_BASE_URL` (clé `OPENAI_API_KEY`), sans `num_ctx`. Si `OPENAI_BASE_URL` ou `OPENAI_MODEL` est vide, une erreur claire est levée au premier appel. Pas de nouvelle tentative ni de limite de contexte.
+
 ## Agents en jeu
 
 - `player.intent` filtre chaque message (hors-sujet, injection) avant tout appel génératif : réponse fixe,

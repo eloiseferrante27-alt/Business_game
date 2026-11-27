@@ -21,6 +21,9 @@ class Topic:
 
 SYSTEM_PING = Topic("gmix.system.ping", 1, HOUR_MS, "Diagnostic : requête de test du pipeline (API -> worker)")
 SYSTEM_PONG = Topic("gmix.system.pong", 1, HOUR_MS, "Diagnostic : réponse du worker (worker -> API -> WebSocket)")
+# Événement `lobby.members` (join, PUT /role, start ; annexe 0013 §3 ter) : payload {members, seats} avec
+# members = [{user_id, display_name, game_role}] et seats = {players, roles, owners} : players = membres hors
+# formateur (suivi jusqu'au lancement, puis figé), roles = plan de rôles [id], owners = {action_id: role_id}.
 GAME_EVENTS = Topic(
     "gmix.game.events", 3, 30 * DAY_MS, "Actions des joueurs et semaines simulées (état public diffusé au lobby)"
 )

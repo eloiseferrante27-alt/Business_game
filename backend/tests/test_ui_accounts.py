@@ -174,3 +174,18 @@ async def test_create_rolls_back_when_a_later_account_fails(monkeypatch: pytest.
     with pytest.raises(ValueError):
         await ui_accounts.create("tour")
     assert await _count(User, User.id, first) == 0  # le premier compte, déjà créé, est retiré
+
+
+async def test_flow_scenario_creates_six_players_and_cleanup_removes_them() -> None:
+    """Le parcours -Flow joue à 6 : le formateur et les six joueurs sont créés, puis tous supprimés."""
+    created = await ui_accounts.create("flow")
+    expected = {"GMIX_FLOW_TRAINER_TOKEN", "GMIX_FLOW_PLAYER_TOKEN"}
+    expected |= {f"GMIX_FLOW_PLAYER{n}_TOKEN" for n in range(2, 7)}
+    assert set(created["env"]) == expected
+    ids = [uuid.UUID(i) for i in created["ids"]]
+    assert len(ids) == 7
+    try:
+        assert await _count(User, User.id, ids) == 7
+    finally:
+        await ui_accounts.cleanup(ids)
+    assert await _count(User, User.id, ids) == 0

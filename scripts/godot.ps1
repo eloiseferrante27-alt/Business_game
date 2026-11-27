@@ -6,7 +6,7 @@
   .\scripts\godot.ps1 -Check   vérification headless : import + chargement de tous les scripts et scènes (code 0/1)
   .\scripts\godot.ps1 -Smoke   liaison headless avec le backend (API + worker system_ping démarrés)
   .\scripts\godot.ps1 -Tour [-Snapshot]  contrôle de lisibilité des écrans avant-jeu et des panneaux du HUD (code 0/1)
-  .\scripts\godot.ps1 -Flow [-NoLlm] [-Design] [-Products <n>] [-Clients <m>]  parcours formateur de bout en bout : génération, lobby, monde, semaines, débrief
+  .\scripts\godot.ps1 -Flow [-NoLlm] [-Design | -Roles] [-Products <n>] [-Clients <m>]  parcours formateur de bout en bout : génération, lobby, monde, semaines, débrief
       -Full      sortie complète (toute la sortie Godot, étapes) au lieu du bilan compact ; le journal complet est
                  toujours écrit dans %TEMP%\gmix_logs\ (son chemin est affiché)
       -Snapshot  captures PNG dans %TEMP%\gmix_imgs\ui_tour (fenêtre Godot, GPU requis ; sortie non capturée)
@@ -17,13 +17,14 @@
       -Clients 2    nombre de clients (--clients=2 transmis à flow_test) ; avec -Flow seulement, 0 = défaut
       -Design    parcours D seul (--only=D) : conception par l'IA puis régénération d'une section ; avec -Flow seulement.
                  Plusieurs appels au modèle (environ 5 s chacun) : délai global du parcours 25 min (watchdog)
+      -Roles     parcours R seul (--only=R) : 6 joueurs, rôles de jeu (tranche T7) ; avec -Flow seulement, pas avec -Design.
       -Tour et -Flow : API locale démarrée si elle ne répond pas (et arrêtée ensuite), comptes jetables créés puis
       supprimés en base, même en cas d'échec. Le code de sortie est celui de Godot (0 = OK).
   -Api http://192.168.1.20:8000   avec -Run ou -Smoke : se connecter à un autre serveur (réseau local, distance)
 #>
 param(
     [switch]$Run, [switch]$Check, [switch]$Smoke, [switch]$Tour, [switch]$Flow, [switch]$Snapshot, [switch]$NoLlm,
-    [switch]$Full, [switch]$Design, [switch]$Export, [string]$Api = '', [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$Pack = '', [int]$Buildings = 0, [int]$Products = 0, [int]$Clients = 0
+    [switch]$Full, [switch]$Design, [switch]$Roles, [switch]$Export, [string]$Api = '', [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$Pack = '', [int]$Buildings = 0, [int]$Products = 0, [int]$Clients = 0
 )
 . "$PSScriptRoot\_common.ps1"
 $console = Get-GodotExe -Console
@@ -90,6 +91,7 @@ function Invoke-UiCheck {
     if ($Pack -and -not $Flow) { throw '-Pack se lance avec -Flow' }
     if ($Buildings -and -not $Flow) { throw '-Buildings se lance avec -Flow' }
     if (($Products -or $Clients) -and -not $Flow) { throw '-Products et -Clients se lancent avec -Flow' }
+    if ($Design -and $Roles) { throw '-Design et -Roles : choisir un seul parcours' }
     $url = Get-ApiUrl
     $label = 'Tour'
     if ($Flow) { $label = 'Flow' }
@@ -124,6 +126,7 @@ function Invoke-UiCheck {
             if ($Products -gt 0) { $godotArgs += "--products=$Products" }
             if ($Clients -gt 0) { $godotArgs += "--clients=$Clients" }
             if ($Design) { $godotArgs += '--only=D' }
+            if ($Roles) { $godotArgs += '--only=R' }
         } elseif ($Snapshot) {
             $shots = Join-Path $env:TEMP 'gmix_imgs\ui_tour'
             New-Item -ItemType Directory -Force -Path $shots | Out-Null
@@ -185,6 +188,7 @@ function Invoke-Export {
 }
 
 if ($Export) { Invoke-Export }if ($Design -and -not $Flow) { throw '-Design se lance avec -Flow' }
+if ($Roles -and -not $Flow) { throw '-Roles se lance avec -Flow' }
 if ($Tour -or $Flow) { Invoke-UiCheck }
 if ($Check) {
     $journal = New-LogPath 'godot-check'
@@ -193,9 +197,12 @@ if ($Check) {
     $importErrors = @($import.Out + $import.Err | Where-Object { $_ -cmatch 'ERROR|Parse Error' })
     Write-StepFull 'Chargement des scripts et scènes'
     $load = Invoke-Captured $console @('--headless', '--path', $GodotDir, '--script', 'res://tools/check_project.gd') $journal 'check_project'
-    $loadLines = @($load.Out + $load.Err | Where-Object { $_ -cmatch 'ÉCHEC|ERROR|Parse Error|Fichiers vérifiés' })
+    Write-StepFull 'Formules du tableur SurExel'
+    $surexel = Invoke-Captured $console @('--headless', '--path', $GodotDir, '--script', 'res://tools/check_surexel.gd') $journal 'check_surexel'
+    $loadLines = @($load.Out + $load.Err + $surexel.Out + $surexel.Err | Where-Object { $_ -cmatch 'ÉCHEC|ERROR|Parse Error|Fichiers vérifiés|SurExel :' })
     $summary = [string](@($loadLines | Where-Object { $_ -match 'Fichiers vérifiés' }) | Select-Object -Last 1)
-    $ok = ($import.Code -eq 0 -and $load.Code -eq 0 -and $importErrors.Count -eq 0)
+    $surexelSummary = [string](@($loadLines | Where-Object { $_ -match 'SurExel :' }) | Select-Object -Last 1)
+    $ok = ($import.Code -eq 0 -and $load.Code -eq 0 -and $surexel.Code -eq 0 -and $importErrors.Count -eq 0)
     if ($Full) {
         foreach ($line in $loadLines) { Write-Host "  $line" }
         foreach ($line in $importErrors) { Write-Ko $line.Trim() }
@@ -204,9 +211,11 @@ if ($Check) {
         $okText = 'Projet Godot valide'
         if ($summary.Trim() -ne '') { $okText += ' (' + $summary.Trim() + ')' }
         Write-Ok $okText
+        if ($surexelSummary.Trim() -ne '') { Write-Ok $surexelSummary.Trim() }
     } else {
         if (-not $Full) {
             if ($summary.Trim() -ne '') { Write-Host "  $($summary.Trim())" }
+            if ($surexelSummary.Trim() -ne '') { Write-Host "  $($surexelSummary.Trim())" }
             $problems = @($importErrors | ForEach-Object { $_.Trim() }) + @($loadLines | Where-Object { $_ -cmatch 'ÉCHEC|ERROR|Parse Error' } | ForEach-Object { $_.Trim() })
             Write-Capped $problems 30
         }

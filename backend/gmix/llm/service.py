@@ -87,6 +87,10 @@ class LLMService:
     def from_settings(cls, *, with_cache: bool = True) -> "LLMService":
         settings = get_settings()
         catalog = load_catalog()
+        if settings.llm_provider == "openai":
+            for var, value in (("OPENAI_BASE_URL", settings.openai_base_url), ("OPENAI_MODEL", settings.openai_model)):
+                if not value.strip():
+                    raise ValueError(f"LLM_PROVIDER=openai : {var} est vide (voir .env.example)")
         client: OllamaClient | OpenAIClient = OllamaClient(settings.ollama_base_url, api_key=settings.ollama_api_key)
         if settings.llm_provider == "openai":
             chat_tags = {m.tag for m in catalog.models.values() if m.kind == "chat"}

@@ -331,20 +331,21 @@ func _render_station() -> void:
 		if _station["kind"] != "ecran_kpi" and _station["kind"] != "rack_produit":
 			_station_actions.add_child(Ui.label("Aucun module de ce poste n'a été retenu pour cette partie : il est géré automatiquement.", 0, Ui.MUTED, true))
 		return
-	var running: bool = state.get("status") == "running"
 	for module: Dictionary in spec.get("modules", []):
 		if not module["id"] in module_ids:
 			continue
 		var box := Ui.vbox(Ui.panel(_station_actions), 6)
 		box.add_child(Ui.label(module["title"], 20, Ui.ACCENT))
 		box.add_child(Ui.label(module["description"], 0, Ui.MUTED, true))
-		var blocked := _blocked_reason(module)
-		if not running:
-			blocked = "Les actions s'ouvrent quand le formateur lance la partie." if state.get("status") == "waiting" else "Partie terminée."
-		if not blocked.is_empty():
-			box.add_child(Ui.label(blocked, 0, Ui.WARN, true))
-		for action: Dictionary in module["actions"]:
-			_action_form(box, module, action, blocked.is_empty())
+		var reasons: Array = module["actions"].map(func(action: Dictionary) -> String: return _blocked_reason(module, action))
+		# Une seule raison commune : dite une fois sous le titre ; sinon (rôles à actions réparties) sous chaque action.
+		var common: String = reasons[0] if not reasons.is_empty() and reasons.all(func(reason: String) -> bool: return reason == reasons[0]) else ""
+		if not common.is_empty():
+			box.add_child(Ui.label(common, 0, Ui.WARN, true))
+		for i in module["actions"].size():
+			if common.is_empty() and not reasons[i].is_empty():
+				box.add_child(Ui.label(reasons[i], 0, Ui.WARN, true))
+			_action_form(box, module, module["actions"][i], reasons[i].is_empty())
 
 
 ## Formulaire d'une action à partir de ses champs (spec.modules[].actions[].fields) : liste de choix ou nombre.
@@ -410,15 +411,13 @@ func _current(field_id: String) -> Variant:
 	return null
 
 
-## Seul le rôle du module agit (l'API tranche, ceci évite un aller-retour) ; le titulaire est nommé s'il y en a un.
-func _blocked_reason(module: Dictionary) -> String:
-	var reason := Session.module_block(str(module["id"]))
-	if reason.is_empty() or Session.my_role().is_empty():
-		return reason
-	for member: Dictionary in Session.lobby.get("members", []):
-		if member.get("game_role") == module["role_id"]:
-			return "Revient à %s (%s) : allez en discuter." % [member["display_name"], GameText.role_title(Session.spec(), module["role_id"])]
-	return reason
+## Raison pour laquelle l'action est fermée : partie non en cours, ou action d'un autre rôle (l'API tranche, ceci évite
+## un aller-retour ; Session.action_block nomme le titulaire).
+func _blocked_reason(module: Dictionary, action: Dictionary) -> String:
+	var status: Variant = Session.state().get("status")
+	if status != "running":
+		return "Les actions s'ouvrent quand le formateur lance la partie." if status == "waiting" else "Partie terminée."
+	return Session.action_block(str(module["id"]), str(action["id"]))
 
 
 func _render_dialogue() -> void:
@@ -575,10 +574,7 @@ func _build_tablet() -> void:
 
 ## Formulaire d'une action de module dans la tablette : mêmes règles d'accès que le poste.
 func _tablet_action(parent: Node, module: Dictionary, action: Dictionary) -> void:
-	var state := Session.state()
-	var blocked := _blocked_reason(module)
-	if state.get("status") != "running":
-		blocked = "Les actions s'ouvrent quand le formateur lance la partie." if state.get("status") == "waiting" else "Partie terminée."
+	var blocked := _blocked_reason(module, action)
 	if not blocked.is_empty():
 		parent.add_child(Ui.label(blocked, 0, Ui.WARN, true))
 	_action_form(parent, module, action, blocked.is_empty())

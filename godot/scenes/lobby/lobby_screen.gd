@@ -113,17 +113,25 @@ func _render() -> void:
 	_enter_button.visible = game_status != "finished"
 
 	var my_role: Variant = lobby.get("my_role")
-	_role_box.visible = not manager
+	var seats: Dictionary = Session.seats()  # plan de rôles à n joueurs (annexe 0013 §3 ter) ; {} : tous les rôles de la spec
+	_role_box.visible = not manager or not seats.is_empty()  # le formateur voit le plan, sans pouvoir prendre de rôle
 	Ui.clear(_roles)
 	var locked: bool = my_role != null and game_status != "waiting"
 	var who := str(Api.user.get("display_name", ""))
 	_welcome.text = "Votre rôle est choisi : entrez dans l'atelier." if my_role != null else "Choisissez le rôle que vous tiendrez."
+	if manager:
+		_welcome.text = "Plan à %d joueurs. Les rôles libres sont attribués au lancement." % int(seats.get("players", 0))
+	elif not seats.is_empty() and my_role == null:
+		_welcome.text = "Plan à %d joueurs : choisissez le rôle que vous tiendrez." % int(seats.get("players", 0))
 	_welcome.tooltip_text = "Bienvenue %s" % who
-	for role: Dictionary in spec.get("roles", []):
-		var holders: Array = []
-		for member: Dictionary in lobby.get("members", []):
-			if member.get("game_role") == role["id"]:
-				holders.append(str(member["display_name"]))
+	var roles: Array = spec.get("roles", [])
+	if not seats.is_empty():
+		var plan: Array = seats.get("roles", [])
+		roles = roles.filter(func(role: Dictionary) -> bool: return role["id"] in plan)
+		roles.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return plan.find(a["id"]) < plan.find(b["id"]))
+	var any_free := roles.any(func(role: Dictionary) -> bool: return Session.role_holders(role["id"]).is_empty())
+	for role: Dictionary in roles:
+		var holders := Session.role_holders(role["id"])
 		var mine: bool = role["id"] == my_role
 		var card := Ui.vbox(Ui.panel(_roles), 2)
 		var top := Ui.hbox(card, 8)  # titre, état et bouton sur une ligne : les cartes restent basses
@@ -132,9 +140,12 @@ func _render() -> void:
 		top.add_child(role_title)
 		if mine:
 			top.add_child(Ui.label("Votre rôle", 0, Ui.OK))
-		else:
+		elif not manager:
 			var take := Ui.button("Prendre ce rôle", _choose_role.bind(role["id"]))
 			take.disabled = locked
+			if not seats.is_empty() and not holders.is_empty() and any_free:  # un rôle libre avant un doublon (l'API tranche)
+				take.disabled = true
+				take.tooltip_text = "Un rôle libre doit être pris avant de doubler un rôle."
 			top.add_child(take)
 		var holder_text := "Tenu par %s" % ", ".join(holders) if not holders.is_empty() else "Vacant"
 		card.add_child(Ui.label("Module %s. %s%s" % [GameText.module_title(spec, role["module_id"]).to_lower(), role["mission"], "" if mine else " (%s)" % holder_text], 15, Ui.MUTED, true))

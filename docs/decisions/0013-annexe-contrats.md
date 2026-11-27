@@ -28,6 +28,8 @@ Règles communes :
 (3 fournisseurs, un par profil ; 1 client ; hall unique en U). `FIXABLE` gagne `buildings`, `suppliers`, `clients`,
 `ambiance` (`products` y était). `generate` reste déterministe : mêmes paramètres (plan compris) et même graine, même
 spec ; le plan vit dans les paramètres pour qu'une retouche des paramètres (`PUT /games/{id}/params`) rejoue le monde.
+`network` (`dict[str, str]`, {} : défauts du pack), site -> classe de distance, est aussi dans `FIXABLE` (merge
+b483971) : site de `pack["network"]["sites"]`, classe dans ses `distances` (« réseau : ... »), lu par `layout`.
 Bornes de jeu à poser par game-designer (provenance `calibre`, note) : usine `limits.suppliers: [3, 8, 3]`,
 `limits.clients: [1, 4, 1]`, `limits.products: [1, 3, 1]` (la zone de production tient 3 lignes au plus, une ligne
 par produit), `limits.buildings: [1, 3, 1]` en T5. **Repli (26/11)** : tant que le moteur ne joue qu'un produit et un
@@ -383,6 +385,234 @@ Compléments du 27/11 (relecture du code à bcf8b89, plan de T4b) : manques du t
 
 Trajets (moteur-jeu, T5) : remplacé par le §2 bis, décision 3 (27/11).
 
+## 3 ter. Rôles répartis entre joueurs (tranche T7, 27/11)
+
+Lecture du critère « droits testés pour les 3 rôles » : ce sont les 3 rôles de l'application (joueur, formateur,
+admin, docs/roles.md), comme en T8 et dans la matrice de l'annexe 0010 §5. Les rôles de jeu sont testés à part,
+pour chaque nombre de joueurs de 1 à 6.
+
+Décisions de l'utilisateur (27/11) :
+
+- **U1** : le nombre de rôles suit le nombre de membres jusqu'au lancement, puis se fige dans `settings["seats"]`.
+- **U2** : à 6 joueurs, deux joueurs partagent un rôle ; aucune action nouvelle, donc 5 rôles au plus pour l'usine.
+
+### Modèle
+
+Un **rôle** de jeu est un ensemble d'actions ; un **plan** dit quels rôles sont tenus à n joueurs. Le droit d'agir
+passe du module à l'action : la règle de l'annexe 0010 §5 (`actor.role == module.role_id`) devient « l'action
+appartient au rôle de l'acteur dans le plan du lobby ».
+
+```python
+class Action(BaseModel):          # + 1 champ
+    autopilot: str | None = None  # journal si cette action seule est en pilote automatique ; None : module.autopilot
+
+class Role(BaseModel):            # + 1 champ ; module_id : module de la page de tablette (department_id)
+    actions: list[str] = Field(default_factory=list)  # ids d'action de spec.modules ; vide : celles de module_id
+
+class RolePlan(BaseModel):
+    players: int = Field(ge=1, le=6)
+    roles: list[str] = Field(min_length=1, max_length=6)
+
+SimSpec.role_plans: list[RolePlan] = Field(default_factory=list)  # vide : un seul plan, tous les spec.roles
+```
+
+Contrôles `SimSpec` (moteur-jeu, messages testés) :
+- `action {a} : identifiant en double` (ids d'action uniques dans `spec.modules`, toujours) ;
+- `rôle {r} : action inconnue {a}` ; `rôle {r} : module {m} sans action de ce rôle` (si `actions` non vide) ;
+- `plans de rôles : {n} joueurs en double` ; `plan à {n} joueurs : rôle inconnu {r}` ;
+- `plan à {n} joueurs : action {a} sans rôle` et `plan à {n} joueurs : action {a} tenue par {k} rôles` : chaque
+  plan partage les actions de `spec.modules`, chacune une fois ;
+- `rôle {r} : dans aucun plan` (si `role_plans` non vide, sauf rôle d'un module : `Module.role_id` reste exigé).
+
+Panneaux et PNJ attitrés : aucun champ. La page de tablette reste `Role.department_id` ; l'interlocuteur du rôle est
+le PNJ de ce département (`agents[].department_id`), déjà dans la spec.
+
+### Pack (game-designer) et génération (moteur-jeu)
+
+```yaml
+roles:                    # T7 : rôles en plus de modules.*.role (dont les actions sont celles du module)
+  acheteur:
+    title: Acheteur·se
+    mission: Commander la matière à temps, au bon fournisseur
+    module: pilotage
+    actions: [commander_mp]
+role_plans:               # joueurs -> rôles ; chaque plan couvre chaque action une fois
+  3: [responsable_production, chef_de_ligne, responsable_maintenance]
+modules:
+  pilotage:
+    actions:
+      - id: commander_mp
+        autopilot: "MP commandée au fournisseur standard au point de commande"  # module découpé seulement
+```
+
+`factory_generation._modules` lit ces clés pour tout pack (D2 déclare ainsi DAF, trésorier, credit manager et
+comptable fournisseurs, sans code de droits à écrire) : rôles des modules joués, `actions` écrites en clair ; rôles
+du pack filtrés sur les actions des modules joués, rôle vide retiré, puis plan vide retiré ; `role_plans` triés par
+`players`. Pack sans `role_plans` (atelier) : `[]`. `CastPlan` (T9) ne touche pas aux plans en T7.
+
+Plans proposés pour l'usine (titres et missions : game-designer, qui les valide) :
+
+| Joueurs | Rôles (actions) |
+|---|---|
+| 1 | `responsable_usine` (les 5 actions) |
+| 2 | responsable_flux (commander_mp, lancer_of) ; responsable_atelier (les 3 autres actions) |
+| 3 | les 3 rôles actuels des modules : le jeu de référence |
+| 4 | `acheteur` (`commander_mp`) ; `ordonnanceur` (`lancer_of`) ; `chef_de_ligne` ; `responsable_maintenance` |
+| 5 | plan à 4, maintenance scindée : technicien_methodes (preventif), chef_equipe_maintenance (priorite_reparation) |
+| 6 | pas de plan déclaré : le plan à 5 ; le 6e joueur double `acheteur` (U2), sauf s'il choisit un autre rôle |
+
+Qualité et expédition n'ont aucune action dans le pack usine : pas de rôle en T7, 5 rôles au plus (U2, qui
+remplace « 3 à 6 rôles » de la ligne T7 de l'ADR).
+
+Règle « un rôle libre avant un doublon », pour toutes les specs : tant qu'un rôle du plan est libre, `PUT /role` sur
+un rôle pris est refusé (409) ; une fois tous les rôles pris, un joueur peut doubler le rôle de son choix. Au
+lancement, `assign_seats` donne d'abord les rôles libres, puis double les rôles dans l'ordre du plan à partir du
+premier : à 6 joueurs sans choix, le 6e double `acheteur`, premier rôle du plan à 5. Ce rôle est le plus chargé en
+décisions (une matière par produit, 3 au plus en T4b). Les deux titulaires agissent l'un et l'autre ; le journal
+nomme l'auteur de chaque décision (`log[].name`).
+
+### Fonctions pures (`gmix.game.engine`, moteur-jeu)
+
+- `role_plan(spec, players) -> list[str]` : sans `role_plans`, tous les `spec.roles` ; sinon le plan au plus grand
+  `players <= n`, ou le plus petit plan si n est en dessous (0 se lit 1). Un pack peut donc omettre 1 et 2 joueurs.
+- `role_actions(spec, role_id) -> set[str]` : `Role.actions`, ou les actions de `module_id` si la liste est vide.
+- `action_owners(spec, plan | None) -> dict[str, str]` : action -> rôle du plan ; `None` : `module.role_id`.
+- `assign_seats(plan, members: list[tuple[str, str | None]]) -> dict[str, str]`, membres dans l'ordre d'entrée :
+  garde un choix valide, donne ensuite les rôles libres dans l'ordre du plan, puis, s'il n'en reste plus, refait le
+  tour du plan depuis le premier (binôme).
+- `act(..., plan: list[str] | None = None)` : le gestionnaire agit partout ; sinon `owners[action] == actor.role`,
+  ou 409 « Cette action revient au rôle « {titre du rôle propriétaire} » », ou « Choisissez un rôle » sans rôle.
+  `occupied_roles` reste ignoré (dette de l'annexe 0010).
+- `played_actions(spec, state, autopilot_all, held_roles) -> set[str]` : `None` -> toutes ; sinon actions des rôles
+  tenus, plus celles au journal de la semaine (`kind` `decision`). `played_modules` en dérive (modules d'au moins
+  une action jouée) : le moteur hebdomadaire ne change pas.
+- `factory_game.advance(spec, state, played)` : `played` devient l'ensemble des actions. `_autopilot` décide par
+  action : `commander_mp` -> règle `order`, `lancer_of` -> `launch`, `proteger_goulot` -> `aucune`, `preventif` ->
+  `goulot`, `priorite_reparation` -> `arrivee` ; `None` si les deux actions de pilotage sont jouées.
+- `_week_entries` : un module sans action jouée garde son entrée actuelle ; un module joué en partie a une entrée
+  par action non jouée, avec `action.autopilot`.
+
+Invariant : une spec sans `role_plans`, et une spec T7 jouée avec les rôles du plan à 3, donnent les mêmes
+`history` et `public_state` que la référence `backend/tests/fixtures/t7_reference.json`, prise avant tout changement,
+pour chacun des 8 sous-ensembles de rôles tenus (2 secteurs, graines 1 à 3, 6 semaines).
+
+### Stockage, attribution, refus (backend-api, `api/routes/lobbies.py`)
+
+- Stockage : `LobbyMember.game_role` (id du rôle, inchangé) ; `lobbies.settings["seats"]` = n, figé par `start`.
+  Aucune migration.
+- n = membres du lobby hors formateur du lobby (`trainer_id`) : compté en direct pendant l'attente, figé au
+  lancement. Quand une entrée change le plan, les rôles hors du nouveau plan sont remis à `null`.
+- Attribution : le joueur choisit son rôle dans le plan (`PUT /role`) ; `start` donne un rôle à chaque membre qui
+  n'en a pas (`assign_seats`). Le formateur n'attribue pas. Un joueur entré après le lancement choisit lui-même.
+- Vue (`GET /lobbies/{id}`) et charge utile de `lobby.members` (gmix.game.events, sans nouveau topic) :
+  `seats: {players: n, roles: [id], owners: {action_id: role_id}}`, sans clé `frozen` (n suit les arrivées
+  jusqu'au lancement, puis se fige). L'événement `lobby.members` (join, `PUT /role`, `start`) porte
+  `{members: [{user_id, display_name, game_role}], seats}` ; le client le lit par le signal
+  `lobby_members_changed(members, seats)` (`realtime.gd`).
+
+| Cas | Code | Message |
+|---|---|---|
+| action d'un autre rôle du plan | 409 | « Cette action revient au rôle « Acheteur·se » » |
+| action sans rôle | 409 | « Choisissez un rôle » |
+| `PUT /role` absent de la spec | 422 | « Rôle inconnu dans ce business game » (inchangé) |
+| `PUT /role` hors du plan à n | 422 | « Ce rôle n'est pas proposé à {n} joueurs » |
+| `PUT /role` pris alors qu'un rôle du plan est libre | 409 | « Rôle déjà pris par {nom} : choisissez un rôle libre » |
+| changement de rôle après le lancement | 409 | « Le rôle ne change plus une fois la partie lancée » (inchangé) |
+
+409 et non 403 : le compte a le droit d'agir dans le lobby, c'est une règle de partie (annexe 0010 §5) ; 403 reste
+réservé au rôle de l'application (joueur sur une route de formateur).
+
+| Opération | joueur avec rôle | joueur sans rôle | formateur du lobby | autre formateur | admin |
+|---|---|---|---|---|---|
+| `actions` d'une action de son rôle | 200 | 409 | 200 | 404 | 200 |
+| `actions` d'une action d'un autre rôle | 409 | 409 | 200 | 404 | 200 |
+| `PUT /role` (attente) | 200, 409 ou 422 | 200, 409 ou 422 | 409 (non membre) | 404 | 409 (non membre) |
+| `start` (avec attribution) | 403 | 403 | 200 | 404 | 200 |
+
+### Formateur et admin, HUD (godot-dev)
+
+- Formateur et admin : la salle d'attente montre le plan à n joueurs, le titulaire de chaque rôle et « les rôles
+  libres sont attribués au lancement » ; en partie, toutes les actions restent permises et la tablette nomme le
+  titulaire de chaque action. Ils ne sont dans `expected` que s'ils ont rejoint le lobby (annexe 0010 §1).
+- HUD et tablette : `Session.module_block(module_id)` devient `action_block(module_id, action_id)`, qui lit
+  `seats.owners`, ou `module.role_id` en repli (fixtures sans `seats`). Seuls les formulaires, outils et boutons
+  d'alerte des actions d'un autre rôle sont grisés, avec « Revient à {nom} ({titre}) : allez en discuter. ». Une page
+  de tablette est active si une de ses actions est à moi. La ligne « Votre rôle : titre · mission » ne change pas.
+- La salle d'attente ne liste que `seats.roles`.
+
+### Compatibilité
+
+Specs déjà en base (sans `role_plans` ni `Role.actions`) : un plan unique (tous les rôles), propriétaire =
+`module.role_id`, pilote automatique par module comme avant ; aucune migration de spec. Deux règles de lobby valent
+pour toutes les specs : un rôle libre est pris avant de doubler un rôle, et `start` attribue un rôle à ceux qui n'en
+ont pas.
+
+### Exemples (étape 1 du plan : `backend/tests/test_t7_contract.py`)
+
+Valide : spec usine générée, à laquelle on ajoute
+
+```json
+{"roles": [{"id": "acheteur", "title": "Acheteur·se", "mission": "Commander la matière à temps",
+            "module_id": "pilotage", "actions": ["commander_mp"]},
+           {"id": "ordonnanceur", "title": "Ordonnanceur·se", "mission": "Lancer les OF à temps",
+            "module_id": "pilotage", "actions": ["lancer_of"]}],
+ "role_plans": [{"players": 3, "roles": ["responsable_production", "chef_de_ligne", "responsable_maintenance"]},
+                {"players": 4, "roles": ["acheteur", "ordonnanceur", "chef_de_ligne", "responsable_maintenance"]}]}
+```
+
+(les deux rôles ajoutés aux 3 rôles des modules). Relu par `SimSpec` sans clé perdue, `Action.autopilot` compris.
+Refusés, avec les mots attendus : `acheteur.actions = ["x"]` -> « action inconnue x » ; plan 4 sans `ordonnanceur`
+-> « action lancer_of sans rôle » ; plan 4 avec `responsable_production` en plus -> « tenue par 2 rôles » ; deux
+plans à 4 -> « 4 joueurs en double » ; `players: 0` ou `7` -> erreur de champ ; `acheteur.module_id = "production"`
+-> « module production sans action » ; rôle `x` hors des plans -> « dans aucun plan ». Et `generate` à chaque borne de
+`limits` (fonction `check_bounds` de test_t4b_contract.py), avant et après l'étape 3b.
+
+Écarts de l'étape 1 tranchés (27/11, architecte ; code : `SimSpec._role_errors`) :
+1. Un seul fichier, `tests/test_t7_contract.py`, porte la référence et le contrat : `test_t7_reference.py` n'existe
+   pas, les commandes des étapes 1a et 3b ci-dessous le remplacent.
+2. La référence joue l'atelier à 2 produits : c'est le minimum de `ATELIER_LIMITS`, aucun changement de contrat.
+3. `Role.module_id` n'est pas « le module de la 1re action » : c'est la page de tablette. Avec `actions` non vide, ce
+   module doit tenir au moins une action du rôle (« module {m} sans action de ce rôle »), dans n'importe quel ordre.
+4. Trois refus de plus, au contrat ci-dessus et testés : id d'action en double, `players` à 0 (erreur de champ),
+   « plan à {n} joueurs : rôle inconnu {r} ». Ces messages passent avant les autres contrôles de `_references`, qui
+   n'en rend que 10.
+
+### Plan d'exécution T7 (lignes relevées le 27/11, après le merge b483971)
+
+Vérification commune : `.\scripts\test.ps1 -Fast` vert, plus la commande de l'étape.
+
+1. a. fait (27/11), moteur-jeu : `tests/fixtures/t7_reference.json` et, dans `tests/test_t7_contract.py`, la
+   référence (8 sous-ensembles des 3 rôles, `held_roles`), les exemples ci-dessus et `check_bounds` ; le code
+   nouveau en `xfail(strict=True)`. Commande : `pytest backend\tests\test_t7_contract.py` (python du venv).
+   b. fait (27/11), architecte : `game/spec.py`, `Action.autopilot`, `Role.actions`, `RolePlan`,
+   `SimSpec.role_plans`, `SimSpec._role_errors` (appelé dans `_references`) ; xfail retiré des 11 tests de 1b
+   (relecture et 10 refus). Restent en xfail : 5 tests de 3a, 2 de 3b. Grep `^.{121,}` sur spec.py vide.
+2. game-designer, après 1b (sans `Action.autopilot`, la clé `autopilot` copiée dans la spec serait perdue) :
+   `ai/packs/usine.yaml`, `roles:` et `role_plans:` (après `modules:`, l. 1436-1502), `autopilot` des actions de
+   `pilotage` et `maintenance`. Commande : `pytest backend\tests\test_spec_contract.py`. En parallèle de 3a.
+3. a. moteur-jeu, après 1b : `engine.py` `role_plan`, `role_actions`, `action_owners`, `assign_seats`, `act`
+   (l. 88-121, argument `plan`) ; `tests/test_t7_roles.py` (plans de 1 à 6 joueurs, refus et messages).
+   b. moteur-jeu, après 2 et 3a : `played_actions` et `advance` (l. 124-165), `_week_entries` (l. 168-180) ;
+   `factory_game._autopilot` (l. 189-218) et `advance` (l. 224-231) ; `factory_generation._modules` (l. 197-207) et
+   `department_id` des rôles (l. 79-81). Commande : `pytest backend\tests\test_t7_contract.py` vert sans changer la
+   référence, xfail de 3b retirés. En parallèle de 4.
+4. backend-api, après 3a : `api/routes/lobbies.py` `join` (l. 260-275), `_view` (l. 160-178), `choose_role`
+   (l. 326-340), `start_game` (l. 343-350), `module_action` (l. 484-503, `plan` au lieu de `occupied_roles`),
+   charge de `lobby.members` ; `tests/test_lobbies_t7.py` (matrice et refus ci-dessus, n de 1 à 6, remise à `null`).
+   Commande : `.\scripts\test.ps1 -Integration`.
+5. godot-dev, codé avec 4 sur ce contrat, vérifié après 4 : `autoload/session.gd` `module_block` (l. 74-88) ->
+   `action_block` ; `world/hud.gd` `_blocked_reason` (l. 413-421, appelants l. 341 et 579) ; `tablet/tablet.gd`
+   (l. 299, `_role_of` l. 369-376, pages l. 390-410) ; `lobby/lobby_screen.gd` (l. 115-153) ;
+   `flow_test.gd` `_check_tablet_roles` (l. 1125-1173). Commande : `.\scripts\godot.ps1 -Check` puis `-Tour`.
+6. devops : `gmix/tools/ui_accounts.py`, scénario `flow` (l. 35-42) : `GMIX_FLOW_PLAYER3_TOKEN` à `PLAYER6`.
+   Commande : `.\scripts\godot.ps1 -Flow -NoLlm` vert, comptes nettoyés.
+7. godot-dev, après 3b, 4, 5 et 6 : `flow_test.gd`, parcours `R` dans les parcours par défaut (l. 114) : 6 joueurs
+   (l'un par l'interface, 5 par `_raw`), plan relu à chaque entrée, choix remis à `null`, attribution au lancement,
+   409 sur l'action d'un autre, 200 sur la sienne et pour le formateur. Commande : `.\scripts\godot.ps1 -Flow -NoLlm`.
+8. documentaliste, avec 7 : docs/roles.md (matrice), docs/kafka.md (`lobby.members.seats`), docs/game-design.md,
+   godot/README.md (`action_block`). Commande : Grep de `module_block` hors code, vide.
+9. qa-reviewer, en dernier : `.\scripts\test.ps1 -Integration`, `godot.ps1 -Flow`, `-Flow -Pack usine`, `smoke.ps1`.
+
 ## 4. Module finance du moteur `factory` (D2)
 
 ### 4.1 Activation et paramètres
@@ -547,6 +777,7 @@ clé `correlation_id = document_id`, traitement idempotent (une réindexation re
 | 4 | T4 : `generate` (§1, §3), placeur à graine | moteur-jeu | game/generation.py, game/layout.py, tests | §7 vert, 8 empreintes sur 12 graines | avec 3 |
 | 5 | D1 : corpus finance | rag-knowledge, game-designer | knowledge/finance-entreprise/ | §4.1 sourcé et daté | avec 3, 4 |
 | 6 | T5 : archétypes, zonage, `place_campus`, `travel_min`, Godot campus | game-designer, assets-3d, moteur-jeu, godot-dev | §2 bis (plan détaillé) | ADR 0013 T5 | après 4 |
+| 6 bis | T7 : rôles répartis | 5 agents (§3 ter) | §3 ter | matrice testée, `-Flow` à 6 | après T4b |
 | 7 | T8 : routes, worker `rag`, passages, publication | backend-api, pipeline-kafka, rag-knowledge, godot-dev | §5, §6 | droits des 3 rôles testés | après 6 |
 | 8 | D2 : pack et module finance (§4) | game-designer puis moteur-jeu | ai/packs/finance-entreprise.yaml, game/factory_game.py, game/finance.py | un test par action, VAN du §4.4 | avec 7 |
 | 9 | T9 : section `monde`, étapes du §6 | ia-runtime, pipeline-kafka, moteur-jeu | §5, §6 | ADR 0013 T9 | après 7, 8 |

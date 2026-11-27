@@ -81,7 +81,7 @@ func _route(type: String, payload: Dictionary) -> void:
 		"lobby.state":
 			EventBus.lobby_state_changed.emit(payload)
 		"lobby.members":
-			EventBus.lobby_members_changed.emit(payload.get("members", []))
+			EventBus.lobby_members_changed.emit(payload.get("members", []), payload.get("seats", {}))
 		"lobby.round":
 			EventBus.lobby_round_changed.emit(payload.get("round", {}))
 

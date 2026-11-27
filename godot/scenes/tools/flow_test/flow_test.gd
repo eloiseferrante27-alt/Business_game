@@ -142,6 +142,8 @@ func _run() -> void:
 		await _player_journey()
 	if _failures.is_empty() and "D" in _only:
 		await _design_journey()
+	if _failures.is_empty() and "R" in _only:
+		await _roles_journey()
 	_finish("")
 
 
@@ -508,6 +510,9 @@ func _player_journey() -> void:
 	_check((lobby.get("_role_box") as Control).visible and not (lobby.get("_start_button") as Button).visible, "joueur : choix du rôle, pas de « Lancer la partie »")
 
 	_begin("B.2", "Choix du rôle ; un second joueur inscrit par l'API prend un autre rôle et reste absent")
+	# Une entrée avant le lancement efface les rôles déjà choisis (U1) : le second joueur entre d'abord.
+	var me2 := await _raw(_player2, HTTPClient.METHOD_GET, "/api/v1/auth/me")
+	var joined := await _raw(_player2, HTTPClient.METHOD_POST, "/api/v1/lobbies/join", {"code": code})
 	var takes := _buttons(lobby, "Prendre ce rôle")
 	_check(takes.size() == roles.size(), "un bouton « Prendre ce rôle » par rôle", str(takes.size()))
 	if not _click(takes[0], "bouton « Prendre ce rôle » (%s)" % roles[0]["title"]):
@@ -515,8 +520,6 @@ func _player_journey() -> void:
 	_check(await _until(func() -> bool: return Session.my_role() == roles[0]["id"]) != null, "mon rôle est enregistré", Session.my_role())
 	_check(_texts(lobby.get("_roles") as Node).has("Votre rôle"), "la carte du rôle indique « Votre rôle »")
 	_check((lobby.get("_welcome") as Label).text.begins_with("Votre rôle est choisi"), "message : rôle choisi")
-	var me2 := await _raw(_player2, HTTPClient.METHOD_GET, "/api/v1/auth/me")
-	var joined := await _raw(_player2, HTTPClient.METHOD_POST, "/api/v1/lobbies/join", {"code": code})
 	var chosen := await _raw(_player2, HTTPClient.METHOD_PUT, "/api/v1/lobbies/%s/role" % lobby_id, {"game_role": roles[1]["id"]})
 	_check(me2["ok"] and joined["ok"] and chosen["ok"], "second joueur inscrit avec le rôle %s (API)" % roles[1]["title"], str(joined["error"]) + str(chosen["error"]))
 	var other_name := str(me2["data"]["display_name"])
@@ -579,7 +582,8 @@ func _player_journey() -> void:
 		forms = _buttons(tablet, "Valider")
 		_check(not forms.is_empty() and forms.all(func(b: Button) -> bool: return b.disabled), "page d'un autre rôle : formulaires fermés", str(forms.size()))
 		var texts := _texts(tablet)
-		_check(texts.any(func(t: String) -> bool: return t.contains("lecture seule") and t.contains(other_name)), "la page nomme le titulaire et la lecture seule", str(texts.filter(func(t: String) -> bool: return t.contains("lecture"))))
+		# T7 : la lecture seule est dite en tête, le titulaire de chaque action nommé dans une ligne à part
+		_check(texts.any(func(t: String) -> bool: return t.contains("lecture seule")) and texts.any(func(t: String) -> bool: return t.contains(other_name)), "la page dit la lecture seule et nomme le titulaire", str(texts))
 		_check(texts.any(func(t: String) -> bool: return t.contains("revient au rôle") or t.contains("Revient à")), "la raison du refus est affichée")
 		tablet.select_tab(str(mine[0]))
 		await _frames(3)
@@ -631,6 +635,141 @@ func _player_journey() -> void:
 	_check(text.contains("Semaines jouées") and text.contains("S1 : OTIF"), "débrief joueur : semaines jouées et OTIF", text.left(100))
 	_check(_bbcode_leak(text, "").is_empty(), "débrief joueur : aucune balise visible", _bbcode_leak(text, ""))
 	_close_dialog(window as AcceptDialog)
+
+
+# --- parcours R : 6 joueurs, rôles répartis (ADR 0013 §3 ter), `--only=R` ------------------------------------------
+
+
+func _lobby_view(token: String, lobby_id: String) -> Dictionary:
+	var view := await _raw(token, HTTPClient.METHOD_GET, "/api/v1/lobbies/%s" % lobby_id)
+	return view["data"] if view["ok"] else {}
+
+
+## Valeurs minimales valides d'une action : entier au minimum, choix au premier élément de sa source ou de ses options.
+func _action_values(spec: Dictionary, module_id: String, action_id: String) -> Dictionary:
+	var values := {}
+	for module: Dictionary in spec["modules"]:
+		for action: Dictionary in module["actions"]:
+			if module["id"] != module_id or action["id"] != action_id:
+				continue
+			for field: Dictionary in action["fields"]:
+				if field["type"] == "int":
+					values[field["id"]] = field["min"]
+				else:
+					values[field["id"]] = (spec[field["source"]] if field.has("source") and field["source"] != null else field["options"])[0]["id"]
+	return values
+
+
+func _roles_journey() -> void:
+	_begin("R.1", "Pack usine, 6 joueurs rejoignent le lobby : le plan suit le nombre de joueurs")
+	var tokens: Array[String] = [_player, _player2]
+	for i in range(3, 7):
+		tokens.append(OS.get_environment("GMIX_FLOW_PLAYER%d_TOKEN" % i))
+	if not _check(tokens.all(func(t: String) -> bool: return not t.is_empty()), "6 jetons joueurs fournis (GMIX_FLOW_PLAYER..PLAYER6)"):
+		return
+	var params := USINE_PARAMS.duplicate()
+	params["company"] = "QA Rôles"
+	var made := await _raw(_trainer, HTTPClient.METHOD_POST, "/api/v1/games", params, 120.0)
+	if not _check(made["ok"] and made["data"]["status"] == "ready", "jeu usine généré (POST /games)", str(made["error"])):
+		return
+	var spec: Dictionary = made["data"]["spec"]
+	var created := await _raw(_trainer, HTTPClient.METHOD_POST, "/api/v1/lobbies", {"name": "QA rôles %d" % (Time.get_ticks_msec() % 100000), "business_game_id": made["data"]["id"], "advance_mode": "manual"})
+	if not _check(created["ok"], "session créée", str(created["error"])):
+		return
+	var lobby_id := str(created["data"]["id"])
+	var code := str(created["data"]["join_code"])
+	for i in tokens.size():
+		var joined := await _raw(tokens[i], HTTPClient.METHOD_POST, "/api/v1/lobbies/join", {"code": code})
+		var seats: Dictionary = (await _lobby_view(_trainer, lobby_id)).get("seats", {})
+		_check(joined["ok"] and (seats.get("roles", []) as Array).size() == mini(i + 1, 5), "%d joueur(s) : plan à %d rôle(s)" % [i + 1, mini(i + 1, 5)], str(joined["error"]) + str(seats))
+	var view := await _lobby_view(_trainer, lobby_id)
+	var plan: Array = view["seats"]["roles"]
+	var owners: Dictionary = view["seats"]["owners"]
+	var titles := {}
+	for role: Dictionary in spec["roles"]:
+		titles[role["id"]] = role["title"]
+	_check(plan.size() == 5 and owners.size() >= 5 and (owners.values() as Array).all(func(r: Variant) -> bool: return r in plan), "6 joueurs : plan à 5 rôles, chaque action a un titulaire du plan", str(view["seats"]))
+
+	_begin("R.2", "Choix de rôle : 422 hors plan, 409 tant qu'un rôle est libre, puis choix des 4 derniers rôles du plan")
+	var outside := (spec["roles"] as Array).filter(func(r: Dictionary) -> bool: return not r["id"] in plan)
+	if not _check(not outside.is_empty(), "la spec déclare un rôle hors du plan à 5"):
+		return
+	var refused := await _raw(tokens[0], HTTPClient.METHOD_PUT, "/api/v1/lobbies/%s/role" % lobby_id, {"game_role": outside[0]["id"]})
+	_check(refused["status"] == 422 and str(refused["error"]).contains("Ce rôle n'est pas proposé à 6 joueurs"), "rôle hors plan : 422 « pas proposé à 6 joueurs »", str(refused["error"]))
+	var first := await _raw(tokens[0], HTTPClient.METHOD_PUT, "/api/v1/lobbies/%s/role" % lobby_id, {"game_role": plan[1]})
+	var taken := await _raw(tokens[1], HTTPClient.METHOD_PUT, "/api/v1/lobbies/%s/role" % lobby_id, {"game_role": plan[1]})
+	_check(first["ok"] and taken["status"] == 409 and str(taken["error"]).contains("déjà pris"), "rôle pris alors qu'un autre est libre : 409", str(taken["error"]))
+	for i in range(1, 4):  # joueurs 2 à 4 : plan[2..4] ; plan[0] reste libre pour le joueur 5, le 6e le double
+		var chose := await _raw(tokens[i], HTTPClient.METHOD_PUT, "/api/v1/lobbies/%s/role" % lobby_id, {"game_role": plan[i + 1]})
+		_check(chose["ok"], "joueur %d prend « %s »" % [i + 1, plan[i + 1]], str(chose["error"]))
+
+	_begin("R.3", "Lancement : rôles attribués, le 6e joueur double « %s »" % plan[0])
+	var started := await _raw(_trainer, HTTPClient.METHOD_POST, "/api/v1/lobbies/%s/start" % lobby_id)
+	_check(started["ok"], "POST /start", str(started["error"]))
+	var members: Array = (await _lobby_view(_trainer, lobby_id)).get("members", [])
+	var held := {}
+	for member: Dictionary in members:
+		held[member["game_role"]] = int(held.get(member["game_role"], 0)) + 1
+	_check(members.size() == 6 and held.size() == 5 and held.get(plan[0]) == 2, "6 joueurs, 5 rôles tenus, « %s » en double" % plan[0], str(held))
+	var role_of := {}  # jeton -> rôle
+	for i in tokens.size():
+		role_of[i] = str((await _lobby_view(tokens[i], lobby_id)).get("my_role"))
+	_check(role_of[0] == plan[1] and role_of[4] == plan[0] and role_of[5] == plan[0], "ordre : choix respectés, joueur 5 le rôle libre, joueur 6 en double", str(role_of))
+	var late := await _raw(tokens[0], HTTPClient.METHOD_PUT, "/api/v1/lobbies/%s/role" % lobby_id, {"game_role": plan[2]})
+	_check(late["status"] == 409, "rôle figé après le lancement : 409", str(late["error"]))
+
+	_begin("R.4", "Actions : permise pour son rôle, 409 nommant le rôle pour un autre ; le formateur agit sur chaque rôle")
+	var module_of := {}  # action -> module
+	for module: Dictionary in spec["modules"]:
+		for action: Dictionary in module["actions"]:
+			module_of[action["id"]] = module["id"]
+	var path := "/api/v1/lobbies/%s/actions" % lobby_id
+	for i in [0, 1, 4, 5]:
+		var mine: Array = owners.keys().filter(func(a: String) -> bool: return owners[a] == role_of[i])
+		var other: Array = owners.keys().filter(func(a: String) -> bool: return owners[a] != role_of[i])
+		if not _check(not mine.is_empty() and not other.is_empty(), "joueur %d : une action à lui, une à un autre" % (i + 1)):
+			return
+		var ok := await _raw(tokens[i], HTTPClient.METHOD_POST, path, {"module": module_of[mine[0]], "action": mine[0], "values": _action_values(spec, module_of[mine[0]], mine[0])})
+		_check(ok["ok"], "joueur %d (%s) : « %s » permise" % [i + 1, role_of[i], mine[0]], str(ok["error"]))
+		var no := await _raw(tokens[i], HTTPClient.METHOD_POST, path, {"module": module_of[other[0]], "action": other[0], "values": {}})
+		var message := "Cette action revient au rôle « %s »" % titles[owners[other[0]]]
+		_check(no["status"] == 409 and str(no["error"]).contains(message), "joueur %d : « %s » refusée (409)" % [i + 1, other[0]], str(no["error"]))
+	var done := {}
+	for action: String in owners:
+		if done.has(owners[action]):
+			continue
+		done[owners[action]] = true
+		var by_trainer := await _raw(_trainer, HTTPClient.METHOD_POST, path, {"module": module_of[action], "action": action, "values": _action_values(spec, module_of[action], action)})
+		_check(by_trainer["ok"], "formateur : « %s » (rôle %s)" % [action, owners[action]], str(by_trainer["error"]))
+
+	_begin("R.5", "HUD du joueur 1 : tablette, seules les actions de son rôle sont ouvertes")
+	if not await _sign_in(_player):
+		return
+	var home := await _wait_screen(HOME_SCRIPT)
+	if home == null:
+		return
+	await home.call("_open_lobby", lobby_id)
+	var lobby := await _wait_screen(LOBBY_SCRIPT)
+	if not _check(lobby != null and Session.my_role() == plan[1], "salle rouverte avec mon rôle", Session.my_role()):
+		return
+	var world := await _enter_world(lobby)
+	if world == null:
+		return
+	var tablet := _hud_of(world).get("_tablet") as GmixTablet
+	tablet.instant = true
+	var mine_count := owners.keys().filter(func(a: String) -> bool: return owners[a] == plan[1]).size()
+	var enabled := 0
+	var closed := 0
+	_hud_of(world).open_tablet(str((tablet.call("_tabs") as Array)[0][0]))
+	for tab: Array in tablet.call("_tabs"):
+		tablet.select_tab(str(tab[0]))
+		await _frames(2)
+		for form in _buttons(tablet, "Valider"):
+			if form.disabled:
+				closed += 1
+			else:
+				enabled += 1
+	_check(enabled == mine_count and closed >= owners.size() - mine_count, "formulaires ouverts : %d (attendu %d), grisés : %d" % [enabled, mine_count, closed])
 
 
 # --- parcours D : conception, brouillon F3, régénération ---------------------------------------------------------
@@ -993,7 +1132,11 @@ func _check_generated(detail: Dictionary, params: Dictionary) -> void:
 		_check(maxi(int(spec["params"]["options"]["lines"]), n_products if _products > 0 else 0) == (spec["lines"] as Array).size(), "une ligne de la spec par ligne demandée (au moins une par produit)")
 	else:
 		_check((spec["agents"] as Array).size() == modules.size() + agents.size(), "%d agents dans la spec (modules + en plus)" % (modules.size() + agents.size()))
-	_check((spec["roles"] as Array).size() == modules.size(), "un rôle par module")
+	var role_ids: Array = (spec["roles"] as Array).map(func(r: Dictionary) -> String: return r["id"])
+	if params.get("pack", "atelier") == "usine":  # T7 : les rôles du pack s'ajoutent à ceux des modules
+		_check((spec["modules"] as Array).all(func(m: Dictionary) -> bool: return m["role_id"] in role_ids), "le rôle de chaque module est dans la spec")
+	else:
+		_check(role_ids.size() == modules.size(), "un rôle par module")
 	_check(int(spec["meta"]["players"]["min"]) == int(params["players"][0]) and int(spec["meta"]["players"]["max"]) == int(params["players"][1]), "joueurs : %d à %d" % params["players"])
 	var company: String = params.get("company", "")
 	if not company.is_empty():
@@ -1102,7 +1245,7 @@ func _lobby_waiting_then_start(lobby: Control, game: Dictionary) -> bool:
 	_check(not (lobby.get("_advance_button") as Button).visible, "« Simuler la semaine » masqué avant le lancement")
 	_check((lobby.get("_debrief_button") as Button).visible, "débrief ouvert au formateur")
 	_check((lobby.get("_enter_button") as Button).text == "Observer %s 3D" % GameText.world_noun(spec), "le formateur observe l'atelier")
-	_check(not (lobby.get("_role_box") as Control).visible, "pas de choix de rôle pour le formateur")
+	_check(_buttons(lobby, "Prendre ce rôle").is_empty(), "pas de choix de rôle pour le formateur (il voit au plus le plan)")
 	_check(_texts(lobby.get("_members") as Node).any(func(t: String) -> bool: return t.contains("Personne pour l'instant")), "aucun participant au départ")
 
 	var before := _ws_states

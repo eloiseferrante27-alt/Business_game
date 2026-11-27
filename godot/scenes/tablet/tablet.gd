@@ -296,7 +296,7 @@ func _render_alerts(state: Dictionary) -> void:
 		row.add_child(text)
 		var action: Variant = alert.get("action")
 		if action is Dictionary:
-			var reason := Session.module_block(str(action.get("module_id", "")))
+			var reason := Session.action_block(str(action.get("module_id", "")), str(action.get("action_id", "")))
 			var button := Ui.button("Faire", func() -> void: alert_action.emit(action))
 			button.disabled = not reason.is_empty()
 			button.tooltip_text = reason
@@ -336,6 +336,10 @@ func _blocked(tool: Dictionary, state: Dictionary) -> String:
 			return "" if status == "waiting" else "La partie est déjà lancée."
 		"avancer":
 			return "" if status == "running" else "La partie n'est pas en cours."
+		"action":
+			for module: Dictionary in Session.spec().get("modules", []):
+				if module["actions"].any(func(action: Dictionary) -> bool: return action["id"] == tool.get("action_id")):
+					return Session.action_block(str(module["id"]), str(tool.get("action_id")))
 	return ""
 
 
@@ -367,14 +371,15 @@ func _action_card(tool: Dictionary) -> void:
 
 ## Rôle de la spec qui tient ce module : {role, holder} ; `holder` : nom du joueur qui l'a pris ("" : personne).
 func _role_of(module_id: String) -> Dictionary:
+	var mine := Session.owns_in_module(module_id)  # plans de rôles : une page est à moi si une de ses actions l'est
 	for role: Dictionary in Session.spec().get("roles", []):
 		if role["module_id"] != module_id:
 			continue
 		for member: Dictionary in Session.lobby.get("members", []):
 			if member.get("game_role") == role["id"]:
-				return {"role": role, "holder": str(member["display_name"]), "mine": Session.lobby.get("my_role") == role["id"]}
-		return {"role": role, "holder": "", "mine": Session.my_role() == role["id"]}  # sans titulaire dans members[] : le mien aussi
-	return {}
+				return {"role": role, "holder": str(member["display_name"]), "mine": mine or Session.lobby.get("my_role") == role["id"]}
+		return {"role": role, "holder": "", "mine": mine or Session.my_role() == role["id"]}  # sans titulaire dans members[] : le mien aussi
+	return {"mine": mine} if mine else {}
 
 
 ## Icône d'une page du rail (fichier de scenes/common/icons du même nom que le module ; inconnu : icône générique).
@@ -420,11 +425,18 @@ func _render_module(module_id: String) -> void:
 			who = "C'est votre département : vous agissez ici."
 		elif Session.is_manager():
 			who = "Vous pilotez la partie : vous pouvez agir sur tous les départements."
+		elif not Session.seats().is_empty():
+			who = "Les actions des autres rôles sont en lecture seule pour vous."  # le titulaire de chaque action est nommé ci-dessous
 		elif not str(owner.get("holder", "")).is_empty():
 			who = "Tenu par %s : lecture seule pour vous." % GameText.esc(owner["holder"])
 		else:
 			who = "Département sans titulaire : lecture seule pour vous."
 		box.add_child(Ui.label(who, 0, Ui.OK if owner.get("mine", false) else Ui.MUTED, true))
+		if not Session.seats().is_empty():
+			for action: Dictionary in module["actions"]:
+				var role_id := Session.action_owner(module_id, str(action["id"]))
+				var holders := Session.role_holders(role_id)
+				box.add_child(Ui.label("%s : %s (%s)" % [action["label"], GameText.role_title(Session.spec(), role_id), ", ".join(holders) if not holders.is_empty() else "vacant"], 0, Ui.MUTED, true))
 		if action_builder.is_valid():
 			for action: Dictionary in module["actions"]:
 				action_builder.call(box, module, action)

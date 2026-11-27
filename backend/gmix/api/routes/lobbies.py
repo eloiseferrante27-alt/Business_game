@@ -13,7 +13,7 @@ from typing import Annotated, Any, Literal
 import httpx
 from fastapi import APIRouter, HTTPException, Path, Request, status
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from gmix.api.auth import CurrentUser, Session, Staff, create_presence_ticket
 from gmix.api.deps import publish
@@ -125,6 +125,24 @@ async def _members(session: Session, lobby_id: uuid.UUID) -> list[dict[str, Any]
     return [{"user_id": str(m.user_id), "display_name": name, "game_role": m.game_role} for m, name in rows]
 
 
+def _seats(lobby: Lobby, members: list[dict[str, Any]]) -> int:
+    """Joueurs hors formateur : suivis jusqu'au lancement, puis figés dans settings["seats"] (ADR 0013, U1)."""
+    frozen = (lobby.settings or {}).get("seats")
+    return frozen if frozen is not None else sum(m["user_id"] != str(lobby.trainer_id) for m in members)
+
+
+def _roles_view(lobby: Lobby, members: list[dict[str, Any]]) -> dict[str, Any]:
+    players = _seats(lobby, members)
+    plan = engine.role_plan(lobby.spec, players)
+    owners = engine.action_owners(lobby.spec, plan if lobby.spec.get("role_plans") else None)
+    return {"seats": {"players": players, "roles": plan, "owners": owners}}
+
+
+async def _members_event(session: Session, lobby: Lobby) -> dict[str, Any]:
+    members = await _members(session, lobby.id)
+    return {"members": members} | _roles_view(lobby, members)
+
+
 def _round(lobby: Lobby, members: list[dict[str, Any]], hub: WebSocketHub) -> dict[str, Any]:
     """Avancée de la semaine : qui est prêt, qui est connecté, vote sur les absents (annexe 0010 §1). Pure : tout
     se recalcule de lobbies.settings, des membres et du hub, donc une avance remet appel et vote à zéro."""
@@ -172,6 +190,7 @@ async def _view(
         "group_id": str(lobby.group_id) if lobby.group_id else None,
         "my_role": member.game_role if member else None,
         "members": members,
+        **_roles_view(lobby, members),
         "round": _round(lobby, members, request.app.state.hub),
         "spec": lobby.spec,
         "state": engine.public_state(lobby.spec, lobby.state),
@@ -269,9 +288,19 @@ async def join(session: Session, lobby: Lobby, user: User, request: Request) -> 
         if count >= lobby.spec["meta"]["players"]["max"]:
             raise HTTPException(status.HTTP_409_CONFLICT, "Lobby complet")
         member = LobbyMember(lobby_id=lobby.id, user_id=user.id)
+        if lobby.state["status"] == "waiting" and user.id != lobby.trainer_id:
+            before = await session.scalar(
+                select(func.count()).where(LobbyMember.lobby_id == lobby.id, LobbyMember.user_id != lobby.trainer_id)
+            )
+            if engine.role_plan(lobby.spec, before) != engine.role_plan(
+                lobby.spec, before + 1
+            ):  # plan changé : à refaire
+                await session.execute(
+                    update(LobbyMember).where(LobbyMember.lobby_id == lobby.id).values(game_role=None)
+                )
         session.add(member)
         await session.commit()
-        await _broadcast(request, lobby, user, "lobby.members", {"members": await _members(session, lobby.id)})
+        await _broadcast(request, lobby, user, "lobby.members", await _members_event(session, lobby))
     return member
 
 
@@ -332,11 +361,19 @@ async def choose_role(
         raise HTTPException(status.HTTP_409_CONFLICT, "Rejoignez le lobby avant de choisir un rôle")
     if body.game_role not in {r["id"] for r in lobby.spec["roles"]}:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Rôle inconnu dans ce business game")
+    members = await _members(session, lobby.id)
+    seats = _seats(lobby, members)
+    plan = engine.role_plan(lobby.spec, seats)
+    if body.game_role not in plan:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"Ce rôle n'est pas proposé à {seats} joueurs")
     if member.game_role and lobby.state["status"] != "waiting":
         raise HTTPException(status.HTTP_409_CONFLICT, "Le rôle ne change plus une fois la partie lancée")
+    taken = {m["game_role"] for m in members if m["game_role"] and m["user_id"] != str(user.id)}
+    if body.game_role in taken and any(r not in taken for r in plan):  # un rôle libre avant un doublon
+        raise HTTPException(status.HTTP_409_CONFLICT, "Ce rôle est déjà pris : un rôle du plan est encore libre")
     member.game_role = body.game_role
     await session.commit()
-    await _broadcast(request, lobby, user, "lobby.members", {"members": await _members(session, lobby.id)})
+    await _broadcast(request, lobby, user, "lobby.members", await _members_event(session, lobby))
     return await _view(session, lobby, user, member, request)
 
 
@@ -346,7 +383,19 @@ async def start_game(lobby_id: uuid.UUID, user: Staff, session: Session, request
     _require_manager(user, lobby)
     lobby.state = _apply(engine.start, lobby.spec, lobby.state)
     lobby.status = LobbyStatus.RUNNING
+    players = [m for m in await _members(session, lobby.id) if m["user_id"] != str(lobby.trainer_id)]
+    seats = engine.assign_seats(
+        engine.role_plan(lobby.spec, len(players)), [(m["user_id"], m["game_role"]) for m in players]
+    )
+    for uid, role in seats.items():
+        await session.execute(
+            update(LobbyMember)
+            .where(LobbyMember.lobby_id == lobby.id, LobbyMember.user_id == uuid.UUID(uid))
+            .values(game_role=role)
+        )
+    lobby.settings = (lobby.settings or {}) | {"seats": len(players)}
     await session.commit()
+    await _broadcast(request, lobby, user, "lobby.members", await _members_event(session, lobby))
     return {"state": await _broadcast_state(request, lobby, user, {"type": "start"})}
 
 
@@ -485,18 +534,15 @@ async def get_timeline(
 async def module_action(
     lobby_id: uuid.UUID, body: ActionRequest, user: CurrentUser, session: Session, request: Request
 ) -> dict[str, Any]:
-    """Action d'un module (commande, plan, entretien…). Un rôle tenu par un joueur garde la main sur son module ;
-    le formateur peut agir partout."""
+    """Action d'un module (commande, plan, entretien…). Chaque action appartient à un rôle du plan du lobby (409
+    sinon) ; le formateur et l'admin agissent partout."""
     lobby, member = await _access(session, lobby_id, user, lock=True)
-    occupied = set(
-        await session.scalars(
-            select(LobbyMember.game_role).where(LobbyMember.lobby_id == lobby.id, LobbyMember.game_role.is_not(None))
-        )
-    )
+    seats = _seats(lobby, await _members(session, lobby.id))
+    plan = engine.role_plan(lobby.spec, seats) if lobby.spec.get("role_plans") else None
     actor = {"user_id": str(user.id), "name": user.display_name, "role": member.game_role if member else None}
     lobby.state, summary = _apply(
         engine.act, lobby.spec, lobby.state, body.module, body.action, body.values,
-        actor=actor, manager=_manages(user, lobby), occupied_roles=occupied,
+        actor=actor, manager=_manages(user, lobby), plan=plan,
     )  # fmt: skip
     await session.commit()
     action = {"type": "action", "module": body.module, "summary": summary}

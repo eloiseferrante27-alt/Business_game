@@ -71,21 +71,71 @@ func my_role() -> String:
 	return role if role is String else ""
 
 
-## Raison pour laquelle je ne peux pas agir sur ce module (vide : permis). Reprend engine.act (annexe 0010 §5) : le
-## formateur agit partout, un joueur seulement sur le module de son rôle ; l'API reste juge.
-func module_block(module_id: String) -> String:
+## Vue `seats` du lobby (annexe 0013 §3 ter) : {players, frozen, roles: [id], owners: {action_id: role_id}} ; {} sans plan.
+func seats() -> Dictionary:
+	return lobby.get("seats", {})
+
+
+## Rôle qui tient cette action : seats.owners, ou module.role_id en repli (spec sans role_plans, fixtures sans seats).
+func action_owner(module_id: String, action_id: String) -> String:
+	var owners: Dictionary = seats().get("owners", {})
+	if owners.has(action_id):
+		return str(owners[action_id])
+	for module: Dictionary in spec().get("modules", []):
+		if module["id"] == module_id:
+			return str(module["role_id"])
+	return ""
+
+
+## Noms des joueurs qui tiennent ce rôle.
+func role_holders(role_id: String) -> Array:
+	var names: Array = []
+	for member: Dictionary in lobby.get("members", []):
+		if member.get("game_role") == role_id:
+			names.append(str(member["display_name"]))
+	return names
+
+
+## Raison pour laquelle je ne peux pas agir sur cette action (vide : permis). Reprend engine.act (annexe 0013 §3 ter) :
+## le formateur agit partout, un joueur seulement sur les actions de son rôle ; l'API reste juge.
+func action_block(module_id: String, action_id: String) -> String:
 	if is_manager():
 		return ""
+	var role_id := action_owner(module_id, action_id)
+	if role_id.is_empty() or my_role() == role_id:
+		return ""
+	if my_role().is_empty():
+		return "Choisissez un rôle dans la salle d'attente pour agir."
+	var title := GameText.role_title(spec(), role_id)
+	var holders := role_holders(role_id)
+	if holders.is_empty():
+		return "Cette action revient au rôle « %s »." % title
+	return "Revient à %s (%s) : allez en discuter." % [", ".join(holders), title]
+
+
+## Un de mes rôles tient au moins une action de ce module (le formateur n'a pas de rôle : faux).
+func owns_in_module(module_id: String) -> bool:
+	if my_role().is_empty():
+		return false
+	for module: Dictionary in spec().get("modules", []):
+		if module["id"] == module_id:
+			return module["actions"].any(func(action: Dictionary) -> bool: return action_owner(module_id, str(action["id"])) == my_role())
+	return false
+
+
+## Raison pour laquelle je ne peux agir sur aucune action de ce module (vide : au moins une est permise).
+func module_block(module_id: String) -> String:
+	var reason := ""
 	for module: Dictionary in spec().get("modules", []):
 		if module["id"] != module_id:
 			continue
-		var role_id: String = module["role_id"]
-		if my_role() == role_id:
-			return ""
-		if my_role().is_empty():
-			return "Choisissez un rôle dans la salle d'attente pour agir."
-		return "Cette action revient au rôle « %s »." % GameText.role_title(spec(), role_id)
-	return ""
+		for action: Dictionary in module["actions"]:
+			reason = action_block(module_id, str(action["id"]))
+			if reason.is_empty():
+				return ""
+		if module["actions"].is_empty():
+			return action_block(module_id, "")
+	return reason
 
 
 func url(suffix := "") -> String:
@@ -131,8 +181,10 @@ func _on_state(payload: Dictionary) -> void:
 		_poll_round()  # l'avance remet l'appel à zéro côté serveur
 
 
-func _on_members(members: Array) -> void:
+func _on_members(members: Array, seats: Dictionary) -> void:
 	if lobby.is_empty():
 		return
 	lobby["members"] = members
+	if not seats.is_empty():
+		lobby["seats"] = seats
 	lobby_changed.emit()

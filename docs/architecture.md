@@ -43,7 +43,7 @@ passe par `.\scripts\ingest.ps1` (pas de worker `rag`).
 | Workers | Consommateurs Kafka : `generation` (conception des jeux par l'IA, groupe `worker-generation`) et `system_ping` (diagnostic) ; lancement : `.\scripts\worker.ps1 <nom>` | `backend/gmix/workers` |
 | PostgreSQL + pgvector | Comptes, lobbies et état des parties, specs de business games, mémoire des agents, corpus RAG (vecteurs + plein texte), catalogue d'assets, cache LLM | `backend/gmix/db` |
 | RustFS (S3) | Fichiers : assets 3D, documents sources du RAG, exports | `backend/gmix/storage.py` |
-| Ollama | Modèles locaux, appelés uniquement via le catalogue de tâches | `backend/gmix/llm` |
+| Ollama (ou passerelle compatible OpenAI, `LLM_PROVIDER=openai`, docs/ai-runtime.md) | Modèles locaux, appelés uniquement via le catalogue de tâches | `backend/gmix/llm` |
 
 ## Flux 1 : le formateur crée un business game
 

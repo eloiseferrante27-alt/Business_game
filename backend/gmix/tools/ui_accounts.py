@@ -38,6 +38,10 @@ SCENARIOS: dict[str, tuple[str, list[tuple[str, str, UserRole, str]]]] = {
             ("GMIX_FLOW_TRAINER_TOKEN", "formateur", UserRole.ADMIN, "Administratrice Jetable de Contrôle"),
             ("GMIX_FLOW_PLAYER_TOKEN", "joueur", UserRole.PLAYER, "Jean-Christophe de la Tour-Maubourg Saint-Exupéry"),
             ("GMIX_FLOW_PLAYER2_TOKEN", "joueur2", UserRole.PLAYER, "Camille Joueuse"),
+            ("GMIX_FLOW_PLAYER3_TOKEN", "joueur3", UserRole.PLAYER, "Joueur Jetable 3"),
+            ("GMIX_FLOW_PLAYER4_TOKEN", "joueur4", UserRole.PLAYER, "Joueur Jetable 4"),
+            ("GMIX_FLOW_PLAYER5_TOKEN", "joueur5", UserRole.PLAYER, "Joueur Jetable 5"),
+            ("GMIX_FLOW_PLAYER6_TOKEN", "joueur6", UserRole.PLAYER, "Joueur Jetable 6"),
         ],
     ),
 }

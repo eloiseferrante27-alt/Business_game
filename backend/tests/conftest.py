@@ -3,6 +3,7 @@ from typing import Any
 
 import pytest
 
+from gmix.db import get_engine
 from gmix.game.generation import generate
 from gmix.game.spec import GameParams
 from gmix.settings import get_settings
@@ -18,6 +19,14 @@ def _reference_spec() -> dict[str, Any]:
         products=4, weeks=6, seed=42, events="aucun",
     )  # fmt: skip
     return generate(params)
+
+
+@pytest.fixture(autouse=True)
+async def _release_db_pool():
+    """Chaque test a sa boucle d'événements : le pool du moteur mis en cache ne doit pas survivre à la sienne."""
+    yield
+    if get_engine.cache_info().currsize:
+        await get_engine().dispose()
 
 
 @pytest.fixture

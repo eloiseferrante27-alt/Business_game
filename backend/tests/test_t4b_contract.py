@@ -52,11 +52,15 @@ def capture(theme: str, seed: int, buildings: int) -> dict[str, Any]:
     factory = spec.get("factory") or {}
     if factory.get("initial_orders") == []:  # clés vides de SimSpec.model_dump (complément 9)
         del factory["initial_orders"]
+    spec.pop("role_plans", None)  # T7 : plans et rôles du pack, sans effet sur le jeu (référence T7)
+    for module in spec.get("modules", []):
+        for action in module.get("actions", []):
+            action.pop("autopilot", None)  # null, ou texte du pack (game-designer) : journal seulement, étape 3b
     for comp in spec.get("components", []):
         if comp.get("units_per_pallet") is None:
             comp.pop("units_per_pallet", None)
     result = {
-        "spec": {k: v for k, v in spec.items() if k not in DROPPED},
+        "spec": {k: v for k, v in spec.items() if k not in DROPPED},  # roles : ROME, pack T7
         "world_fingerprint": world_fingerprint(spec["world"]),
         "autopilot_check": autopilot_check(spec),
         "history": state["history"],
@@ -106,6 +110,8 @@ def reference() -> dict[str, Any]:
 def test_one_product_one_client_game_is_identical_to_the_reference(reference, theme, seed, buildings) -> None:
     expected = reference[case_key(theme, seed, buildings)]
     actual = capture(theme, seed, buildings)
+    for case in (expected, actual):
+        case["spec"].pop("roles", None)  # intitulés ROME et rôles du pack (T7) : sans effet sur le jeu
     for key in expected:  # une clé par assertion : l'écart est nommé
         assert actual[key] == expected[key], key
 

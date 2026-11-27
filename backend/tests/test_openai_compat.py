@@ -4,9 +4,12 @@ import json
 from typing import Any
 
 import httpx
+import pytest
 
 from gmix.llm.ollama import OllamaClient, Usage
 from gmix.llm.openai_compat import OpenAIClient
+from gmix.llm.service import LLMService
+from gmix.settings import get_settings
 
 
 def _client(handler: Any) -> OpenAIClient:
@@ -51,6 +54,16 @@ async def test_stream_yields_chunks_then_usage() -> None:
     assert items[:2] == ["Bon", "jour"]
     assert isinstance(items[2], Usage) and items[2].completion_tokens == 2
     await client.aclose()
+
+
+@pytest.mark.parametrize("var", ["OPENAI_BASE_URL", "OPENAI_MODEL"])
+def test_openai_provider_requires_base_url_and_model(monkeypatch: pytest.MonkeyPatch, var: str) -> None:
+    values = {"openai_base_url": "https://passerelle.test/v1", "openai_model": "deepseek-x"}
+    values[var.lower()] = " "
+    settings = get_settings().model_copy(update={"llm_provider": "openai", **values})
+    monkeypatch.setattr("gmix.llm.service.get_settings", lambda: settings)
+    with pytest.raises(ValueError, match=f"LLM_PROVIDER=openai : {var} est vide"):
+        LLMService.from_settings(with_cache=False)
 
 
 async def test_installed_models_keeps_the_served_tags_when_ollama_is_down() -> None:

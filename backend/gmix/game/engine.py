@@ -10,6 +10,7 @@ lobbies.state, appelle le moteur sous verrou de ligne et enregistre le nouvel é
 """
 
 import copy
+import itertools
 import math
 import random
 from typing import Any
@@ -85,6 +86,43 @@ def start(spec: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
     return new
 
 
+def role_plan(spec: dict[str, Any], players: int) -> list[str]:
+    """Rôles tenus à `players` joueurs : le plus grand plan <= n, sinon le plus petit ; sans plans, tous les rôles."""
+    plans = sorted(spec.get("role_plans") or [], key=lambda p: p["players"])
+    if not plans:
+        return [r["id"] for r in spec["roles"]]
+    n = max(players, 1)
+    return list(next((p for p in reversed(plans) if p["players"] <= n), plans[0])["roles"])
+
+
+def role_actions(spec: dict[str, Any], role_id: str) -> set[str]:
+    """Actions d'un rôle : sa liste `actions`, ou celles de son module si elle est vide."""
+    role = next(r for r in spec["roles"] if r["id"] == role_id)
+    if role.get("actions"):
+        return set(role["actions"])
+    module = next((m for m in spec["modules"] if m["id"] == role["module_id"]), None)
+    return {a["id"] for a in module["actions"]} if module else set()
+
+
+def action_owners(spec: dict[str, Any], plan: list[str] | None) -> dict[str, str]:
+    """Action -> rôle propriétaire dans `plan` ; None : le rôle du module (`module.role_id`)."""
+    if plan is None:
+        return {a["id"]: m["role_id"] for m in spec["modules"] for a in m["actions"]}
+    return {a: r for r in plan for a in sorted(role_actions(spec, r))}
+
+
+def assign_seats(plan: list[str], members: list[tuple[str, str | None]]) -> dict[str, str]:
+    """Rôle de chaque membre : son choix s'il est dans le plan, puis les rôles libres dans l'ordre du plan, puis
+    (plus aucun libre) un tour du plan depuis le premier rôle (binôme)."""
+    seats = {u: r for u, r in members if r in plan}
+    free = [r for r in plan if r not in seats.values()]
+    doubles = itertools.cycle(plan)
+    for user, _ in members:
+        if user not in seats:
+            seats[user] = free.pop(0) if free else next(doubles)
+    return {user: seats[user] for user, _ in members}
+
+
 def act(
     spec: dict[str, Any],
     state: dict[str, Any],
@@ -95,16 +133,19 @@ def act(
     actor: dict[str, Any],
     manager: bool,
     occupied_roles: set[str] | None = None,  # conservé pour les appelants ; le droit est celui du rôle (annexe 0010 §5)
+    plan: list[str] | None = None,
 ) -> tuple[dict[str, Any], str]:
-    """Action d'un joueur. Un non-gestionnaire n'agit que sur le module de son rôle ; le formateur agit partout (un
-    module sans joueur tourne en pilote automatique, sauf la semaine où le formateur y a agi : voir `advance`)."""
+    """Action d'un joueur. Un non-gestionnaire n'agit que sur les actions de son rôle dans `plan` (None : le rôle du
+    module) ; le formateur agit partout (un module sans joueur tourne en pilote automatique, sauf la semaine où le
+    formateur y a agi : voir `advance`)."""
     if state["status"] != "running":
         raise GameRuleError("La partie n'est pas en cours")
     module = next((m for m in spec["modules"] if m["id"] == module_id), None)
     action = next((a for a in module["actions"] if a["id"] == action_id), None) if module else None
     if module is None or action is None:
         raise GameRuleError("Action inconnue dans ce business game")
-    role = next(r for r in spec["roles"] if r["id"] == module["role_id"])
+    owner = action_owners(spec, plan).get(action_id, module["role_id"])
+    role = next(r for r in spec["roles"] if r["id"] == owner)
     mine = actor.get("role") == role["id"]
     if not manager and not mine:
         if not actor.get("role"):
@@ -129,10 +170,11 @@ def advance(
     pilote automatique pour la semaine. `None` : tous les modules sont joués."""
     if state["status"] != "running":
         raise GameRuleError("La partie n'est pas en cours")
-    played = played_modules(spec, state, autopilot_all, held_roles)
-    entries = _week_entries(spec, state, played)
+    actions = played_actions(spec, state, autopilot_all, held_roles)
+    played = {m["id"] for m in spec["modules"] if any(a["id"] in actions for a in m["actions"])}
+    entries = _week_entries(spec, state, actions)
     if spec.get("factory"):
-        new = factory_game.advance(spec, state, played)
+        new = factory_game.advance(spec, state, actions)
     else:
         new = copy.deepcopy(state)
         week = new["week"]
@@ -150,29 +192,44 @@ def advance(
     return new
 
 
-def played_modules(
+def played_actions(
     spec: dict[str, Any], state: dict[str, Any], autopilot_all: bool = False, held_roles: set[str] | None = None
 ) -> set[str]:
-    """Modules joués cette semaine : tous (`held_roles` None), ceux des rôles tenus et ceux où une décision est au
-    journal de la semaine (un module libre quitte le pilote automatique la semaine où le formateur y agit)."""
+    """Actions jouées cette semaine : toutes (`held_roles` None), celles des rôles tenus et celles où une décision est
+    au journal de la semaine (une action libre quitte le pilote automatique la semaine où le formateur y agit)."""
     if autopilot_all:
         return set()
     if held_roles is None:
-        return {m["id"] for m in spec["modules"]}
-    acted = {
-        e["module"] for e in state["log"] if e["week"] == state["week"] and e.get("kind", "decision") == "decision"
-    }
-    return {m["id"] for m in spec["modules"] if m["role_id"] in held_roles or m["id"] in acted}
+        return {a["id"] for m in spec["modules"] for a in m["actions"]}
+    known = {r["id"] for r in spec["roles"]}
+    held = set().union(*(role_actions(spec, r) for r in held_roles if r in known))
+    held |= {e["action"] for e in state["log"]
+             if e["week"] == state["week"] and e.get("kind", "decision") == "decision" and e.get("action")}  # fmt: skip
+    return held
+
+
+def played_modules(
+    spec: dict[str, Any], state: dict[str, Any], autopilot_all: bool = False, held_roles: set[str] | None = None
+) -> set[str]:
+    """Modules d'au moins une action jouée (voir `played_actions`)."""
+    actions = played_actions(spec, state, autopilot_all, held_roles)
+    return {m["id"] for m in spec["modules"] if any(a["id"] in actions for a in m["actions"])}
 
 
 def _week_entries(spec: dict[str, Any], state: dict[str, Any], played: set[str]) -> list[dict[str, Any]]:
-    """Journal de la semaine qui s'achève : un module en pilote automatique, l'aléa appliqué (sauf s'il est déjà
-    écrit par `force_event`)."""
+    """Journal de la semaine qui s'achève : un module sans action jouée en pilote automatique, ou une entrée par
+    action non jouée d'un module joué en partie ; l'aléa appliqué (sauf s'il est déjà écrit par `force_event`).
+    `played` : ensemble des actions jouées."""
     week, entries = state["week"], []
     for module in spec["modules"]:
-        if module["id"] not in played:
+        left = [a for a in module["actions"] if a["id"] not in played]
+        if len(left) == len(module["actions"]):
             entries.append(_entry(week, "auto", "moteur", f"Pilote automatique : {module['autopilot']}",
                                   module=module["id"]))  # fmt: skip
+        for a in left if len(left) < len(module["actions"]) else []:
+            text = a.get("autopilot") or module["autopilot"]
+            entries.append(_entry(week, "auto", "moteur", f"Pilote automatique : {text}", module=module["id"])
+                           | {"action": a["id"]})  # fmt: skip
     event = _event(spec, state.get("event"))
     if event and not any(e["week"] == week and e.get("kind") == "alea" and e.get("ref") == event["id"]
                          for e in state["log"]):  # fmt: skip

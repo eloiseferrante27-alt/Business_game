@@ -189,8 +189,8 @@ def _truck(plant: factory.Plant, offer: dict[str, Any], reorder: int) -> int:
 def _autopilot(
     spec: dict[str, Any], plant: factory.Plant, state: dict[str, Any], played: set[str]
 ) -> dict[str, Any] | None:
-    """Un module que le formateur n'a pas choisi tourne seul (celui de la spec) ;
-    `played` = modules joués par un humain. Réglages
+    """Une action que personne n'a jouée tourne seule (règle de la spec) ;
+    `played` = actions jouées par un humain. Réglages
     posés ici ; les règles de pilotage (OF et matière) sont rendues au noyau, qui les applique CHAQUE jour simulé :
     - OF : position PF (stock + en-cours bon - commandes ouvertes) < `pf_min` -> campagne : OF sur chaque ligne
       jusqu'à `pf_max` (limité par le magasin PF) ;
@@ -198,12 +198,13 @@ def _autopilot(
       -> un camion standard
       de six palettes au plus, dans la limite du magasin et de la trésorerie."""
     settings = state["fs"]["settings"]
-    if "maintenance" not in played:
+    if "preventif" not in played:
         settings["preventive"] = dict.fromkeys(plant.line_ids, "goulot")
+    if "priorite_reparation" not in played:
         settings["priority"] = "arrivee"
-    if "production" not in played:
+    if "proteger_goulot" not in played:
         settings["protect"] = dict.fromkeys(plant.line_ids, "aucune")
-    if "pilotage" in played:
+    if {"commander_mp", "lancer_of"} <= played:
         return None
     budget = state["cash"] - _engaged(plant, state)  # déjà engagé ; un budget commun, pris dans la première règle
     orders = [
@@ -211,11 +212,16 @@ def _autopilot(
          "cost_index": state["cost_index"], "budget": budget}
         for offer in (_standard_offer(spec, c) for c in plant.comps)
     ]  # fmt: skip
-    return {
+    rules = {
         "order": orders if plant.multi else orders[0],
         "launch": {"pf_max": spec["factory"].get("pf_max") or plant.pf_min,
                    "yields": dict(zip(plant.line_ids, _yields(plant), strict=True))},
     }  # fmt: skip
+    if "commander_mp" in played:  # une seule des deux actions de pilotage est jouée : l'autre garde sa règle
+        del rules["order"]
+    if "lancer_of" in played:
+        del rules["launch"]
+    return rules
 
 
 # --- semaine -------------------------------------------------------------------------------------------------------

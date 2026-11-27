@@ -61,7 +61,7 @@ def generate_factory(params: GameParams) -> dict[str, Any]:
                     "stockouts": pack["targets"]["stockouts"], "cash_final": 0.0},  # fmt: skip
         "departments": [], "panels": [], "provenance": _provenance(pack),
     }  # fmt: skip
-    spec["modules"], spec["roles"] = _modules(pack, played)
+    spec["modules"], spec["roles"], spec["role_plans"] = _modules(pack, played)
     spec["notions"] = _notions(pack, spec)
     spec["events"] = [{"id": k, **v} for k, v in pack["events"].items() if set(v["modules"]) & set(played)]
     _calibrate(spec, pack, level, items, machines, theme, params.clients or params.products)
@@ -194,7 +194,9 @@ def _offers(pack, items, level, params) -> tuple[list[dict[str, Any]], list[dict
     return suppliers, offers
 
 
-def _modules(pack, played) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _modules(pack, played) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Modules joués, rôles (ceux des modules, puis ceux du pack dont une action est jouée) et plans de rôles
+    (annexe 0013 §3 ter) ; un rôle ou un plan sans action jouée est retiré."""
     modules, roles = [], []
     for module_id in played:
         src = pack["modules"][module_id]
@@ -203,8 +205,20 @@ def _modules(pack, played) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
             "stations": src["stations"], "actions": src["actions"], "autopilot": src["autopilot"],
             "notions": src["notions"],
         })  # fmt: skip
-        roles.append({**src["role"], "module_id": module_id})
-    return modules, roles
+        roles.append({**src["role"], "module_id": module_id, "actions": [a["id"] for a in src["actions"]]})
+    module_of = {a["id"]: m["id"] for m in modules for a in m["actions"]}
+    for role_id, src in (pack.get("roles") or {}).items():
+        actions = [a for a in src["actions"] if a in module_of]
+        if actions:
+            module_id = src["module"] if src["module"] in played else module_of[actions[0]]
+            roles.append({"id": role_id, "title": src["title"], "mission": src["mission"], "module_id": module_id,
+                          "actions": actions})  # fmt: skip
+    kept = {r["id"] for r in roles}
+    plans = []
+    for players, ids in sorted((pack.get("role_plans") or {}).items()):
+        if ids := [r for r in ids if r in kept]:
+            plans.append({"players": players, "roles": ids})
+    return modules, roles, plans
 
 
 def _notions(pack, spec) -> list[dict[str, Any]]:

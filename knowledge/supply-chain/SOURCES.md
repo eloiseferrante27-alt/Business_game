@@ -60,6 +60,7 @@ dans ce tableau avec une licence ou un droit d'usage.
 | nist-sematech-weibull.md | e-Handbook of Statistical Methods, 8.1.6.2 Weibull | NIST/SEMATECH | consulté le 2026-11-21 | Domaine public (administration fédérale des États-Unis) |  |
 | bohannon-vitesse-de-marche.md | Vitesse de marche confortable et maximale, adultes de 20 à 79 ans | Bohannon R.W., Age and Ageing 26(1) | 1997 (résumé lu le 2026-11-27) | Résumé d'article ; synthèse interne, citation courte |  |
 | circulation-vitesse-chariots-interieur.md | Circulation et vitesse des chariots en intérieur (R4323-51 ; INRS ED 766 p. 22) | Code du travail (code.travail.gouv.fr) ; INRS | R4323-51 version 2008-05-01 ; ED 766 avril 2019 (non relue) | Texte réglementaire ; publication INRS ; synthèse interne, citations courtes |  |
+| rome-metiers-roles-usine.md | ROME 4.0 v62 (26M10) : appellations des 10 rôles du pack usine | France Travail | v62 du 2026-10-19 | Données ouvertes France Travail (licence attachée aux fichiers, Licence Ouverte non confirmée) ; synthèse interne | |
 
 ## Statut du corpus
 

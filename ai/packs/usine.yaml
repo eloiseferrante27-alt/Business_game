@@ -818,6 +818,56 @@ values:
   pilotage.effets_aleas: {status: calibre, note: "Ampleur des effets des aléas (events) : indicative, non sourcée."}
   interface.seuils_attention: {status: calibre, note: "panels[].columns[].warn : OTIF 90 pour 95 (5 points sous la cible, écart de l'exemple de l'annexe 0008 §2) ; TRS 73 pour 80 depuis le 19/11/2026 (7 points : seuil d'une semaine, sous la zone partielle 75-80 de la moyenne, voir l'alerte trs_low). Marge de 5 points de criteria = bas de la zone partielle ; n'entre dans aucun calcul de la simulation."}
 
+  # --- Rôles de jeu (annexe 0013 §3 ter, sections `roles` et `role_plans`) -----------------------------------
+  roles.organisation_par_fonctions:
+    status: source
+    source: wikipedia-fr-gestion-de-la-production
+    note: >-
+      Plans à 2 et 4 joueurs. Fiche l.119 : « L'ordonnancement se charge de lancer les ordres de fabrication ou
+      d'achat [...] auprès du service concerné » : OF et commandes de MP sont deux sorties d'une même fonction flux
+      (plan à 2), passées à deux services distincts, ordonnancement et achats (plan à 4) ; l.74 : « Planning et
+      ordonnancement établissent les programmes de fabrication ». Atelier = production + maintenance (plan à 2) :
+      la fiche ROME H2507 (production) cite aussi « Planifier des interventions de maintenance »
+      (roles.intitules_rome) ; à 1 joueur, un·e directeur·rice tient tout.
+      Intitulés montrés au joueur : roles.intitules_rome.
+  roles.maintenance_preventive_corrective:
+    status: calibre
+    note: >-
+      Plan à 5 joueurs : préventif (action preventif) au rôle technicien_methodes, ordre des réparations
+      (priorite_reparation) au rôle chef_equipe_maintenance. Choix de jeu, non sourcé : il faut un 5e rôle et la
+      maintenance est le seul module à deux actions qui reste. Le ROME ne fait pas cette répartition : la fiche I1326
+      (Responsable d'équipe maintenance) « Planifie les interventions de maintenance préventive et corrective »
+      (définition, ROME, version 62, lu le 27/11/2026) ; la fiche H1404, qui contient l'appellation du préparateur méthodes
+      en maintenance, ne parle pas du préventif. Les deux types de maintenance sont sourcés : wikipedia-en-maintenance
+      l.25-26 (« checked and serviced in a planned manner » ; « repaired or replaced after wear, malfunction or break
+      down »).
+  roles.intitules_rome:
+    status: source
+    source: rome-metiers-roles-usine
+    note: >-
+      Fiche rome-metiers-roles-usine l.10-21 (tableau rôle, code ROME, appellation, OGR), l.25 (mission I1326) et
+      l.26 (H2507) ; l.30 : le référentiel des appellations range 12139, 12185, 18813 et 14436 sous H2502 et 12418 sous I1304, les
+      fiches métier sous H2507, H2510 et I1326 (code des fiches retenu) ; l.4 : licence ouverte non confirmée.
+      Intitulés des 10 rôles = appellations du ROME de France Travail, version 62 (26M10, publiée le 19/10/2026),
+      lues le 27/11/2026 dans l'open data
+      (https://api.francetravail.fr/api-nomenclatureemploi/v1/open-data/json et l'arborescence principale
+      261014-rome_arboprincipale-octobre-2026.xlsx, jeu data.gouv.fr « Répertoire Opérationnel des Métiers et des
+      Emplois (ROME) ») ; fiche en ligne : https://candidat.francetravail.fr/metierscope/fiche-metier/<code>. Forme
+      « ·e » du pack = forme « masculin / féminin » du ROME. Rôle : code, appellation exacte (code OGR) :
+      responsable_usine H2510 « Directeur / Directrice d'unité de production » (14436) ; responsable_flux H1403
+      « Gestionnaire de flux de production » (15331 ; définition : « planifie et gère les flux d'approvisionnement
+      et les délais de fabrication ») ; responsable_atelier H2507 « Chef / Cheffe de fabrication » (12139 ; la fiche
+      cite « Planifier des interventions de maintenance » et « Maintenance préventive et corrective », fiche du
+      corpus l.26, hors cœur de métier) ;
+      responsable_production H2507 « Responsable de production » (18813) ; chef_de_ligne H2507 « Chef / Cheffe de
+      ligne de production » (12185) ; responsable_maintenance I1102 « Responsable de maintenance industrielle »
+      (18789) ; acheteur M1101 « Acheteur approvisionneur / Acheteuse approvisionneuse » (10242) ; ordonnanceur
+      H1403 « Gestionnaire d'ordonnancement » (15360) ; technicien_methodes H1404 « Préparateur / Préparatrice
+      méthodes de travaux en maintenance industrielle » (18033) ; chef_equipe_maintenance I1326 « Chef / Cheffe
+      d'équipe de maintenance industrielle » (12418). Remplacés le 27/11 faute d'appellation ROME : Responsable
+      d'usine, Responsable des flux, Responsable d'atelier, Ordonnanceur·se, Technicien·ne méthodes maintenance,
+      Chef·fe de ligne, Responsable maintenance.
+
   # --- Réseau logistique (ADR 0009, section `network`) ----------------------------------------------------
   # Délai de transport = préparation + arrondi au-dessus (km / vitesse / heures de conduite par jour), borné 1 à 8 :
   # dérivation du jeu, pas une citation. Classes par défaut : rapide 0 + 1 = 1 j, standard 2 + 1 = 3 j, économique
@@ -1446,17 +1496,24 @@ modules:
           - {id: line, label: Ligne, type: choice, source: lines}
           # 40 lots de 24 = 960 > environ 700 produits par ligne et par semaine : un lancement peut charger la ligne
           - {id: lots, label: Nombre de lots de 24, type: int, min: 1, max: 40, step: 1, default: 5}
+        # T7 : journal quand cette action seule est en pilote automatique (son rôle n'est pas tenu)
+        autopilot: >-
+          ordre de fabrication (OF) quand le stock de produits finis (PF) plus l'encours passe sous une journée de
+          demande
       - id: commander_mp
         label: Commander la matière première
         fields:
           - {id: offer, label: Matière et fournisseur, type: choice, source: offers}
           - {id: pallets, label: Palettes (un camion), type: int, min: 1, max: 6, step: 1, default: 4}
+        autopilot: >-
+          matière première (MP) commandée au fournisseur standard au point de commande (consommation pendant le
+          délai + 1 jour de révision + 2 jours de sécurité)
     autopilot: ordre de fabrication (OF) quand le stock de produits finis (PF) plus l'encours passe sous une journée de demande ; matière première (MP) commandée au fournisseur standard au point de commande (consommation pendant le délai + 1 jour de révision + 2 jours de sécurité)
     notions: [point_de_commande, stock_de_securite, delai_et_fiabilite, otif, loi_de_little, takt_time, charge_et_attente]
   production:
     title: Production
     description: Protéger le goulot de chaque ligne pour que pauses et pannes en amont ne lui fassent pas perdre de temps.
-    role: {id: chef_de_ligne, title: Chef·fe de ligne, mission: Faire tourner le goulot de chaque ligne le plus longtemps possible}
+    role: {id: chef_de_ligne, title: Chef·fe de ligne de production, mission: Faire tourner le goulot de chaque ligne le plus longtemps possible}
     stations: [tableau_ligne, machine]
     actions:
       - id: proteger_goulot
@@ -1470,12 +1527,13 @@ modules:
               - {id: aucune, label: "Aucune : le goulot s'arrête aux pauses et quand l'amont s'arrête"}
               - {id: releve_pauses, label: "Relève : le chef de ligne fait tourner le goulot pendant les pauses (une seule ligne à la fois)"}
               - {id: tampon_avant, label: "Tampon : table de 30 produits devant le goulot, plus d'encours"}
+        autopilot: aucune protection
     autopilot: aucune protection
     notions: [goulot, tampon_avant_goulot, rendement_en_cascade, capacite_et_trs, changement_de_serie]
   maintenance:
     title: Maintenance
     description: Choisir où faire le préventif et dans quel ordre réparer, avec un seul technicien.
-    role: {id: responsable_maintenance, title: Responsable maintenance, mission: Garder les goulots disponibles au juste coût}
+    role: {id: responsable_maintenance, title: Responsable de maintenance industrielle, mission: Garder les goulots disponibles au juste coût}
     stations: [maintenance, machine]
     actions:
       - id: preventif
@@ -1489,6 +1547,7 @@ modules:
               - {id: aucune, label: "Aucune : pas de coût ; une machine qui s'use tombe plus souvent en panne en vieillissant"}
               - {id: goulot, label: "Le goulot : une intervention pendant une pause"}
               - {id: toutes, label: "Toutes les machines de la ligne : plus de coût et de temps de technicien"}
+        autopilot: préventif sur le goulot de chaque ligne
       - id: priorite_reparation
         label: Régler l'ordre des réparations
         fields:
@@ -1498,8 +1557,57 @@ modules:
             options:
               - {id: arrivee, label: Dans l'ordre d'arrivée des pannes}
               - {id: goulot, label: Les goulots d'abord}
+        autopilot: réparations dans l'ordre d'arrivée
     autopilot: préventif sur le goulot de chaque ligne, réparations dans l'ordre d'arrivée
     notions: [disponibilite, pannes_par_usure, maintenance_preventive, goulot]
+
+# Rôles de jeu en plus de modules.*.role (annexe 0013 §3 ter, T7) : `module` = page de tablette, qui doit tenir au
+# moins une des `actions`. Découpage par fonctions : values roles.organisation_par_fonctions et
+# roles.maintenance_preventive_corrective. Le jeu n'a ni action qualité ni action expédition : 5 rôles au plus.
+roles:
+  responsable_usine:
+    title: Directeur·rice d'unité de production
+    mission: Livrer chaque commande à l'heure en tenant seul la matière, les lignes et les machines
+    module: pilotage
+    actions: [lancer_of, commander_mp, proteger_goulot, preventif, priorite_reparation]
+  responsable_flux:
+    title: Gestionnaire de flux de production
+    mission: Faire entrer la matière et lancer les OF au rythme de la demande, sans rupture ni stock inutile
+    module: pilotage
+    actions: [lancer_of, commander_mp]
+  responsable_atelier:
+    title: Chef·fe de fabrication
+    mission: Garder les goulots en marche en arbitrant protection, préventif et ordre des réparations
+    module: production
+    actions: [proteger_goulot, preventif, priorite_reparation]
+  acheteur:
+    title: Acheteur·se approvisionneur·se
+    mission: Commander la matière à temps, au bon fournisseur
+    module: pilotage
+    actions: [commander_mp]
+  ordonnanceur:
+    title: Gestionnaire d'ordonnancement
+    mission: Lancer les ordres de fabrication au rythme de la demande sans saturer les lignes
+    module: pilotage
+    actions: [lancer_of]
+  technicien_methodes:
+    title: Préparateur·rice méthodes de travaux en maintenance industrielle
+    mission: Programmer le préventif là où il protège le plus la production
+    module: maintenance
+    actions: [preventif]
+  chef_equipe_maintenance:
+    title: Chef·fe d'équipe de maintenance industrielle
+    mission: Choisir l'ordre des réparations pour perdre le moins de production
+    module: maintenance
+    actions: [priorite_reparation]
+
+# Joueurs -> rôles ; chaque plan tient chaque action une fois. 6 joueurs : plan à 5, le 6e double `acheteur` (U2).
+role_plans:
+  1: [responsable_usine]
+  2: [responsable_flux, responsable_atelier]
+  3: [responsable_production, chef_de_ligne, responsable_maintenance]   # rôles des modules : le jeu de référence
+  4: [acheteur, ordonnanceur, chef_de_ligne, responsable_maintenance]
+  5: [acheteur, ordonnanceur, chef_de_ligne, technicien_methodes, chef_equipe_maintenance]
 
 # Agent facultatif choisi par le formateur.
 extra_agents:

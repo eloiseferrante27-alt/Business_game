@@ -2,7 +2,7 @@
 
 Éditeur : `.\scripts\godot.ps1` · vérification headless : `.\scripts\godot.ps1 -Check` ·
 liaison avec le backend : `.\scripts\smoke.ps1` (compte jetable) · jeu : `.\scripts\godot.ps1 -Run` ·
-contrôles du client : `.\scripts\godot.ps1 -Tour [-Snapshot]` et `.\scripts\godot.ps1 -Flow [-NoLlm] [-Pack <slug>] [-Buildings <2|3>] [-Products <1-3>] [-Clients <1-4>] [-Design]` (`flow_test` reçoit `--products=` et `--clients=`)
+contrôles du client : `.\scripts\godot.ps1 -Tour [-Snapshot]` et `.\scripts\godot.ps1 -Flow [-NoLlm] [-Pack <slug>] [-Buildings <2|3>] [-Products <1-3>] [-Clients <1-4>] [-Design] [-Roles]` (`flow_test` reçoit `--products=` et `--clients=` ; `-Roles` : parcours R à 6 joueurs, 51 vérifications ; `-Check` lance aussi `tools/check_surexel.gd`, 11 cas du tableur SurExel)
 (voir « Contrôles du client »).
 
 ## Parcours

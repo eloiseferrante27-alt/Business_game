@@ -29,7 +29,7 @@ Côté client, le format reçu est `{type, payload, meta}`.
 | Type | Topic | Émetteur -> destinataire | Payload |
 |---|---|---|---|
 | `lobby.state` | game.events | API -> WebSocket des membres du lobby | lobby_status, state (état public), action {type : start, advance ou action, by, module, summary} |
-| `lobby.members` | game.events | idem | members [{user_id, display_name, game_role}] |
+| `lobby.members` | game.events | idem | {members: [{user_id, display_name, game_role}], seats: {players, roles, owners}} (players : membres hors formateur, figé au lancement) |
 | `lobby.round` | game.events | idem ; consommé par le client Godot (`realtime.gd` -> `Session`, barre « prêt ») | round (prêts, vote, pause) |
 | `npc.exchange` | npc.transcripts | API (non relayé) | npc_id, message, reply, intent, sources |
 | `generation.requested` | generation.commands | API -> worker `generation` | job_id, game_id, sections, seed, note |
