@@ -1,0 +1,23 @@
+{"need": "zone de stockage des palettes dans l'entrepôt", "expected": ["prop_pallet_rack", "prop_pallet_stack"]}
+{"need": "afficher les indicateurs de la partie aux joueurs", "expected": ["prop_kpi_screen"]}
+{"need": "livrer les commandes aux magasins", "expected": ["veh_box_truck", "veh_van"]}
+{"need": "responsable des achats qui travaille au bureau", "expected": ["char_office_f", "char_manager_f", "char_manager_m"]}
+{"need": "poste de travail du conseiller bancaire", "expected": ["prop_desk_computer"]}
+{"need": "réunion du comité de direction", "expected": ["prop_meeting_table"]}
+{"need": "déplacer les palettes entre les quais et les racks", "expected": ["veh_forklift"]}
+{"need": "importer des marchandises par voie maritime", "expected": ["prop_shipping_container", "prop_shipping_container_blue"]}
+{"need": "signaler un arrêt de la ligne de production", "expected": ["prop_andon_light"]}
+{"need": "contrôler les colis à la réception", "expected": ["prop_scanner_gate"]}
+{"need": "chauffeur qui livre le client", "expected": ["char_driver_m"]}
+{"need": "fournisseur de matières premières en amont", "expected": ["bld_factory_plant"]}
+{"need": "montrer l'état d'une machine de la ligne : en marche, en panne ou à l'arrêt", "expected": ["prop_machine"]}
+{"need": "pièces qui patientent entre deux machines de la ligne", "expected": ["prop_buffer_table"]}
+{"need": "porte par laquelle le camion du fournisseur décharge les palettes", "expected": ["prop_dock_door"]}
+{"need": "délimiter au sol la zone de quarantaine des pièces non conformes", "expected": ["prop_floor_zone"]}
+{"need": "déplacer une palette à la main du quai vers la zone de contrôle", "expected": ["veh_pallet_jack"]}
+{"need": "poste du contrôleur qui mesure les pièces une à une", "expected": ["prop_inspection_table"]}
+{"need": "jeter les pièces défectueuses après le contrôle", "expected": ["prop_scrap_bin"]}
+{"need": "mettre les pièces conformes en cartons avant l'expédition", "expected": ["prop_packing_table"]}
+{"need": "envelopper de film plastique la palette avant son stockage", "expected": ["prop_pallet_wrapper"]}
+{"need": "atelier du technicien qui répare les machines en panne", "expected": ["prop_workbench"]}
+{"need": "afficher la liste des ordres de fabrication en cours sur la ligne", "expected": ["prop_wall_board"]}

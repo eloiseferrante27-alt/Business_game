@@ -1,0 +1,122 @@
+{
+ "week": 2,
+ "event": {
+  "id": "commande_exceptionnelle",
+  "title": "Commandes exceptionnelles du client",
+  "description": "Le client ajoute des commandes : la demande grimpe de 15 % sur la semaine."
+ },
+ "briefings": {
+  "agent_fournisseur": {
+   "facts": [
+    "Cette semaine, commandes exceptionnelles du client : le client ajoute des commandes : la demande grimpe de 15 % sur la semaine.",
+    "1 commande(s) de matière en route, soit 6 palettes."
+   ],
+   "urgent": true,
+   "line": "À noter : Cette semaine, commandes exceptionnelles du client : le client ajoute des commandes : la demande grimpe de 15 % sur la semaine."
+  },
+  "agent_reception": {
+   "facts": [
+    "Semaine passée : 2 camion(s) déchargé(s), 12 palettes.",
+    "Prochaine livraison attendue dans 1 jour(s)."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_stock_mp": {
+   "facts": [
+    "11 palettes en stock et 6 en commande, sous le point de commande de 18 : il faut commander.",
+    "Magasin : 11 palettes sur 24 places, 7 libres une fois comptées les 6 en commande."
+   ],
+   "urgent": true,
+   "line": "Petit point : 11 palettes en stock et 6 en commande, sous le point de commande de 18 : il faut commander."
+  },
+  "agent_production": {
+   "facts": [
+    "Cette semaine, commandes exceptionnelles du client : le client ajoute des commandes : la demande grimpe de 15 % sur la semaine.",
+    "Ligne 1 : 16,5 bons par heure mesurés pour 17,4 attendus.",
+    "Ligne 2 : 16,6 bons par heure mesurés pour 17,4 attendus.",
+    "Ligne 3 : 16,4 bons par heure mesurés pour 17,4 attendus.",
+    "0 ordre(s) de fabrication ouvert(s)."
+   ],
+   "urgent": true,
+   "line": "Vite : Cette semaine, commandes exceptionnelles du client : le client ajoute des commandes : la demande grimpe de 15 % sur la semaine."
+  },
+  "agent_qualite": {
+   "facts": [
+    "Semaine passée : 1 872 produits contrôlés, 85 rebuts."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_emballage": {
+   "facts": [
+    "275 produits bons attendent d'être emballés.",
+    "Semaine passée : 378 cartons et 62 palettes.",
+    "Entrepôt PF : 10 palettes sur 20."
+   ],
+   "urgent": true,
+   "line": "À noter : 275 produits bons attendent d'être emballés."
+  },
+  "agent_maintenance": {
+   "facts": [
+    "Semaine passée : 0 panne(s) au total.",
+    "M3 · Soudage des renforts (3 lignes) : 0 panne(s) depuis le début, 1 attendue(s) sans entretien d'après son MTBF.",
+    "Préventif : 3 fait(s), 0 non fait(s)."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_pilotage": {
+   "facts": [
+    "0 commande(s) ouverte(s), dont 0 en retard.",
+    "Stock fini et en-cours à 232, sous le minimum de 334 : lancer des ordres.",
+    "OTIF à 100 % (objectif 95 %), TRS à 82 % (objectif 80 %)."
+   ],
+   "urgent": true,
+   "line": "Petit point : Stock fini et en-cours à 232, sous le minimum de 334 : lancer des ordres."
+  },
+  "agent_entrepot_pf": {
+   "facts": [
+    "10 palettes en stock sur 20 places."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_client": {
+   "facts": [
+    "0 commande(s) attendue(s) chez nous."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_direction": {
+   "facts": [
+    "Cette semaine, commandes exceptionnelles du client : le client ajoute des commandes : la demande grimpe de 15 % sur la semaine.",
+    "Il reste 11 semaine(s) ; objectifs : OTIF 95 %, TRS 80 %, trésorerie d'au moins 292 000 €."
+   ],
+   "urgent": true,
+   "line": "À noter : Cette semaine, commandes exceptionnelles du client : le client ajoute des commandes : la demande grimpe de 15 % sur la semaine."
+  }
+ },
+ "alerts": [
+  {
+   "id": "reorder:c1",
+   "level": "warning",
+   "department_id": "stock_mp",
+   "module_id": null,
+   "text": "Matière : 11 palettes en stock, 6 en commande, point de commande 18.",
+   "ref": "mp:c1",
+   "action": null
+  },
+  {
+   "id": "event:commande_exceptionnelle",
+   "level": "info",
+   "department_id": null,
+   "module_id": null,
+   "text": "Aléa annoncé pour la semaine qui vient : Commandes exceptionnelles du client.",
+   "ref": null,
+   "action": null
+  }
+ ],
+ "forced": true
+}

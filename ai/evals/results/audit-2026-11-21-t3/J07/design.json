@@ -1,0 +1,108 @@
+{
+ "params": {
+  "pack": "usine",
+  "theme": "industrie",
+  "modules": [
+   "pilotage",
+   "production",
+   "maintenance"
+  ],
+  "extra_agents": [
+   "direction"
+  ],
+  "agent_tone": "bienveillant",
+  "difficulty": "equilibre",
+  "weeks": 12,
+  "events": "rares",
+  "products": 1,
+  "options": {
+   "lines": 3
+  },
+  "company_name": "Soudures de l'Estuaire",
+  "players_min": 2,
+  "players_max": 6,
+  "seed": 303,
+  "tunings": {
+   "mtbf_factor": "decouverte",
+   "bottleneck_shape": "decouverte",
+   "defect_factor": "decouverte",
+   "promised_days": "decouverte",
+   "demand_variability": "decouverte",
+   "reliability_shift": "decouverte",
+   "mp_stock_days": "decouverte",
+   "pf_stock_days": "decouverte"
+  },
+  "event_plan": [],
+  "network": {
+   "fournisseur_economique": "national"
+  }
+ },
+ "fallback": false,
+ "reasons": [
+  "tentative 1 : la valeur actuelle est - extra_agents : [\"direction\"]\n- agent_tone : \"mixte\" ; la consigne demande : Des collègues plus bienveillants, qui encouragent les débutants. ; propose des valeurs différentes qui la suivent"
+ ],
+ "attempts": 2,
+ "unmet": [],
+ "model": "qwen2.5:3b",
+ "prompt_version": 5,
+ "prompt_tokens": 2980,
+ "completion_tokens": 75,
+ "duration_ms": 2416,
+ "load_ms": 33,
+ "brief_sha256": "a18c2f293ea7b2cd694cf81070f8a61348abfa3932735dae1024043aa69c85ad",
+ "essais": [
+  {
+   "params": {
+    "pack": "usine",
+    "theme": "industrie",
+    "modules": [
+     "pilotage",
+     "production",
+     "maintenance"
+    ],
+    "extra_agents": [
+     "direction"
+    ],
+    "agent_tone": "bienveillant",
+    "difficulty": "equilibre",
+    "weeks": 12,
+    "events": "rares",
+    "products": 1,
+    "options": {
+     "lines": 3
+    },
+    "company_name": "Soudures de l'Estuaire",
+    "players_min": 2,
+    "players_max": 6,
+    "seed": 303,
+    "tunings": {
+     "mtbf_factor": "decouverte",
+     "bottleneck_shape": "decouverte",
+     "defect_factor": "decouverte",
+     "promised_days": "decouverte",
+     "demand_variability": "decouverte",
+     "reliability_shift": "decouverte",
+     "mp_stock_days": "decouverte",
+     "pf_stock_days": "decouverte"
+    },
+    "event_plan": [],
+    "network": {
+     "fournisseur_economique": "national"
+    }
+   },
+   "fallback": false,
+   "reasons": [
+    "tentative 1 : la valeur actuelle est - extra_agents : [\"direction\"]\n- agent_tone : \"mixte\" ; la consigne demande : Des collègues plus bienveillants, qui encouragent les débutants. ; propose des valeurs différentes qui la suivent"
+   ],
+   "attempts": 2,
+   "unmet": [],
+   "model": "qwen2.5:3b",
+   "prompt_version": 5,
+   "prompt_tokens": 2980,
+   "completion_tokens": 75,
+   "duration_ms": 2416,
+   "load_ms": 33,
+   "brief_sha256": "a18c2f293ea7b2cd694cf81070f8a61348abfa3932735dae1024043aa69c85ad"
+  }
+ ]
+}

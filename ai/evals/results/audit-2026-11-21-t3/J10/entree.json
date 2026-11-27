@@ -1,0 +1,9 @@
+{
+ "id": "J10",
+ "seed": 1010,
+ "brief": "Trois lignes de production chez un équipementier automobile, un objectif de 98 % de livraisons à l'heure et 20 000 euros de trésorerie à la fin.",
+ "fixed": {
+  "company_name": "Mécanique du Bocage",
+  "products": 1
+ }
+}

@@ -1,0 +1,112 @@
+{
+ "params": {
+  "pack": "usine",
+  "theme": "automobile",
+  "modules": [
+   "pilotage"
+  ],
+  "extra_agents": [
+   "direction"
+  ],
+  "agent_tone": "exigeant",
+  "difficulty": "decouverte",
+  "weeks": 5,
+  "events": "rares",
+  "products": 1,
+  "options": {
+   "lines": 3
+  },
+  "company_name": null,
+  "players_min": 2,
+  "players_max": 6,
+  "seed": 505,
+  "tunings": {},
+  "event_plan": [
+   {
+    "week": 2,
+    "event_id": "retard_transport"
+   },
+   {
+    "week": 3,
+    "event_id": "hausse_matieres"
+   },
+   {
+    "week": 4,
+    "event_id": "creux_de_demande"
+   }
+  ],
+  "network": {
+   "fournisseur_standard": "proche",
+   "fournisseur_economique": "national"
+  }
+ },
+ "fallback": false,
+ "reasons": [],
+ "attempts": 1,
+ "unmet": [
+  "pas de fournisseur spécialisé dans l'automobile"
+ ],
+ "model": "qwen2.5:3b",
+ "prompt_version": 3,
+ "prompt_tokens": 1196,
+ "completion_tokens": 250,
+ "duration_ms": 5070,
+ "brief_sha256": "21dc03f0c39b75ea0f90a5d2b001d566976593031046b5705db953da78cdb370",
+ "essais": [
+  {
+   "params": {
+    "pack": "usine",
+    "theme": "automobile",
+    "modules": [
+     "pilotage"
+    ],
+    "extra_agents": [
+     "direction"
+    ],
+    "agent_tone": "exigeant",
+    "difficulty": "decouverte",
+    "weeks": 5,
+    "events": "rares",
+    "products": 1,
+    "options": {
+     "lines": 3
+    },
+    "company_name": null,
+    "players_min": 2,
+    "players_max": 6,
+    "seed": 505,
+    "tunings": {},
+    "event_plan": [
+     {
+      "week": 2,
+      "event_id": "retard_transport"
+     },
+     {
+      "week": 3,
+      "event_id": "hausse_matieres"
+     },
+     {
+      "week": 4,
+      "event_id": "creux_de_demande"
+     }
+    ],
+    "network": {
+     "fournisseur_standard": "proche",
+     "fournisseur_economique": "national"
+    }
+   },
+   "fallback": false,
+   "reasons": [],
+   "attempts": 1,
+   "unmet": [
+    "pas de fournisseur spécialisé dans l'automobile"
+   ],
+   "model": "qwen2.5:3b",
+   "prompt_version": 3,
+   "prompt_tokens": 1196,
+   "completion_tokens": 250,
+   "duration_ms": 5070,
+   "brief_sha256": "21dc03f0c39b75ea0f90a5d2b001d566976593031046b5705db953da78cdb370"
+  }
+ ]
+}

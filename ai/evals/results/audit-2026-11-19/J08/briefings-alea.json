@@ -1,0 +1,126 @@
+{
+ "week": 2,
+ "event": {
+  "id": "retard_transport",
+  "title": "Perturbations routières",
+  "description": "Travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière."
+ },
+ "briefings": {
+  "agent_fournisseur": {
+   "facts": [
+    "Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière.",
+    "1 commande(s) de matière en route, soit 6 palettes."
+   ],
+   "urgent": true,
+   "line": "Attention : Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière."
+  },
+  "agent_reception": {
+   "facts": [
+    "Semaine passée : 1 camion(s) déchargé(s), 6 palettes.",
+    "Prochaine livraison attendue dans 2 jour(s)."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_stock_mp": {
+   "facts": [
+    "Une ligne s'est arrêtée 572 minutes faute de matière.",
+    "Magasin : 4 palettes sur 24 places, 14 libres."
+   ],
+   "urgent": true,
+   "line": "Il faut agir : Une ligne s'est arrêtée 572 minutes faute de matière."
+  },
+  "agent_production": {
+   "facts": [
+    "Ligne 1 : 12.5 bons par heure mesurés pour 15.8 attendus.",
+    "1 ordre(s) de fabrication ouvert(s)."
+   ],
+   "urgent": true,
+   "line": "Attention : Ligne 1 : 12.5 bons par heure mesurés pour 15.8 attendus."
+  },
+  "agent_qualite": {
+   "facts": [
+    "Semaine passée : 559 produits contrôlés, 63 rebuts."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_emballage": {
+   "facts": [
+    "Semaine passée : 124 cartons et 20 palettes.",
+    "Entrepôt PF : 4 palettes sur 20."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_maintenance": {
+   "facts": [
+    "Semaine passée : 0 panne(s) au total.",
+    "Préventif : 1 fait(s), 0 non fait(s)."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_pilotage": {
+   "facts": [
+    "Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière.",
+    "1 commande(s) ouverte(s), dont 0 en retard.",
+    "OTIF à 100 % (objectif 95 %), TRS à 63 % (objectif 78 %)."
+   ],
+   "urgent": true,
+   "line": "Vite : Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière."
+  },
+  "agent_entrepot_pf": {
+   "facts": [
+    "4 palettes en stock sur 20 places."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_client": {
+   "facts": [
+    "1 commande(s) attendue(s) chez nous."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_direction": {
+   "facts": [
+    "Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière.",
+    "Il reste 11 semaine(s) ; objectifs : OTIF 95 %, TRS 78 %, trésorerie d'au moins 67 000 €."
+   ],
+   "urgent": true,
+   "line": "Vite : Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière."
+  }
+ },
+ "alerts": [
+  {
+   "id": "starved:l1",
+   "level": "critical",
+   "department_id": "stock_mp",
+   "module_id": "pilotage",
+   "text": "Ligne 1 arrêtée 572 min faute de matière.",
+   "ref": "line:l1",
+   "action": null
+  },
+  {
+   "id": "trs_low:l1",
+   "level": "warning",
+   "department_id": "production",
+   "module_id": "production",
+   "text": "TRS de Ligne 1 à 62.7054 % la semaine passée, sous le seuil d'attention de 73 %.",
+   "ref": "line:l1",
+   "action": null
+  },
+  {
+   "id": "event:retard_transport",
+   "level": "info",
+   "department_id": null,
+   "module_id": null,
+   "text": "Aléa annoncé pour la semaine qui vient : Perturbations routières.",
+   "ref": null,
+   "action": null
+  }
+ ],
+ "forced": false
+}

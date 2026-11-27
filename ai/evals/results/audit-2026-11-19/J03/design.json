@@ -1,0 +1,124 @@
+{
+ "params": {
+  "pack": "usine",
+  "theme": "industrie",
+  "modules": [
+   "pilotage",
+   "production",
+   "maintenance"
+  ],
+  "extra_agents": [
+   "direction"
+  ],
+  "agent_tone": "exigeant",
+  "difficulty": "expert",
+  "weeks": 12,
+  "events": "rares",
+  "products": 1,
+  "options": {
+   "lines": 1
+  },
+  "company_name": "Soudures de l'Estuaire",
+  "players_min": 2,
+  "players_max": 6,
+  "seed": 303,
+  "tunings": {
+   "mtbf_factor": "decouverte",
+   "mp_stock_days": "decouverte",
+   "pf_stock_days": "decouverte"
+  },
+  "event_plan": [
+   {
+    "week": 2,
+    "event_id": "retard_transport"
+   },
+   {
+    "week": 3,
+    "event_id": "hausse_matieres"
+   },
+   {
+    "week": 4,
+    "event_id": "commande_exceptionnelle"
+   }
+  ],
+  "network": {
+   "fournisseur_standard": "proche",
+   "fournisseur_economique": "national"
+  }
+ },
+ "fallback": false,
+ "reasons": [],
+ "attempts": 1,
+ "unmet": [
+  "aucun aléa"
+ ],
+ "model": "qwen2.5:3b",
+ "prompt_version": 3,
+ "prompt_tokens": 1191,
+ "completion_tokens": 269,
+ "duration_ms": 5226,
+ "brief_sha256": "a18c2f293ea7b2cd694cf81070f8a61348abfa3932735dae1024043aa69c85ad",
+ "essais": [
+  {
+   "params": {
+    "pack": "usine",
+    "theme": "industrie",
+    "modules": [
+     "pilotage",
+     "production",
+     "maintenance"
+    ],
+    "extra_agents": [
+     "direction"
+    ],
+    "agent_tone": "exigeant",
+    "difficulty": "expert",
+    "weeks": 12,
+    "events": "rares",
+    "products": 1,
+    "options": {
+     "lines": 1
+    },
+    "company_name": "Soudures de l'Estuaire",
+    "players_min": 2,
+    "players_max": 6,
+    "seed": 303,
+    "tunings": {
+     "mtbf_factor": "decouverte",
+     "mp_stock_days": "decouverte",
+     "pf_stock_days": "decouverte"
+    },
+    "event_plan": [
+     {
+      "week": 2,
+      "event_id": "retard_transport"
+     },
+     {
+      "week": 3,
+      "event_id": "hausse_matieres"
+     },
+     {
+      "week": 4,
+      "event_id": "commande_exceptionnelle"
+     }
+    ],
+    "network": {
+     "fournisseur_standard": "proche",
+     "fournisseur_economique": "national"
+    }
+   },
+   "fallback": false,
+   "reasons": [],
+   "attempts": 1,
+   "unmet": [
+    "aucun aléa"
+   ],
+   "model": "qwen2.5:3b",
+   "prompt_version": 3,
+   "prompt_tokens": 1191,
+   "completion_tokens": 269,
+   "duration_ms": 5226,
+   "brief_sha256": "a18c2f293ea7b2cd694cf81070f8a61348abfa3932735dae1024043aa69c85ad"
+  }
+ ]
+}

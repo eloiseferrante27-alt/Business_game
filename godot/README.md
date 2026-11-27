@@ -1,0 +1,211 @@
+# Client Godot 4.7
+
+Éditeur : `.\scripts\godot.ps1` · vérification headless : `.\scripts\godot.ps1 -Check` ·
+liaison avec le backend : `.\scripts\smoke.ps1` (compte jetable) · jeu : `.\scripts\godot.ps1 -Run` ·
+contrôles du client : `.\scripts\godot.ps1 -Tour [-Snapshot]` et `.\scripts\godot.ps1 -Flow [-NoLlm] [-Pack <slug>] [-Buildings <2|3>] [-Design]`
+(voir « Contrôles du client »).
+
+## Parcours
+
+Connexion (adresse du serveur, identifiant, mot de passe ; mot de passe provisoire à changer) -> accueil selon
+le rôle -> salle du lobby -> monde 3D. Joueur : rejoindre avec le code, choisir son rôle, explorer l'atelier
+(vue Sims par défaut), parler aux PNJ (E ou clic), décider aux postes (E ou clic), suivre les KPI (Tab : tableau
+de bord), lire le débrief. Formateur : générer un business game par paramètres ou importer une spec JSON, le relire
+(partie de référence en pilote automatique, modules, agents, aléas, notions et sources), l'exporter ou le
+remplacer par un fichier JSON, créer le lobby, donner le code, lancer, simuler les semaines, agir sur tous les
+modules, débrief ; créer les comptes joueurs. Groupe d'équipes (ADR 0011) : « Nombre d'équipes » de 2 à 12 dans
+« Lancer une session » crée un groupe (écran `group`, code, cartes d'équipes, débrief comparé) ; le joueur saisit le
+code dans le même champ (groupe d'abord, sinon lobby) et choisit son équipe.
+
+Débrief (écran J3, `scenes/debrief/debrief.gd`, `GmixDebrief`) : une courbe par critère (`debrief.criteria[].series`,
+valeur semaine par semaine), cible et seuil partiel en pointillés, filets sur les semaines d'aléa ; puis causes
+(`log[].kind`), leçons, notions et « Valeurs non sourcées ». Même écran depuis le lobby, le HUD et le groupe (une
+série par équipe dans le débrief comparé). Dans le monde, un clic au sol dans une zone `dept:<id>` autre que celle du
+joueur ouvre la page `dept:<id>` de la tablette ; dans sa propre zone, il ne fait que marcher.
+
+## Arborescence
+
+| Dossier | Contenu |
+|---|---|
+| `autoload/` | AppConfig (serveur), EventBus (signaux), Api (HTTP + jeton), Realtime (WebSocket authentifié, reconnexion), Session (lobby ouvert tenu à jour par le WebSocket ; pose le thème commun sur la fenêtre), Presence (multijoueur ENet, serveur et client) |
+| `config/client.cfg` | adresses par défaut, surchargées par `user://client.cfg` (le serveur choisi à la connexion y est gardé) |
+| `scenes/main/` | scène principale : coquille, connexion, accueil joueur / formateur / admin |
+| `scenes/lobby/` | salle du lobby : rôle, participants, pilotage de la partie |
+| `scenes/group/` | écran du groupe d'équipes : `group_screen.gd` (`GmixGroupScreen`) |
+| `scenes/world/` | monde 3D construit depuis `spec.world` (plan généré par `gmix.game.generation`) : `world.gd` (`GmixWorld`), `sims_view.gd` (`GmixSimsView`), `player.gd`, `npc.gd`, `remote_avatar.gd`, `hud.gd` |
+| `scenes/common/` | Ui (thème et constructeurs d'interface), GameText (KPI, phase, débrief, spec en BBCode) |
+| `scenes/boot/` | écran de diagnostic (`-- --smoke` en headless) |
+| `scenes/tools/` | outils de contrôle : `ui_tour`, `flow_test`, `world_preview`, `asset_gallery` (voir plus bas) |
+| `assets/<catégorie>/<id>/<id>.tscn` | 61 assets du catalogue ai/assets.yaml (52 importés, 9 procéduraux), au 2026-10-28 |
+| `assets/_sources/<pack>/` | modèles GLB d'origine, textures et licence de chaque pack (CC0) |
+| `assets/procedural/` | assets fabriqués en code : palette, rayonnage, stock au sol, chariot, écran KPI, ligne de production, bureau de chantier, assemblages |
+| `assets/catalog.json`, `assets/CREDITS.md` | générés depuis ai/assets.yaml (`.\scripts\assets.ps1`) |
+| `tools/` | outillage : check_project.gd (`-Check` : charge tous les scripts et scènes, vérifie la fenêtre de référence), build_asset_scenes.gd (construction des scènes d'assets) |
+| `tests/` | vide (`.gitkeep`) : pas de cadre de tests unitaires GDScript ; les contrôles scriptés sont dans `scenes/tools/` |
+
+## Conventions
+
+- GDScript statiquement typé ; fichiers et variables en snake_case, classes en PascalCase,
+  signaux au passé (`lobby_joined`).
+- Une scène est autonome : elle n'appelle que les autoloads et ses enfants ; entre scènes, des signaux.
+- Les données de jeu viennent de la spec et de l'état public fournis par l'API (modèle
+  backend/gmix/game/spec.py), jamais en dur ; le client ne calcule aucune règle.
+- Input Map par touches physiques (table « Commandes ») : `move_forward/back/left/right` (WASD en QWERTY = ZQSD
+  en AZERTY), jamais de keycode en dur.
+- Rendu Forward+, cible 60 FPS ; la VRAM (6 Go) est partagée avec Ollama.
+- Fichiers `.uid` versionnés (Godot 4.4 et plus).
+- Assets : 1 unité = 1 m, origine au sol au centre, avant vers +Z. Racine `GmixAsset` (assets/asset.gd) :
+  les variantes du catalogue sont des propriétés (`sign_text`, `fill_level`, `fork_height`, `animation`…).
+  Personnages : animations idle, walk, sprint, sit, drive, pick-up, emote-yes (assets/character.gd).
+- Export : ajouter `*.cfg` aux fichiers non-ressources exportés (config/client.cfg).
+- Interfaces construites en code (pas de .tscn d'interface) ; tout texte venant de l'API ou de l'IA passe par
+  `GameText.esc()` avant un RichTextLabel.
+- Serveur de partie : même projet lancé par l'API en headless (`-- --server --lobby=… --port=…`, secret dans
+  GMIX_JWT_SECRET) ; sonde : `-- --presence-probe --host=… --port=… --ticket=…`.
+
+## Interface
+
+- Fenêtre de référence 1280x720 (project.godot : taille de base, étirement `canvas_items`, aspect `expand`) : la
+  zone visible fait toujours au moins 1280x720. `-Check` échoue si ces réglages changent.
+- Thème commun `Ui.make_theme()`, posé sur la fenêtre par l'autoload Session. Constructeurs de `scenes/common/ui.gd` :
+  `Ui.label` (police jamais sous 15 px, corps 18 px), `Ui.select` (liste dont la largeur ne dépend pas du plus long
+  choix), `Ui.flow` (rangée de boutons qui passe à la ligne), `Ui.confirm`, `Ui.show_text` (fenêtre de lecture qui
+  défile), `Ui.ask_text`, et `button`, `field`, `rich`, `scroll_list`, `screen_margin`.
+- Règles : tout contenu long dans un ScrollContainer, textes à retour automatique, aucune largeur fixe supérieure à
+  la zone visible, fenêtres modales dimensionnées sur le viewport.
+- **Piège du thème** : il ne traverse ni un simple `Node` ni une `CanvasLayer`. Un outil d'interface doit être un
+  `Control` (ui_tour l'est) ; le HUD, une `CanvasLayer`, pose le thème explicitement sur sa racine.
+
+## Monde 3D : deux vues
+
+Vue Sims par défaut, troisième personne avec `toggle_view`. `GmixWorld` (`world.gd`) expose aux outils de contrôle
+`view()`, `is_navigation_ready()`, `sims_view()` et `screen_point()`.
+
+| Action (Input Map) | Touche ou bouton | Effet |
+|---|---|---|
+| `move_forward/back/left/right` | W, S, A, D physiques (ZQSD en AZERTY) | vue Sims : déplace la caméra et la rend libre ; troisième personne : déplace le joueur |
+| `jump` | Espace | saute (troisième personne seulement) |
+| `sprint` | Maj | court, y compris pendant une marche ordonnée par un clic |
+| `interact` | E | parle à l'agent ou ouvre le poste le plus proche, dans les deux vues |
+| `toggle_menu` | Échap | menu (ferme d'abord le menu contextuel) |
+| `toggle_view` | V | bascule vue Sims et troisième personne |
+| `toggle_tablet` | T | tablette (`scenes/tablet/`, avec la barre « prêt » `common/round_bar.gd` et les alertes `state.alerts[]`) : panneaux et outils de la spec (`spec.panels`, `spec.tools`), puis une page `dept:<id>` par département (`spec.departments`) ou une page par module sans départements ; lecture seule hors de son rôle (`Session.my_role()`, `Session.module_block()`) ; en calque qui monte du bas ; Échap, clic hors cadre ou T la rangent |
+| `camera_follow` | C | rattache la caméra Sims au joueur |
+| `camera_rotate_left/right` | flèche gauche, flèche droite | tourne la caméra Sims |
+| `camera_zoom_in` | molette vers l'avant, flèche haut, Page haut | rapproche la caméra Sims |
+| `camera_zoom_out` | molette vers l'arrière, flèche bas, Page bas | éloigne la caméra Sims |
+| `world_click` | clic gauche | vue Sims : marcher (sol) ou menu contextuel (agent, poste) |
+| `camera_drag` | clic droit ou clic milieu + glisser | tourne et incline la caméra Sims |
+| (hors Input Map) | Tab | tableau de bord (`KEY_TAB` codé dans `world.gd`) |
+
+- Vue Sims : caméra 3/4 suivie ou libre, survol surligné avec info-bulle, menu contextuel (« Parler à… »,
+  « S'approcher », « Utiliser le poste », « S'y rendre »), toit retiré et murs côté caméra abaissés.
+- Troisième personne : la souris est capturée tant qu'aucun panneau n'est ouvert.
+- Navigation : maillage cuit à l'exécution (tâche de fond) depuis les collisions du plan généré, couches 1 (décor)
+  et 16. Une destination à plus de 2,5 m du maillage est refusée avec une annonce. Maillage vide : retour à la
+  troisième personne avec une annonce.
+- Collisions : couche 1 décor, 4 agents (bloquent le joueur en troisième personne, pas en vue Sims), 8 boîtes de
+  sélection des postes (sans effet physique), 16 emprises de secours. Un asset sans aucune collision reçoit une
+  boîte à son emprise sur la couche 16 (bloque le joueur, compte dans le maillage, jamais la sélection au curseur ;
+  ignoré sous 0,3 m de haut). Cinq assets sont concernés : `prop_kpi_screen`, `prop_desk_computer`,
+  `prop_meeting_table`, `prop_pallet`, `prop_pallet_stack` (collision propre à fournir : assets-3d).
+- Les agents patrouillent en ligne droite entre les points de leur route, sans maillage de navigation.
+
+## Contrôles du client
+
+Pas de GPU ni de fenêtre requis, sauf `-Snapshot`. Pour `-Tour` et `-Flow`, `scripts/godot.ps1` démarre l'API locale si
+elle ne répond pas (et l'arrête ensuite), crée des comptes jetables (`uitour_…`, `flowtest_…`) avec
+`gmix.tools.ui_accounts`, passe leurs jetons à Godot par variables d'environnement, puis supprime comptes, lobbies et
+parties en base, même en cas d'échec. Le code de sortie est celui de Godot (0 = OK). Pas de `-Api` (écriture dans la
+base locale), `-Tour` et `-Flow` ne se combinent pas.
+
+| Outil | Lancement | Contrôle |
+|---|---|---|
+| `ui_tour` | `.\scripts\godot.ps1 -Tour [-Snapshot]` | lisibilité des écrans avant-jeu (connexion, diagnostic, accueils, salle du lobby, fenêtres) et des panneaux du HUD à 4 tailles de fenêtre (1280x720, 1366x768, 1920x1080, 1024x600) : dépassements, polices sous 15 px, textes tronqués, erreurs de script. `-Snapshot` (version à fenêtre, GPU requis, avec `-Tour` seulement) écrit les PNG dans `%TEMP%\gmix_imgs\ui_tour`. Crée deux business games et douze lobbies, supprimés ensuite. Aucun appel à Ollama. |
+| `flow_test` | `.\scripts\godot.ps1 -Flow [-NoLlm] [-Design]` | parcours A, formateur de bout en bout (génération, relecture, import, lobby, lancement, monde, vue Sims, postes, dialogues avec chaque agent et mémoire, semaines, débrief en courbes ; A.5b : pause, reprise et aléa par la barre « prêt » ; A.5d : droits de la tablette par département, `_check_tablet_roles`). `-NoLlm` (`--no-llm`) saute les dialogues, donc tout appel à Ollama. `-Pack <slug>` (avec `-Flow` seulement, ex. `-Pack usine`) joue le parcours sur un autre pack que l'atelier. La présence ENet est remplacée par une doublure inerte. `-Design` (avec `-Flow` seulement) joue le parcours D (`--only=D`) : conception par l'IA (F1, F2), écran de brouillon, régénération d'une carte, publication ; le worker `generation` est relancé s'il est absent ou plus ancien que backend\gmix\**\*.py, ai\packs, ai\prompts ou ai\models.yaml. **Parcours existants : A, B et D** ; V est annoncé (`--only=A,B,V`) mais non écrit. Parcours B (joueur, B.0 à B.7) : touches physiques AZERTY (ZQSD), entrée par code et par groupe, choix d'équipe et de rôle, tablette en lecture seule hors de son département, « Prêt » et vote sur un absent, débrief. Mesuré le 18/11 : `-Flow -NoLlm` 686 vérifications, `-Flow` (modèle) 813. |
+| `world_preview` | exécutable Godot à fenêtre, `res://scenes/tools/world_preview/world_preview.tscn -- --api=… --lobby=<id> --snapshot=<dossier>` (jeton dans `GMIX_TOKEN`) | captures de l'atelier, de la vue Sims, de la troisième personne et fréquence d'images |
+| `asset_gallery` | `.\scripts\assets.ps1 -Gallery <dossier>` | galerie de tous les assets par catégorie |
+
+Si le nettoyage échoue, le script affiche les identifiants à nettoyer :
+`backend\.venv\Scripts\python -m gmix.tools.ui_accounts cleanup <ids>`.
+
+Limites connues (clic réel, clavier AZERTY réel, pavé tactile non éprouvés ; outils non suivis par git) :
+docs/blocages.md.
+
+## Export : version autonome Windows
+
+`.\scripts\godot.ps1 -Export` construit `build\windows\G-mix.exe` (environ 106 Mo, PCK intégré ; `build/` est hors git).
+Profil « Windows Desktop » de `godot/export_presets.cfg` ; les outils de test (`scenes/tools`) sont exclus.
+Prérequis : modèles d'export de Godot 4.7.2 dans `%APPDATA%\Godot\export_templates\4.7.2.stable\` (officiels, SHA512
+vérifié sur le poste hôte). Essai du 18/11 hors du dépôt (`--headless --quit-after 600`) : code 0, aucune erreur de
+script. Sur un poste joueur : copier `G-mix.exe`, saisir l'adresse du serveur à la connexion (`192.168.11.100:8000` ;
+`http://` ajouté, adresse gardée dans `user://client.cfg`). **Connexion depuis l'exe non essayée à la main.**
+
+## Pièges et procédures (agent godot-dev)
+
+Sorti de `.claude/agents/godot-dev.md` le 05/11 pour alléger chaque délégation : l'agent lit la sous-section de sa
+tâche (`Grep -n "^### " godot/README.md`, puis Read avec plage).
+
+### Pièges connus
+
+`look_at` exige un nœud déjà dans l'arbre (`add_child` d'abord) ; `multiplayer.get_unique_id()` sans pair connecté ;
+ne nommez pas une variable `name` ou `sign` (elle masque un membre ou une fonction intégrée) ; un PanelContainer
+s'étire à la hauteur de son parent (`size_flags_vertical = SIZE_SHRINK_BEGIN`) ; modifier une propriété d'asset
+reconstruit son décor (rayonnage) : ne l'affectez que si la valeur change ; `Label3D.visibility_range_end` évite
+l'encombrement des étiquettes ; **le thème commun ne traverse ni un simple `Node` ni une `CanvasLayer`** : un outil
+d'interface étend `Control` (ui_tour), le HUD (CanvasLayer) pose le thème sur sa racine ; un outil lancé comme scène
+principale disparaît au changement de scène (flow_test se double sous la racine) ; le rayon de navigation est un
+multiple de la taille de cellule (0,25), sinon Godot arrondit avec un avertissement ; une StyleBox à marges plus
+grandes crée des dépassements à 1024x600 (revérifier le tour après chaque changement de marge).
+
+### Direction artistique (référence : la tablette du Business_game, ADR 0010)
+
+- Palette chaude limitée (fond, surface, accent, succès, alerte), définie en un seul endroit, `Ui.make_theme` ;
+  aucune couleur codée en dur dans les écrans. Palette par défaut : `ardoise` (bleu et blanc, choix du 06/11). Trois autres (`cacao` sombre, `chaud`,
+  `sauge`) se choisissent par `GMIX_PALETTE=<id>` ou `--palette=<id>` (`godot/autoload/session.gd`,
+  `godot/scenes/common/ui_tokens.gd`). Contraste de texte d'au moins 4,5:1 (WCAG AA), à calculer.
+- Coins arrondis ; marges et espacements sur une échelle fixe (4, 8, 16, 24) ; hiérarchie typographique : titre,
+  sous-titre, corps (le corps reste à 18 px, jamais sous 15 px).
+- États vides accueillants : une phrase qui explique et un bouton vers l'action suivante. Accueil personnalisé
+  (identifiant, rôle) sur F1, J1, la modale de session F4, la salle d'attente (cartes de rôles) et la tablette en jeu.
+- Icônes cohérentes ; vouvoiement partout. Transitions légères : tween court, désactivable, sans coût pour les 60 FPS.
+- Police ou icônes ajoutées seulement sous licence libre vérifiée (OFL, CC0), avec fichier de licence et crédit dans
+  le dépôt ; rien à télécharger à l'exécution. Pas d'IA externe pour générer des visuels.
+- Procédure : `-Tour -Snapshot` « avant » ; thème d'abord, puis écran par écran ; captures « après » regardées à
+  1280x720 et 1024x600 et comparées à « avant » ; `-Tour` à 0 défaut et `-Flow -NoLlm` vert.
+
+### Conception par l'IA et brouillon (F1, F2)
+
+- F1, onglet « Concevoir avec l'IA » : Secteur, Durée, Niveau, chacun avec une case « Imposer » ; Aléas, Produits et Nom de
+  l'entreprise sous « Options avancées ». Les champs imposés partent dans `fixed` ; joueurs min et max partent toujours.
+- F2 : « Conception en cours (n %) · temps écoulé » ; « (n %) » dans « Mes jeux ».
+- Écran `godot/scenes/draft/draft_screen.gd` (« Relire » d'un jeu conçu par l'IA) : 3 cartes à régénérer (entreprise,
+  objectifs et aléas, personnages) avec consigne facultative (300 caractères au plus) ; carte « Produits, fournisseurs et
+  rôles » en lecture seule ; « Relecture complète » et « Publier ». Repli : « Le modèle n'a pas pu proposer mieux, la
+  version précédente est conservée ». Retouches retirées (`review.dropped`) listées. Route : `POST /api/v1/games/{id}/design/regenerate`
+  (docs/roles.md) ; elle repasse toujours le jeu en brouillon.
+
+### Vue Sims et troisième personne
+
+- Caméra 3/4 suivie ou libre, rotation et zoom ; clic pour marcher sur un maillage de navigation cuit à l'exécution
+  depuis les collisions du plan généré ; menu contextuel et survol sur les agents et les postes (métadonnée
+  `GmixSimsView.META`) ; toit masqué et murs abaissés côté caméra.
+- Un asset sans collision reçoit une emprise de secours sur la couche 16 (`_block` de world.gd) : signaler l'écart à
+  `assets-3d`. Les agents patrouillent en ligne droite, sans maillage de navigation.
+- Un ordre (marcher, parler, utiliser un poste) passe par world.gd (`_walk`, `_go_to_agent`, `_go_to_station`) ; les
+  outils de contrôle lisent `view()`, `is_navigation_ready()`, `sims_view()` et `screen_point()`.
+
+### Parcours scripté (flow_test)
+
+- Test headless qui exécute les vraies scènes de bout en bout contre l'API réelle, avec des comptes jetables
+  (`flowtest_…`, créés puis supprimés via `gmix.tools.ui_accounts`, jamais de jeton affiché ni écrit). Il échoue sur
+  toute erreur de script ; `-NoLlm` saute les dialogues, donc tout appel à Ollama.
+- Parcours A (formateur), B (joueur) et D (conception) existent ; V est annoncé (`--only=A,B,V`) mais non écrit. Une
+  nouvelle fonction du client se couvre en ajoutant une étape au parcours concerné (A ou B).
+
+### Vérification visuelle du monde (tout changement de rendu)
+
+Créer un lobby de test par l'API, puis, après `. .\scripts\_common.ps1`,
+`& (Get-GodotExe) --path "$GodotDir" res://scenes/tools/world_preview/world_preview.tscn -- --api=http://127.0.0.1:8000 --lobby=<id> --snapshot=<dossier>`
+avec le jeton dans la variable d'environnement GMIX_TOKEN (fenêtre et GPU requis). Regarder les captures
+(étiquettes, superpositions, échelle, vue Sims, menu contextuel), puis supprimer le lobby et le compte de test.

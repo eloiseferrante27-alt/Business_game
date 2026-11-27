@@ -1,0 +1,45 @@
+{
+ "id": "J07",
+ "seed": 707,
+ "brief": "Former des BTS au goulot d'étranglement dans un atelier de soudure d'équipements en acier, avec un niveau moyen et quelques aléas.",
+ "regen": {
+  "from": "J03",
+  "section": "personnages",
+  "note": "Des collègues plus bienveillants, qui encouragent les débutants."
+ },
+ "keep_envoye": {
+  "pack": "usine",
+  "theme": "industrie",
+  "modules": [
+   "pilotage",
+   "production",
+   "maintenance"
+  ],
+  "difficulty": "equilibre",
+  "weeks": 12,
+  "events": "rares",
+  "products": 1,
+  "options": {
+   "lines": 3
+  },
+  "company_name": "Soudures de l'Estuaire",
+  "players_min": 2,
+  "players_max": 6,
+  "seed": 303,
+  "tunings": {
+   "mtbf_factor": "decouverte",
+   "bottleneck_shape": "decouverte",
+   "defect_factor": "decouverte",
+   "promised_days": "decouverte",
+   "demand_variability": "decouverte",
+   "reliability_shift": "decouverte",
+   "mp_stock_days": "decouverte",
+   "pf_stock_days": "decouverte"
+  },
+  "event_plan": [],
+  "network": {
+   "fournisseur_economique": "national"
+  }
+ },
+ "note": "Des collègues plus bienveillants, qui encouragent les débutants."
+}

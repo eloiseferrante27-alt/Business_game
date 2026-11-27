@@ -1,0 +1,835 @@
+{
+ "C1": {
+  "ok": false,
+  "trouves": 149,
+  "non_trouves": [
+   {
+    "nombre": "1544",
+    "chemin": null,
+    "texte": "Une ligne s'est arrêtée 1544 minutes faute de matière."
+   },
+   {
+    "nombre": "1544",
+    "chemin": null,
+    "texte": "Attention : Une ligne s'est arrêtée 1544 minutes faute de matière."
+   },
+   {
+    "nombre": "467",
+    "chemin": null,
+    "texte": "Ligne 1 arrêtée 467 min faute de matière."
+   },
+   {
+    "nombre": "66.1188",
+    "chemin": null,
+    "texte": "TRS de Ligne 1 à 66.1188 % la semaine passée, sous le seuil d'attention de 73 %."
+   },
+   {
+    "nombre": "65.074",
+    "chemin": null,
+    "texte": "TRS de Ligne 2 à 65.074 % la semaine passée, sous le seuil d'attention de 73 %."
+   },
+   {
+    "nombre": "63.8948",
+    "chemin": null,
+    "texte": "TRS de Ligne 3 à 63.8948 % la semaine passée, sous le seuil d'attention de 73 %."
+   }
+  ],
+  "chemins": [
+   {
+    "nombre": "5",
+    "chemin": "pack.block_types.bord.front_aisle_cells",
+    "texte": "Une PME soude des équipements en acier pour un distributeur de bricolage. Pendant 5 semaines, votre "
+   },
+   {
+    "nombre": "92",
+    "chemin": "pack.difficulties.expert.detail",
+    "texte": "Une PME soude des équipements en acier pour un distributeur de bricolage. Pendant 5 semaines, votre "
+   },
+   {
+    "nombre": "1",
+    "chemin": "pack.version",
+    "texte": "Une PME soude des équipements en acier pour un distributeur de bricolage. Pendant 5 semaines, votre "
+   },
+   {
+    "nombre": "5",
+    "chemin": "pack.block_types.bord.front_aisle_cells",
+    "texte": "En 5 semaines : OTIF moyen d'au moins 95 %, TRS moyen d'au moins 78 %, au plus 0 jour-ligne arrêté f"
+   },
+   {
+    "nombre": "95",
+    "chemin": "pack.targets.otif",
+    "texte": "En 5 semaines : OTIF moyen d'au moins 95 %, TRS moyen d'au moins 78 %, au plus 0 jour-ligne arrêté f"
+   },
+   {
+    "nombre": "78",
+    "chemin": "pack.targets.trs",
+    "texte": "En 5 semaines : OTIF moyen d'au moins 95 %, TRS moyen d'au moins 78 %, au plus 0 jour-ligne arrêté f"
+   },
+   {
+    "nombre": "0",
+    "chemin": "pack.world.spawn[0]",
+    "texte": "En 5 semaines : OTIF moyen d'au moins 95 %, TRS moyen d'au moins 78 %, au plus 0 jour-ligne arrêté f"
+   },
+   {
+    "nombre": "119700",
+    "chemin": "spec.targets.cash_final",
+    "texte": "En 5 semaines : OTIF moyen d'au moins 95 %, TRS moyen d'au moins 78 %, au plus 0 jour-ligne arrêté f"
+   },
+   {
+    "nombre": "6",
+    "chemin": "pack.limits.weeks[2]",
+    "texte": "Une commande de matière est un camion de 6 palettes au plus."
+   },
+   {
+    "nombre": "95.0",
+    "chemin": "pack.targets.otif",
+    "texte": "OTIF moyen >= 95.0 (partiel 90.0)"
+   },
+   {
+    "nombre": "90.0",
+    "chemin": "pack.criteria.otif.note",
+    "texte": "OTIF moyen >= 95.0 (partiel 90.0)"
+   },
+   {
+    "nombre": "78.0",
+    "chemin": "pack.targets.trs",
+    "texte": "TRS moyen >= 78.0 (partiel 73.0)"
+   },
+   {
+    "nombre": "73.0",
+    "chemin": "pack.criteria.trs.note",
+    "texte": "TRS moyen >= 78.0 (partiel 73.0)"
+   },
+   {
+    "nombre": "0.0",
+    "chemin": "pack.world.spawn[0]",
+    "texte": "Jours-ligne arrêtés faute de matière (sur la partie) <= 0.0 (partiel 4.0)"
+   },
+   {
+    "nombre": "4.0",
+    "chemin": "pack.limits.weeks[0]",
+    "texte": "Jours-ligne arrêtés faute de matière (sur la partie) <= 0.0 (partiel 4.0)"
+   },
+   {
+    "nombre": "119700.0",
+    "chemin": "spec.targets.cash_final",
+    "texte": "Trésorerie finale >= 119700.0 (partiel 46700.0)"
+   },
+   {
+    "nombre": "46700.0",
+    "chemin": "spec.economy.initial_cash",
+    "texte": "Trésorerie finale >= 119700.0 (partiel 46700.0)"
+   },
+   {
+    "nombre": "1",
+    "chemin": "pack.version",
+    "texte": "Pilote automatique : OF quand stock PF + encours passe sous une journée de demande ; MP au point de "
+   },
+   {
+    "nombre": "4",
+    "chemin": "pack.placement_rules[1].note",
+    "texte": "mettre 4 produits par carton"
+   },
+   {
+    "nombre": "100",
+    "chemin": "pack.version",
+    "texte": "Le TRS (OEE en anglais) multiplie trois taux : disponibilité (temps de marche ÷ temps planifié, paus"
+   },
+   {
+    "nombre": "10",
+    "chemin": "pack.inspiration",
+    "texte": "Le SMED réduit le temps de changement de série pour pouvoir produire en petits lots ; « single minut"
+   },
+   {
+    "nombre": "1960",
+    "chemin": "pack.notions.pannes_par_usure.text",
+    "texte": "Réviser ou remplacer à date fixe ne se justifie que si l'équipement s'use avec l'usage : son risque "
+   },
+   {
+    "nombre": "1",
+    "chemin": "pack.version",
+    "texte": "Selon l'approximation de Kingman, l'attente devant un poste croît avec u ÷ (1 − u), u étant son taux"
+   },
+   {
+    "nombre": "100",
+    "chemin": "pack.version",
+    "texte": "Selon l'approximation de Kingman, l'attente devant un poste croît avec u ÷ (1 − u), u étant son taux"
+   },
+   {
+    "nombre": "3",
+    "chemin": "pack.description",
+    "texte": "La carte p suit la part de produits non conformes d'un échantillon ; sa limite haute vaut p + 3 × ra"
+   },
+   {
+    "nombre": "1",
+    "chemin": "pack.version",
+    "texte": "La carte p suit la part de produits non conformes d'un échantillon ; sa limite haute vaut p + 3 × ra"
+   },
+   {
+    "nombre": "25",
+    "chemin": "pack.values.pilotage.taux_possession_semaine.note",
+    "texte": "Travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livr"
+   },
+   {
+    "nombre": "10",
+    "chemin": "pack.inspiration",
+    "texte": "Les prix d'achat de la matière augmentent de 10 %."
+   },
+   {
+    "nombre": "15",
+    "chemin": "pack.placement_rules[7].citation",
+    "texte": "Le client ajoute des commandes : la demande grimpe de 15 % sur la semaine."
+   },
+   {
+    "nombre": "15",
+    "chemin": "pack.placement_rules[7].citation",
+    "texte": "Le client commande moins cette semaine : la demande baisse de 15 %."
+   },
+   {
+    "nombre": "10",
+    "chemin": "pack.inspiration",
+    "texte": "Un lot du fournisseur est défectueux ; le taux de palettes reçues non conformes, mises en quarantain"
+   },
+   {
+    "nombre": "40",
+    "chemin": "pack.values.machine.mtbf_h.note",
+    "texte": "Les fortes chaleurs fatiguent les machines ; elles tombent en panne environ 40 % plus souvent cette "
+   },
+   {
+    "nombre": "1",
+    "chemin": "pack.version",
+    "texte": "Tôle perforée et renforts · Perforation de l'Est (Mulhouse) · 1 j · 89 % à l'heure · 11 €/u. · min. "
+   },
+   {
+    "nombre": "89",
+    "chemin": "spec.offers[0].reliability",
+    "texte": "Tôle perforée et renforts · Perforation de l'Est (Mulhouse) · 1 j · 89 % à l'heure · 11 €/u. · min. "
+   },
+   {
+    "nombre": "11",
+    "chemin": "pack.values.stock_mp.stock_securite_jours.note",
+    "texte": "Tôle perforée et renforts · Perforation de l'Est (Mulhouse) · 1 j · 89 % à l'heure · 11 €/u. · min. "
+   },
+   {
+    "nombre": "1",
+    "chemin": "pack.version",
+    "texte": "Tôle perforée et renforts · Perforation de l'Est (Mulhouse) · 1 j · 89 % à l'heure · 11 €/u. · min. "
+   },
+   {
+    "nombre": "3",
+    "chemin": "pack.description",
+    "texte": "Tôle perforée et renforts · Tôlerie de Picardie (Amiens) · 3 j · 87 % à l'heure · 10 €/u. · min. 1 p"
+   },
+   {
+    "nombre": "87",
+    "chemin": "pack.values.pilotage.objectif_trs.note",
+    "texte": "Tôle perforée et renforts · Tôlerie de Picardie (Amiens) · 3 j · 87 % à l'heure · 10 €/u. · min. 1 p"
+   },
+   {
+    "nombre": "10",
+    "chemin": "pack.inspiration",
+    "texte": "Tôle perforée et renforts · Tôlerie de Picardie (Amiens) · 3 j · 87 % à l'heure · 10 €/u. · min. 1 p"
+   },
+   {
+    "nombre": "1",
+    "chemin": "pack.version",
+    "texte": "Tôle perforée et renforts · Tôlerie de Picardie (Amiens) · 3 j · 87 % à l'heure · 10 €/u. · min. 1 p"
+   },
+   {
+    "nombre": "5",
+    "chemin": "pack.block_types.bord.front_aisle_cells",
+    "texte": "Tôle perforée et renforts · Perforated Steel Import (Anvers) · 5 j · 77 % à l'heure · 8 €/u. · min. "
+   },
+   {
+    "nombre": "77",
+    "chemin": "pack.criteria.trs.note",
+    "texte": "Tôle perforée et renforts · Perforated Steel Import (Anvers) · 5 j · 77 % à l'heure · 8 €/u. · min. "
+   },
+   {
+    "nombre": "8",
+    "chemin": "pack.clock.day_start_h",
+    "texte": "Tôle perforée et renforts · Perforated Steel Import (Anvers) · 5 j · 77 % à l'heure · 8 €/u. · min. "
+   },
+   {
+    "nombre": "4",
+    "chemin": "pack.placement_rules[1].note",
+    "texte": "Tôle perforée et renforts · Perforated Steel Import (Anvers) · 5 j · 77 % à l'heure · 8 €/u. · min. "
+   },
+   {
+    "nombre": "1",
+    "chemin": "pack.version",
+    "texte": "Ligne 1 · Porte-outils mural perforé · 800 u./sem. à 100 %"
+   },
+   {
+    "nombre": "800",
+    "chemin": "pack.network.distance_classes.national.label",
+    "texte": "Ligne 1 · Porte-outils mural perforé · 800 u./sem. à 100 %"
+   },
+   {
+    "nombre": "100",
+    "chemin": "pack.version",
+    "texte": "Ligne 1 · Porte-outils mural perforé · 800 u./sem. à 100 %"
+   },
+   {
+    "nombre": "2",
+    "chemin": "pack.block_types.site.cell_m",
+    "texte": "Ligne 2 · Porte-outils mural perforé · 800 u./sem. à 100 %"
+   },
+   {
+    "nombre": "800",
+    "chemin": "pack.network.distance_classes.national.label",
+    "texte": "Ligne 2 · Porte-outils mural perforé · 800 u./sem. à 100 %"
+   },
+   {
+    "nombre": "100",
+    "chemin": "pack.version",
+    "texte": "Ligne 2 · Porte-outils mural perforé · 800 u./sem. à 100 %"
+   },
+   {
+    "nombre": "3",
+    "chemin": "pack.description",
+    "texte": "Ligne 3 · Porte-outils mural perforé · 800 u./sem. à 100 %"
+   },
+   {
+    "nombre": "800",
+    "chemin": "pack.network.distance_classes.national.label",
+    "texte": "Ligne 3 · Porte-outils mural perforé · 800 u./sem. à 100 %"
+   },
+   {
+    "nombre": "100",
+    "chemin": "pack.version",
+    "texte": "Ligne 3 · Porte-outils mural perforé · 800 u./sem. à 100 %"
+   },
+   {
+    "nombre": "0",
+    "chemin": "pack.world.spawn[0]",
+    "texte": "0 commande(s) de matière en route, soit 0 palettes."
+   },
+   {
+    "nombre": "0",
+    "chemin": "pack.world.spawn[0]",
+    "texte": "0 commande(s) de matière en route, soit 0 palettes."
+   },
+   {
+    "nombre": "9",
+    "chemin": "pack.network.driving_h_per_day",
+    "texte": "9 palettes en stock et 0 en commande, sous le point de commande de 17 : il faut commander."
+   },
+   {
+    "nombre": "0",
+    "chemin": "pack.world.spawn[0]",
+    "texte": "9 palettes en stock et 0 en commande, sous le point de commande de 17 : il faut commander."
+   },
+   {
+    "nombre": "17",
+    "chemin": "pack.values.emballage.produits_par_colis.note",
+    "texte": "9 palettes en stock et 0 en commande, sous le point de commande de 17 : il faut commander."
+   },
+   {
+    "nombre": "9",
+    "chemin": "pack.network.driving_h_per_day",
+    "texte": "Magasin : 9 palettes sur 24 places, 15 libres."
+   },
+   {
+    "nombre": "24",
+    "chemin": "pack.values.fournisseur.profils.note",
+    "texte": "Magasin : 9 palettes sur 24 places, 15 libres."
+   },
+   {
+    "nombre": "15",
+    "chemin": "pack.placement_rules[7].citation",
+    "texte": "Magasin : 9 palettes sur 24 places, 15 libres."
+   },
+   {
+    "nombre": "9",
+    "chemin": "pack.network.driving_h_per_day",
+    "texte": "Attention : 9 palettes en stock et 0 en commande, sous le point de commande de 17 : il faut commande"
+   },
+   {
+    "nombre": "0",
+    "chemin": "pack.world.spawn[0]",
+    "texte": "Attention : 9 palettes en stock et 0 en commande, sous le point de commande de 17 : il faut commande"
+   },
+   {
+    "nombre": "17",
+    "chemin": "pack.values.emballage.produits_par_colis.note",
+    "texte": "Attention : 9 palettes en stock et 0 en commande, sous le point de commande de 17 : il faut commande"
+   },
+   {
+    "nombre": "0",
+    "chemin": "pack.world.spawn[0]",
+    "texte": "0 ordre(s) de fabrication ouvert(s)."
+   },
+   {
+    "nombre": "8",
+    "chemin": "pack.clock.day_start_h",
+    "texte": "Entrepôt PF : 8 palettes sur 20."
+   },
+   {
+    "nombre": "20",
+    "chemin": "pack.world.spawn[1]",
+    "texte": "Entrepôt PF : 8 palettes sur 20."
+   },
+   {
+    "nombre": "0",
+    "chemin": "pack.world.spawn[0]",
+    "texte": "0 commande(s) ouverte(s), dont 0 en retard."
+   },
+   {
+    "nombre": "0",
+    "chemin": "pack.world.spawn[0]",
+    "texte": "0 commande(s) ouverte(s), dont 0 en retard."
+   },
+   {
+    "nombre": "174",
+    "chemin": "spec.products[0].initial_stock",
+    "texte": "Stock fini et en-cours à 174, sous le minimum de 348 : lancer des ordres."
+   },
+   {
+    "nombre": "348",
+    "chemin": "spec.products[0].safety_stock",
+    "texte": "Stock fini et en-cours à 174, sous le minimum de 348 : lancer des ordres."
+   },
+   {
+    "nombre": "174",
+    "chemin": "spec.products[0].initial_stock",
+    "texte": "Il faut agir : Stock fini et en-cours à 174, sous le minimum de 348 : lancer des ordres."
+   },
+   {
+    "nombre": "348",
+    "chemin": "spec.products[0].safety_stock",
+    "texte": "Il faut agir : Stock fini et en-cours à 174, sous le minimum de 348 : lancer des ordres."
+   },
+   {
+    "nombre": "8",
+    "chemin": "pack.clock.day_start_h",
+    "texte": "8 palettes en stock sur 20 places."
+   },
+   {
+    "nombre": "20",
+    "chemin": "pack.world.spawn[1]",
+    "texte": "8 palettes en stock sur 20 places."
+   },
+   {
+    "nombre": "0",
+    "chemin": "pack.world.spawn[0]",
+    "texte": "0 commande(s) attendue(s) chez nous."
+   },
+   {
+    "nombre": "5",
+    "chemin": "pack.block_types.bord.front_aisle_cells",
+    "texte": "Il reste 5 semaine(s) ; objectifs : OTIF 95 %, TRS 78 %, trésorerie d'au moins 119 700 €."
+   },
+   {
+    "nombre": "95",
+    "chemin": "pack.targets.otif",
+    "texte": "Il reste 5 semaine(s) ; objectifs : OTIF 95 %, TRS 78 %, trésorerie d'au moins 119 700 €."
+   },
+   {
+    "nombre": "78",
+    "chemin": "pack.targets.trs",
+    "texte": "Il reste 5 semaine(s) ; objectifs : OTIF 95 %, TRS 78 %, trésorerie d'au moins 119 700 €."
+   },
+   {
+    "nombre": "119 700",
+    "chemin": "spec.targets.cash_final",
+    "texte": "Il reste 5 semaine(s) ; objectifs : OTIF 95 %, TRS 78 %, trésorerie d'au moins 119 700 €."
+   },
+   {
+    "nombre": "25",
+    "chemin": "pack.values.pilotage.taux_possession_semaine.note",
+    "texte": "Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % "
+   },
+   {
+    "nombre": "1",
+    "chemin": "pack.version",
+    "texte": "1 commande(s) de matière en route, soit 6 palettes."
+   },
+   {
+    "nombre": "6",
+    "chemin": "pack.limits.weeks[2]",
+    "texte": "1 commande(s) de matière en route, soit 6 palettes."
+   },
+   {
+    "nombre": "25",
+    "chemin": "pack.values.pilotage.taux_possession_semaine.note",
+    "texte": "Vite : Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs "
+   },
+   {
+    "nombre": "3",
+    "chemin": "pack.description",
+    "texte": "Semaine passée : 3 camion(s) déchargé(s), 18 palettes."
+   },
+   {
+    "nombre": "18",
+    "chemin": "spec.world.objects[3].cell[0]",
+    "texte": "Semaine passée : 3 camion(s) déchargé(s), 18 palettes."
+   },
+   {
+    "nombre": "2",
+    "chemin": "pack.block_types.site.cell_m",
+    "texte": "Prochaine livraison attendue dans 2 jour(s)."
+   },
+   {
+    "nombre": "11",
+    "chemin": "pack.values.stock_mp.stock_securite_jours.note",
+    "texte": "Magasin : 11 palettes sur 24 places, 7 libres."
+   },
+   {
+    "nombre": "24",
+    "chemin": "pack.values.fournisseur.profils.note",
+    "texte": "Magasin : 11 palettes sur 24 places, 7 libres."
+   },
+   {
+    "nombre": "7",
+    "chemin": "pack.values.pilotage.pf_max_jours.note",
+    "texte": "Magasin : 11 palettes sur 24 places, 7 libres."
+   },
+   {
+    "nombre": "1",
+    "chemin": "pack.version",
+    "texte": "Ligne 1 : 13.2 bons par heure mesurés pour 15.8 attendus."
+   },
+   {
+    "nombre": "13.2",
+    "chemin": "spec.stations[0].position[1]",
+    "texte": "Ligne 1 : 13.2 bons par heure mesurés pour 15.8 attendus."
+   },
+   {
+    "nombre": "15.8",
+    "chemin": "spec.world.objects[61].position[0]",
+    "texte": "Ligne 1 : 13.2 bons par heure mesurés pour 15.8 attendus."
+   },
+   {
+    "nombre": "2",
+    "chemin": "pack.block_types.site.cell_m",
+    "texte": "Ligne 2 : 13.0 bons par heure mesurés pour 15.8 attendus."
+   },
+   {
+    "nombre": "13.0",
+    "chemin": "spec.world.objects[64].position[1]",
+    "texte": "Ligne 2 : 13.0 bons par heure mesurés pour 15.8 attendus."
+   },
+   {
+    "nombre": "15.8",
+    "chemin": "spec.world.objects[61].position[0]",
+    "texte": "Ligne 2 : 13.0 bons par heure mesurés pour 15.8 attendus."
+   },
+   {
+    "nombre": "3",
+    "chemin": "pack.description",
+    "texte": "Ligne 3 : 12.8 bons par heure mesurés pour 15.8 attendus."
+   },
+   {
+    "nombre": "12.8",
+    "chemin": "vue_alea.factory.lines[2].real_h",
+    "texte": "Ligne 3 : 12.8 bons par heure mesurés pour 15.8 attendus."
+   },
+   {
+    "nombre": "15.8",
+    "chemin": "spec.world.objects[61].position[0]",
+    "texte": "Ligne 3 : 12.8 bons par heure mesurés pour 15.8 attendus."
+   },
+   {
+    "nombre": "6",
+    "chemin": "pack.limits.weeks[2]",
+    "texte": "6 ordre(s) de fabrication ouvert(s)."
+   },
+   {
+    "nombre": "1",
+    "chemin": "pack.version",
+    "texte": "Vite : Ligne 1 : 13.2 bons par heure mesurés pour 15.8 attendus."
+   },
+   {
+    "nombre": "13.2",
+    "chemin": "spec.stations[0].position[1]",
+    "texte": "Vite : Ligne 1 : 13.2 bons par heure mesurés pour 15.8 attendus."
+   },
+   {
+    "nombre": "15.8",
+    "chemin": "spec.world.objects[61].position[0]",
+    "texte": "Vite : Ligne 1 : 13.2 bons par heure mesurés pour 15.8 attendus."
+   },
+   {
+    "nombre": "1728",
+    "chemin": "etat.last.timeline.events[728][0]",
+    "texte": "Semaine passée : 1728 produits contrôlés, 190 rebuts."
+   },
+   {
+    "nombre": "190",
+    "chemin": "etat.last.timeline.frames[0][3][7]",
+    "texte": "Semaine passée : 1728 produits contrôlés, 190 rebuts."
+   },
+   {
+    "nombre": "376",
+    "chemin": "etat.fs.orders[3].quantity",
+    "texte": "Semaine passée : 376 cartons et 62 palettes."
+   },
+   {
+    "nombre": "62",
+    "chemin": "etat.last.timeline.frames[135][3][5]",
+    "texte": "Semaine passée : 376 cartons et 62 palettes."
+   },
+   {
+    "nombre": "11",
+    "chemin": "pack.values.stock_mp.stock_securite_jours.note",
+    "texte": "Entrepôt PF : 11 palettes sur 20."
+   },
+   {
+    "nombre": "20",
+    "chemin": "pack.world.spawn[1]",
+    "texte": "Entrepôt PF : 11 palettes sur 20."
+   },
+   {
+    "nombre": "0",
+    "chemin": "pack.world.spawn[0]",
+    "texte": "Semaine passée : 0 panne(s) au total."
+   },
+   {
+    "nombre": "3",
+    "chemin": "pack.description",
+    "texte": "Préventif : 3 fait(s), 0 non fait(s)."
+   },
+   {
+    "nombre": "0",
+    "chemin": "pack.world.spawn[0]",
+    "texte": "Préventif : 3 fait(s), 0 non fait(s)."
+   },
+   {
+    "nombre": "25",
+    "chemin": "pack.values.pilotage.taux_possession_semaine.note",
+    "texte": "Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % "
+   },
+   {
+    "nombre": "1",
+    "chemin": "pack.version",
+    "texte": "1 commande(s) ouverte(s), dont 0 en retard."
+   },
+   {
+    "nombre": "0",
+    "chemin": "pack.world.spawn[0]",
+    "texte": "1 commande(s) ouverte(s), dont 0 en retard."
+   },
+   {
+    "nombre": "100",
+    "chemin": "pack.version",
+    "texte": "OTIF à 100 % (objectif 95 %), TRS à 65 % (objectif 78 %)."
+   },
+   {
+    "nombre": "95",
+    "chemin": "pack.targets.otif",
+    "texte": "OTIF à 100 % (objectif 95 %), TRS à 65 % (objectif 78 %)."
+   },
+   {
+    "nombre": "65",
+    "chemin": "etat.history[0].trs",
+    "texte": "OTIF à 100 % (objectif 95 %), TRS à 65 % (objectif 78 %)."
+   },
+   {
+    "nombre": "78",
+    "chemin": "pack.targets.trs",
+    "texte": "OTIF à 100 % (objectif 95 %), TRS à 65 % (objectif 78 %)."
+   },
+   {
+    "nombre": "25",
+    "chemin": "pack.values.pilotage.taux_possession_semaine.note",
+    "texte": "Il faut agir : Cette semaine, perturbations routières : travaux et bouchons sur les routes des fourn"
+   },
+   {
+    "nombre": "11",
+    "chemin": "pack.values.stock_mp.stock_securite_jours.note",
+    "texte": "11 palettes en stock sur 20 places."
+   },
+   {
+    "nombre": "20",
+    "chemin": "pack.world.spawn[1]",
+    "texte": "11 palettes en stock sur 20 places."
+   },
+   {
+    "nombre": "1",
+    "chemin": "pack.version",
+    "texte": "1 commande(s) attendue(s) chez nous."
+   },
+   {
+    "nombre": "25",
+    "chemin": "pack.values.pilotage.taux_possession_semaine.note",
+    "texte": "Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % "
+   },
+   {
+    "nombre": "4",
+    "chemin": "pack.placement_rules[1].note",
+    "texte": "Il reste 4 semaine(s) ; objectifs : OTIF 95 %, TRS 78 %, trésorerie d'au moins 119 700 €."
+   },
+   {
+    "nombre": "95",
+    "chemin": "pack.targets.otif",
+    "texte": "Il reste 4 semaine(s) ; objectifs : OTIF 95 %, TRS 78 %, trésorerie d'au moins 119 700 €."
+   },
+   {
+    "nombre": "78",
+    "chemin": "pack.targets.trs",
+    "texte": "Il reste 4 semaine(s) ; objectifs : OTIF 95 %, TRS 78 %, trésorerie d'au moins 119 700 €."
+   },
+   {
+    "nombre": "119 700",
+    "chemin": "spec.targets.cash_final",
+    "texte": "Il reste 4 semaine(s) ; objectifs : OTIF 95 %, TRS 78 %, trésorerie d'au moins 119 700 €."
+   },
+   {
+    "nombre": "25",
+    "chemin": "pack.values.pilotage.taux_possession_semaine.note",
+    "texte": "Il faut agir : Cette semaine, perturbations routières : travaux et bouchons sur les routes des fourn"
+   },
+   {
+    "nombre": "9",
+    "chemin": "pack.network.driving_h_per_day",
+    "texte": "Matière : 9 palettes en stock, 0 en commande, point de commande 17."
+   },
+   {
+    "nombre": "0",
+    "chemin": "pack.world.spawn[0]",
+    "texte": "Matière : 9 palettes en stock, 0 en commande, point de commande 17."
+   },
+   {
+    "nombre": "17",
+    "chemin": "pack.values.emballage.produits_par_colis.note",
+    "texte": "Matière : 9 palettes en stock, 0 en commande, point de commande 17."
+   },
+   {
+    "nombre": "1",
+    "chemin": "pack.version",
+    "texte": "Ligne 1 arrêtée 467 min faute de matière."
+   },
+   {
+    "nombre": "2",
+    "chemin": "pack.block_types.site.cell_m",
+    "texte": "Ligne 2 arrêtée 539 min faute de matière."
+   },
+   {
+    "nombre": "539",
+    "chemin": "etat.last.timeline.frames[141][3][3]",
+    "texte": "Ligne 2 arrêtée 539 min faute de matière."
+   },
+   {
+    "nombre": "3",
+    "chemin": "pack.description",
+    "texte": "Ligne 3 arrêtée 539 min faute de matière."
+   },
+   {
+    "nombre": "539",
+    "chemin": "etat.last.timeline.frames[141][3][3]",
+    "texte": "Ligne 3 arrêtée 539 min faute de matière."
+   },
+   {
+    "nombre": "1",
+    "chemin": "pack.version",
+    "texte": "TRS de Ligne 1 à 66.1188 % la semaine passée, sous le seuil d'attention de 73 %."
+   },
+   {
+    "nombre": "73",
+    "chemin": "pack.criteria.trs.note",
+    "texte": "TRS de Ligne 1 à 66.1188 % la semaine passée, sous le seuil d'attention de 73 %."
+   },
+   {
+    "nombre": "2",
+    "chemin": "pack.block_types.site.cell_m",
+    "texte": "TRS de Ligne 2 à 65.074 % la semaine passée, sous le seuil d'attention de 73 %."
+   },
+   {
+    "nombre": "73",
+    "chemin": "pack.criteria.trs.note",
+    "texte": "TRS de Ligne 2 à 65.074 % la semaine passée, sous le seuil d'attention de 73 %."
+   },
+   {
+    "nombre": "3",
+    "chemin": "pack.description",
+    "texte": "TRS de Ligne 3 à 63.8948 % la semaine passée, sous le seuil d'attention de 73 %."
+   },
+   {
+    "nombre": "73",
+    "chemin": "pack.criteria.trs.note",
+    "texte": "TRS de Ligne 3 à 63.8948 % la semaine passée, sous le seuil d'attention de 73 %."
+   },
+   {
+    "nombre": "6",
+    "chemin": "pack.limits.weeks[2]",
+    "texte": "6 jour(s)-ligne arrêté(s) faute de matière, sur 1 semaine(s). Repère : recommandez quand stock et pa"
+   },
+   {
+    "nombre": "1",
+    "chemin": "pack.version",
+    "texte": "6 jour(s)-ligne arrêté(s) faute de matière, sur 1 semaine(s). Repère : recommandez quand stock et pa"
+   },
+   {
+    "nombre": "17",
+    "chemin": "pack.values.emballage.produits_par_colis.note",
+    "texte": "6 jour(s)-ligne arrêté(s) faute de matière, sur 1 semaine(s). Repère : recommandez quand stock et pa"
+   },
+   {
+    "nombre": "76.0",
+    "chemin": "etat.last.timeline.frames[91][3][1]",
+    "texte": "TRS moyen de 76.0 % pour un objectif de 78 %, avec 88.9 % de produits bons. Le TRS d'une ligne se me"
+   },
+   {
+    "nombre": "78",
+    "chemin": "pack.targets.trs",
+    "texte": "TRS moyen de 76.0 % pour un objectif de 78 %, avec 88.9 % de produits bons. Le TRS d'une ligne se me"
+   },
+   {
+    "nombre": "88.9",
+    "chemin": "debrief.kpis[4].final",
+    "texte": "TRS moyen de 76.0 % pour un objectif de 78 %, avec 88.9 % de produits bons. Le TRS d'une ligne se me"
+   }
+  ]
+ },
+ "C2": {
+  "ok": false,
+  "citations_fausses": [
+   "règle camion_six_palettes"
+  ]
+ },
+ "C3": {
+  "ok": true,
+  "unmet_fautifs": []
+ },
+ "C5": {
+  "ok": true,
+  "tutoiement": []
+ },
+ "C7": {
+  "ok": true,
+  "aleas_sans_module_joue": [],
+  "plan_apres_fin": [],
+  "agents_informes": [
+   "agent_fournisseur",
+   "agent_pilotage",
+   "agent_direction"
+  ]
+ },
+ "C8": {
+  "ok": true,
+  "cles_non_respectees": [],
+  "cles_changees": []
+ },
+ "C9": {
+  "ok": false,
+  "playable": false,
+  "pilote": {
+   "otif": "atteint",
+   "trs": "partiel",
+   "stockouts": "non_atteint",
+   "cash": "atteint"
+  },
+  "passif": {
+   "otif": "non_atteint",
+   "trs": "non_atteint",
+   "stockouts": "non_atteint",
+   "cash": "non_atteint"
+  }
+ },
+ "echecs": [
+  "C1",
+  "C2",
+  "C9"
+ ]
+}

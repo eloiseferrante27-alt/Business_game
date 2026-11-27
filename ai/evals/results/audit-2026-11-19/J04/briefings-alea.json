@@ -1,0 +1,111 @@
+{
+ "week": 2,
+ "event": {
+  "id": "commande_exceptionnelle",
+  "title": "Commandes exceptionnelles du client",
+  "description": "Le client ajoute des commandes : la demande grimpe de 15 % sur la semaine."
+ },
+ "briefings": {
+  "agent_fournisseur": {
+   "facts": [
+    "Cette semaine, commandes exceptionnelles du client : le client ajoute des commandes : la demande grimpe de 15 % sur la semaine.",
+    "2 commande(s) de matière en route, soit 12 palettes."
+   ],
+   "urgent": true,
+   "line": "Il faut agir : Cette semaine, commandes exceptionnelles du client : le client ajoute des commandes : la demande grimpe de 15 % sur la semaine."
+  },
+  "agent_reception": {
+   "facts": [
+    "Semaine passée : 1 camion(s) déchargé(s), 6 palettes.",
+    "Prochaine livraison attendue dans 0 jour(s)."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_stock_mp": {
+   "facts": [
+    "Magasin : 6 palettes sur 24 places, 6 libres."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_production": {
+   "facts": [
+    "Cette semaine, commandes exceptionnelles du client : le client ajoute des commandes : la demande grimpe de 15 % sur la semaine.",
+    "Ligne 1 : 15.2 bons par heure mesurés pour 16.0 attendus.",
+    "Ligne 2 : 15.0 bons par heure mesurés pour 16.0 attendus.",
+    "Ligne 3 : 15.8 bons par heure mesurés pour 16.0 attendus.",
+    "0 ordre(s) de fabrication ouvert(s)."
+   ],
+   "urgent": true,
+   "line": "Il faut agir : Cette semaine, commandes exceptionnelles du client : le client ajoute des commandes : la demande grimpe de 15 % sur la semaine."
+  },
+  "agent_qualite": {
+   "facts": [
+    "Semaine passée : 2088 produits contrôlés, 274 rebuts."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_emballage": {
+   "facts": [
+    "230 produits bons attendent d'être emballés.",
+    "Semaine passée : 396 cartons et 65 palettes.",
+    "Entrepôt PF : 11 palettes sur 20."
+   ],
+   "urgent": true,
+   "line": "Vite : 230 produits bons attendent d'être emballés."
+  },
+  "agent_maintenance": {
+   "facts": [
+    "Semaine passée : 0 panne(s) au total.",
+    "Préventif : 3 fait(s), 0 non fait(s)."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_pilotage": {
+   "facts": [
+    "0 commande(s) ouverte(s), dont 0 en retard.",
+    "Stock fini et en-cours à 258, sous le minimum de 354 : lancer des ordres.",
+    "OTIF à 100 % (objectif 95 %), TRS à 77 % (objectif 78 %)."
+   ],
+   "urgent": true,
+   "line": "Attention : Stock fini et en-cours à 258, sous le minimum de 354 : lancer des ordres."
+  },
+  "agent_entrepot_pf": {
+   "facts": [
+    "11 palettes en stock sur 20 places."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_client": {
+   "facts": [
+    "0 commande(s) attendue(s) chez nous."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_direction": {
+   "facts": [
+    "Cette semaine, commandes exceptionnelles du client : le client ajoute des commandes : la demande grimpe de 15 % sur la semaine.",
+    "Il reste 11 semaine(s) ; objectifs : OTIF 95 %, TRS 78 %, trésorerie d'au moins 250 900 €."
+   ],
+   "urgent": true,
+   "line": "Attention : Cette semaine, commandes exceptionnelles du client : le client ajoute des commandes : la demande grimpe de 15 % sur la semaine."
+  }
+ },
+ "alerts": [
+  {
+   "id": "event:commande_exceptionnelle",
+   "level": "info",
+   "department_id": null,
+   "module_id": null,
+   "text": "Aléa annoncé pour la semaine qui vient : Commandes exceptionnelles du client.",
+   "ref": null,
+   "action": null
+  }
+ ],
+ "forced": true
+}

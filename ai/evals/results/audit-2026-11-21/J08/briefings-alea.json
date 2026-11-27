@@ -1,0 +1,157 @@
+{
+ "week": 2,
+ "event": {
+  "id": "retard_transport",
+  "title": "Perturbations routières",
+  "description": "Travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière."
+ },
+ "briefings": {
+  "agent_fournisseur": {
+   "facts": [
+    "Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière.",
+    "4 commande(s) de matière en route, soit 14 palettes."
+   ],
+   "urgent": true,
+   "line": "Attention : Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière."
+  },
+  "agent_reception": {
+   "facts": [
+    "Semaine passée : 3 camion(s) déchargé(s), 15 palettes.",
+    "Prochaine livraison attendue dans 0 jour(s)."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_stock_mp": {
+   "facts": [
+    "Les 3 lignes ont été arrêtées 661 minutes au total faute de matière.",
+    "6 palettes en stock et 14 en commande, sous le point de commande de 24 : il faut commander.",
+    "Magasin : 6 palettes sur 24 places, 4 libres."
+   ],
+   "urgent": true,
+   "line": "Il faut agir : Les 3 lignes ont été arrêtées 661 minutes au total faute de matière."
+  },
+  "agent_production": {
+   "facts": [
+    "Ligne 1 : 16,1 bons par heure mesurés pour 16 attendus.",
+    "Ligne 2 : 16,7 bons par heure mesurés pour 16 attendus.",
+    "Ligne 3 : 15,7 bons par heure mesurés pour 16 attendus.",
+    "3 ordre(s) de fabrication ouvert(s)."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_qualite": {
+   "facts": [
+    "Semaine passée : 1 992 produits contrôlés, 241 rebuts."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_emballage": {
+   "facts": [
+    "Semaine passée : 437 cartons et 72 palettes.",
+    "Entrepôt PF : 5 palettes sur 20."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_maintenance": {
+   "facts": [
+    "M3 · Soudage des platines a perdu 63 minutes en panne.",
+    "Semaine passée : 1 panne(s) au total.",
+    "M3 · Soudage des platines (3 lignes) : 1 panne(s) depuis le début, 1,1 attendue(s) sans entretien d'après son MTBF.",
+    "Préventif : 3 fait(s), 0 non fait(s)."
+   ],
+   "urgent": true,
+   "line": "Attention : M3 · Soudage des platines a perdu 63 minutes en panne."
+  },
+  "agent_pilotage": {
+   "facts": [
+    "Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière.",
+    "0 commande(s) ouverte(s), dont 0 en retard.",
+    "Stock fini et en-cours à 297, sous le minimum de 354 : lancer des ordres.",
+    "OTIF à 100 % (objectif 95 %), TRS à 81 % (objectif 80 %)."
+   ],
+   "urgent": true,
+   "line": "Vite : Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière."
+  },
+  "agent_entrepot_pf": {
+   "facts": [
+    "5 palettes en stock sur 20 places."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_client": {
+   "facts": [
+    "0 commande(s) attendue(s) chez nous."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_direction": {
+   "facts": [
+    "Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière.",
+    "Il reste 11 semaine(s) ; objectifs : OTIF 95 %, TRS 80 %, trésorerie d'au moins 226 900 €."
+   ],
+   "urgent": true,
+   "line": "Vite : Cette semaine, perturbations routières : travaux et bouchons sur les routes des fournisseurs : 25 % de risque de retard en plus pour les livraisons de matière."
+  }
+ },
+ "alerts": [
+  {
+   "id": "starved:l1",
+   "level": "critical",
+   "department_id": "stock_mp",
+   "module_id": "pilotage",
+   "text": "Ligne 1 arrêtée 186 min faute de matière.",
+   "ref": "line:l1",
+   "action": null
+  },
+  {
+   "id": "starved:l2",
+   "level": "critical",
+   "department_id": "stock_mp",
+   "module_id": "pilotage",
+   "text": "Ligne 2 arrêtée 186 min faute de matière.",
+   "ref": "line:l2",
+   "action": null
+  },
+  {
+   "id": "starved:l3",
+   "level": "critical",
+   "department_id": "stock_mp",
+   "module_id": "pilotage",
+   "text": "Ligne 3 arrêtée 289 min faute de matière.",
+   "ref": "line:l3",
+   "action": null
+  },
+  {
+   "id": "reorder:c1",
+   "level": "warning",
+   "department_id": "stock_mp",
+   "module_id": "pilotage",
+   "text": "Matière : 6 palettes en stock, 14 en commande, point de commande 24.",
+   "ref": "mp:c1",
+   "action": {
+    "module_id": "pilotage",
+    "action_id": "commander_mp",
+    "values": {
+     "offer": "o2",
+     "pallets": 4
+    }
+   }
+  },
+  {
+   "id": "event:retard_transport",
+   "level": "info",
+   "department_id": null,
+   "module_id": null,
+   "text": "Aléa annoncé pour la semaine qui vient : Perturbations routières.",
+   "ref": null,
+   "action": null
+  }
+ ],
+ "forced": true
+}

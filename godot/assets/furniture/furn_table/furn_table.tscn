@@ -1,0 +1,20 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://assets/asset.gd" id="1_wp8a5"]
+[ext_resource type="PackedScene" path="res://assets/_sources/kenney-furniture-kit/table.glb" id="2_ijoqb"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_1ioup"]
+size = Vector3(2.5, 0.9707031, 1.329114)
+
+[node name="furn_table" type="Node3D" unique_id=946153995]
+script = ExtResource("1_wp8a5")
+asset_id = "furn_table"
+
+[node name="Model" type="Node3D" parent="." unique_id=1462266894 instance=ExtResource("2_ijoqb")]
+transform = Transform3D(2.970928, 0, 0, 0, 2.970928, 0, 0, 0, 2.970928, -1.25, 0, 0.664557)
+
+[node name="Collision" type="StaticBody3D" parent="." unique_id=1933770464]
+
+[node name="Shape" type="CollisionShape3D" parent="Collision" unique_id=1732825077]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.48535156, 0)
+shape = SubResource("BoxShape3D_1ioup")

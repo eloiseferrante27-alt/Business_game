@@ -1,0 +1,90 @@
+{
+ "params": {
+  "pack": "usine",
+  "theme": "industrie",
+  "modules": [
+   "pilotage",
+   "production",
+   "maintenance"
+  ],
+  "extra_agents": [
+   "direction"
+  ],
+  "agent_tone": "exigeant",
+  "difficulty": "expert",
+  "weeks": 12,
+  "events": "rares",
+  "products": 1,
+  "options": {
+   "lines": 3
+  },
+  "company_name": "Mécanique du Bocage",
+  "players_min": 2,
+  "players_max": 6,
+  "seed": 1010,
+  "tunings": {},
+  "event_plan": [],
+  "network": {
+   "fournisseur_economique": "national"
+  }
+ },
+ "fallback": false,
+ "reasons": [],
+ "attempts": 1,
+ "unmet": [
+  "Les cibles chiffrées de la demande sont fixées par le pack, pas par la demande."
+ ],
+ "model": "qwen2.5:3b",
+ "prompt_version": 5,
+ "prompt_tokens": 1258,
+ "completion_tokens": 192,
+ "duration_ms": 4431,
+ "load_ms": 16,
+ "brief_sha256": "4625a925d66b8ca171ad9cae7cc18469fca6165ff1159989dfd75ccd0405f9f0",
+ "essais": [
+  {
+   "params": {
+    "pack": "usine",
+    "theme": "industrie",
+    "modules": [
+     "pilotage",
+     "production",
+     "maintenance"
+    ],
+    "extra_agents": [
+     "direction"
+    ],
+    "agent_tone": "exigeant",
+    "difficulty": "expert",
+    "weeks": 12,
+    "events": "rares",
+    "products": 1,
+    "options": {
+     "lines": 3
+    },
+    "company_name": "Mécanique du Bocage",
+    "players_min": 2,
+    "players_max": 6,
+    "seed": 1010,
+    "tunings": {},
+    "event_plan": [],
+    "network": {
+     "fournisseur_economique": "national"
+    }
+   },
+   "fallback": false,
+   "reasons": [],
+   "attempts": 1,
+   "unmet": [
+    "Les cibles chiffrées de la demande sont fixées par le pack, pas par la demande."
+   ],
+   "model": "qwen2.5:3b",
+   "prompt_version": 5,
+   "prompt_tokens": 1258,
+   "completion_tokens": 192,
+   "duration_ms": 4431,
+   "load_ms": 16,
+   "brief_sha256": "4625a925d66b8ca171ad9cae7cc18469fca6165ff1159989dfd75ccd0405f9f0"
+  }
+ ]
+}

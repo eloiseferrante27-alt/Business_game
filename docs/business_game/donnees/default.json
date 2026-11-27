@@ -1,0 +1,123 @@
+{
+  "id": "default",
+  "name": "Usine de produits du quotidien",
+  "description": "Scénario de base du monde v3 : 4 produits, 4 lignes, un stock unique en 3 parties (MP, semi-finis, PF).",
+  "work_minutes_per_week": 2400,
+
+  "difficulty_profiles": {
+    "facile":    { "stock_multiplier": 1.3, "efficiency": 90.0, "reliability_delta": 6.0,   "capacity": 900, "otif": 97.0 },
+    "normal":    { "stock_multiplier": 1.0, "efficiency": 85.0, "reliability_delta": 0.0,   "capacity": 800, "otif": 94.0 },
+    "difficile": { "stock_multiplier": 0.6, "efficiency": 72.0, "reliability_delta": -14.0, "capacity": 600, "otif": 82.0 }
+  },
+
+  "stock_items": [
+    { "sku": "MAT-01", "name": "Composant · Gourde isotherme",     "category": "MP",  "unit": "unité", "unit_value": 3.64, "initial": 1800, "minimum": 500, "reorder_point": 1500, "reorder_qty": 1500, "capacity_max": 3600 },
+    { "sku": "MAT-02", "name": "Composant · Boîte hermétique",     "category": "MP",  "unit": "unité", "unit_value": 2.80, "initial": 1800, "minimum": 500, "reorder_point": 1500, "reorder_qty": 1500, "capacity_max": 3600 },
+    { "sku": "MAT-03", "name": "Composant · Organiseur modulaire",  "category": "MP",  "unit": "unité", "unit_value": 4.48, "initial": 1800, "minimum": 500, "reorder_point": 1500, "reorder_qty": 1500, "capacity_max": 3600 },
+    { "sku": "MAT-04", "name": "Composant · Lampe atelier LED",    "category": "MP",  "unit": "unité", "unit_value": 6.16, "initial": 1800, "minimum": 500, "reorder_point": 1500, "reorder_qty": 1500, "capacity_max": 3600 },
+    { "sku": "MAT-CART", "name": "Carton d’emballage",            "category": "MP",  "unit": "carton", "unit_value": 0.42, "initial": 1500, "minimum": 400, "reorder_point": 1000, "reorder_qty": 1500, "capacity_max": 4000 },
+
+    { "sku": "SF-01", "name": "Semi-fini · Gourde isotherme",      "category": "SF",  "unit": "pièce", "unit_value": 7.50,  "initial": 120, "minimum": 50, "reorder_point": 80, "reorder_qty": 0, "capacity_max": 1200 },
+    { "sku": "SF-02", "name": "Semi-fini · Boîte hermétique",      "category": "SF",  "unit": "pièce", "unit_value": 5.80,  "initial": 120, "minimum": 50, "reorder_point": 80, "reorder_qty": 0, "capacity_max": 1200 },
+    { "sku": "SF-03", "name": "Semi-fini · Organiseur modulaire",  "category": "SF",  "unit": "pièce", "unit_value": 9.20,  "initial": 120, "minimum": 50, "reorder_point": 80, "reorder_qty": 0, "capacity_max": 1200 },
+    { "sku": "SF-04", "name": "Semi-fini · Lampe atelier LED",     "category": "SF",  "unit": "pièce", "unit_value": 12.70, "initial": 120, "minimum": 50, "reorder_point": 80, "reorder_qty": 0, "capacity_max": 1200 },
+
+    { "sku": "SKU-01", "name": "Gourde isotherme",     "category": "PF", "unit": "pièce", "unit_value": 13.0, "initial": 680, "minimum": 140, "reorder_point": 400, "reorder_qty": 600, "capacity_max": 2000 },
+    { "sku": "SKU-02", "name": "Boîte hermétique",     "category": "PF", "unit": "pièce", "unit_value": 10.0, "initial": 520, "minimum": 100, "reorder_point": 400, "reorder_qty": 600, "capacity_max": 2000 },
+    { "sku": "SKU-03", "name": "Organiseur modulaire", "category": "PF", "unit": "pièce", "unit_value": 16.0, "initial": 440, "minimum": 120, "reorder_point": 400, "reorder_qty": 600, "capacity_max": 2000 },
+    { "sku": "SKU-04", "name": "Lampe atelier LED",    "category": "PF", "unit": "pièce", "unit_value": 22.0, "initial": 360, "minimum": 90,  "reorder_point": 400, "reorder_qty": 600, "capacity_max": 2000 },
+
+    { "sku": "MAT-PDR", "name": "Pièce de rechange", "category": "PDR", "unit": "pièce", "unit_value": 24.0, "initial": 3, "minimum": 2, "reorder_point": 2, "reorder_qty": 4, "capacity_max": 20 }
+  ],
+
+  "products": [
+    { "sku": "SKU-01", "category": "Accessoire nomade", "semi_finished_sku": "SF-01", "bom": { "MAT-01": 1 } },
+    { "sku": "SKU-02", "category": "Rangement cuisine", "semi_finished_sku": "SF-02", "bom": { "MAT-02": 1 } },
+    { "sku": "SKU-03", "category": "Rangement maison",  "semi_finished_sku": "SF-03", "bom": { "MAT-03": 1 } },
+    { "sku": "SKU-04", "category": "Éclairage",         "semi_finished_sku": "SF-04", "bom": { "MAT-04": 1 } }
+  ],
+
+  "routing": {
+    "semi_finished_after_machine": 2,
+    "blocking_breakdown_share": 0.15,
+    "machines": [
+      { "operation": "Préparation",  "cycle_minutes": 2.0, "defect_rate": 2.0, "mtbf_hours": 40,  "mttr_hours": 1.0 },
+      { "operation": "Assemblage",   "cycle_minutes": 1.5, "defect_rate": 1.0, "mtbf_hours": 80,  "mttr_hours": 0.5 },
+      { "operation": "Finition",     "cycle_minutes": 3.0, "defect_rate": 3.0, "mtbf_hours": 60,  "mttr_hours": 1.0 },
+      { "operation": "Vérification", "cycle_minutes": 1.0, "defect_rate": 2.0, "mtbf_hours": 100, "mttr_hours": 0.5 }
+    ]
+  },
+
+  "lines": [
+    { "id": "LINE-01", "name": "Ligne Conditionnement", "product_sku": "SKU-01" },
+    { "id": "LINE-02", "name": "Ligne Assemblage",      "product_sku": "SKU-02" },
+    { "id": "LINE-03", "name": "Ligne Moulage",         "product_sku": "SKU-03" },
+    { "id": "LINE-04", "name": "Ligne Contrôle",        "product_sku": "SKU-04" }
+  ],
+
+  "quality": { "rework_share": 0.65, "rework_recovery": 0.75 },
+
+  "packaging": {
+    "products_per_box": 4,
+    "boxes_per_pallet": 6,
+    "minutes_per_box": 2.0,
+    "minutes_per_pallet_wrap": 5.0,
+    "box_sku": "MAT-CART"
+  },
+
+  "suppliers": [
+    { "id": "SUP-01", "name": "PolyNord Matières",      "specialty": "Polymères recyclés",    "region": "Lille",     "lead_time_weeks": 3, "reliability": 91.0, "nonconformity_rate": 2.0, "prices": { "MAT-01": 3.50, "MAT-02": 2.70, "MAT-03": 4.40 } },
+    { "id": "SUP-02", "name": "Résines Atlantique",     "specialty": "Résines techniques",    "region": "Bordeaux",  "lead_time_weeks": 2, "reliability": 89.0, "nonconformity_rate": 3.0, "prices": { "MAT-01": 3.80, "MAT-02": 2.95, "MAT-03": 4.20 } },
+    { "id": "SUP-03", "name": "Acier & Alliages Ouest", "specialty": "Métaux et pièces",      "region": "Nantes",    "lead_time_weeks": 4, "reliability": 88.0, "nonconformity_rate": 1.5, "prices": { "MAT-01": 3.30, "MAT-04": 6.40 } },
+    { "id": "SUP-04", "name": "Électro Composants Est", "specialty": "Composants électriques","region": "Strasbourg","lead_time_weeks": 2, "reliability": 94.0, "nonconformity_rate": 1.0, "prices": { "MAT-04": 6.90 } },
+    { "id": "SUP-05", "name": "Cartonnerie du Rhône",   "specialty": "Emballages carton",     "region": "Lyon",      "lead_time_weeks": 2, "reliability": 96.0, "nonconformity_rate": 1.0, "prices": { "MAT-CART": 0.42 } },
+    { "id": "SUP-06", "name": "Emballages ÉcoSud",      "specialty": "Emballages durables",   "region": "Toulouse",  "lead_time_weeks": 1, "reliability": 93.0, "nonconformity_rate": 2.0, "prices": { "MAT-CART": 0.55 } },
+    { "id": "SUP-07", "name": "Maintenance Pro",        "specialty": "Pièces de rechange",    "region": "Lyon",      "lead_time_weeks": 1, "reliability": 98.0, "nonconformity_rate": 0.0, "prices": { "MAT-PDR": 24.0 } },
+    { "id": "SUP-08", "name": "Mécanique Express",      "specialty": "Pièces de rechange",    "region": "Marseille", "lead_time_weeks": 2, "reliability": 90.0, "nonconformity_rate": 2.0, "prices": { "MAT-PDR": 19.0 } }
+  ],
+
+  "customers": {
+    "names": ["Hypermarché Atlas", "Centrale Nord", "Boutique Médina", "Distrib Sud"],
+    "weekly_demand": { "SKU-01": 500, "SKU-02": 500, "SKU-03": 500, "SKU-04": 500 },
+    "demand_variability": 0.10,
+    "orders_per_product_per_week": 2,
+    "promised_lead_weeks": 1,
+    "pickup_share": 0.35,
+    "cancel_after_weeks_late": 2
+  },
+
+  "transport": {
+    "own_trucks": 3,
+    "truck_capacity_units": 600
+  },
+
+  "maintenance": { "repairs_per_week": 1 },
+
+  "blocks": [
+    { "id": "stock",               "name": "Stock",                                  "kind": "stock",       "parts": ["MP", "SF", "PF"] },
+    { "id": "quai_dechargement",   "name": "Quai de déchargement",                   "kind": "dock" },
+    { "id": "bureau_reception",    "name": "Bureau de réception",                    "kind": "office" },
+    { "id": "chaine_production",   "name": "Chaîne de production",                   "kind": "production" },
+    { "id": "emballage",           "name": "Emballage",                              "kind": "packaging" },
+    { "id": "logistique_transport","name": "Logistique & Transport",                 "kind": "shipping" },
+    { "id": "controle_qualite",    "name": "Contrôle qualité",                       "kind": "quality" },
+    { "id": "bureau_etude",        "name": "Bureau d’étude des méthodes de production", "kind": "office" },
+    { "id": "maintenance_pdr",     "name": "Maintenance et stock PDR",               "kind": "maintenance" }
+  ],
+
+  "agents": [
+    { "id": "chauffeur-fournisseur", "name": "Chauffeur fournisseur", "role": "chauffeur_fournisseur", "role_label": "Chauffeur fournisseur (externe)", "block_id": "quai_dechargement", "external": true },
+    { "id": "noah",    "name": "Noah",    "role": "receptionnaire",         "role_label": "Réceptionnaire",            "block_id": "bureau_reception",     "also_in": ["quai_dechargement"] },
+    { "id": "maya",    "name": "Maya",    "role": "magasinier_cariste",     "role_label": "Magasinier-cariste",        "block_id": "stock" },
+    { "id": "idriss",  "name": "Idriss",  "role": "chef_de_ligne",          "role_label": "Chef de ligne",             "block_id": "chaine_production" },
+    { "id": "karim",   "name": "Karim",   "role": "operateur_machine",      "role_label": "Opérateur de machine",      "block_id": "chaine_production" },
+    { "id": "yanis",   "name": "Yanis",   "role": "operateur_machine",      "role_label": "Opérateur de machine",      "block_id": "chaine_production" },
+    { "id": "lea",     "name": "Léa",     "role": "controleur_qualite",     "role_label": "Contrôleuse qualité",       "block_id": "controle_qualite" },
+    { "id": "zoe",     "name": "Zoé",     "role": "emballeur",              "role_label": "Emballeuse",                "block_id": "emballage" },
+    { "id": "alice",   "name": "Alice",   "role": "responsable_production", "role_label": "Responsable de production", "block_id": "bureau_etude" },
+    { "id": "sam",     "name": "Sam",     "role": "technicien_maintenance", "role_label": "Technicien de maintenance", "block_id": "maintenance_pdr" },
+    { "id": "amadou",  "name": "Amadou",  "role": "magasinier_logistique",  "role_label": "Magasinier",                "block_id": "logistique_transport" },
+    { "id": "omar",    "name": "Omar",    "role": "chauffeur_livreur",      "role_label": "Chauffeur livreur",         "block_id": "logistique_transport" },
+    { "id": "chauffeur-client", "name": "Chauffeur client", "role": "chauffeur_client", "role_label": "Chauffeur client (externe)", "block_id": "logistique_transport", "external": true }
+  ]
+}

@@ -1,0 +1,104 @@
+{
+ "params": {
+  "pack": "usine",
+  "theme": "industrie",
+  "modules": [
+   "pilotage",
+   "production",
+   "maintenance"
+  ],
+  "extra_agents": [
+   "direction"
+  ],
+  "agent_tone": "mixte",
+  "difficulty": "equilibre",
+  "weeks": 12,
+  "events": "rares",
+  "products": 1,
+  "options": {
+   "lines": 3
+  },
+  "company_name": "Soudures de l'Estuaire",
+  "players_min": 2,
+  "players_max": 6,
+  "seed": 303,
+  "tunings": {
+   "mtbf_factor": "decouverte",
+   "bottleneck_shape": "decouverte",
+   "defect_factor": "decouverte",
+   "promised_days": "decouverte",
+   "demand_variability": "decouverte",
+   "reliability_shift": "decouverte",
+   "mp_stock_days": "decouverte",
+   "pf_stock_days": "decouverte"
+  },
+  "event_plan": [],
+  "network": {
+   "fournisseur_economique": "national"
+  }
+ },
+ "fallback": false,
+ "reasons": [],
+ "attempts": 1,
+ "unmet": [],
+ "model": "qwen2.5:3b",
+ "prompt_version": 5,
+ "prompt_tokens": 1249,
+ "completion_tokens": 213,
+ "duration_ms": 4601,
+ "load_ms": 18,
+ "brief_sha256": "a18c2f293ea7b2cd694cf81070f8a61348abfa3932735dae1024043aa69c85ad",
+ "essais": [
+  {
+   "params": {
+    "pack": "usine",
+    "theme": "industrie",
+    "modules": [
+     "pilotage",
+     "production",
+     "maintenance"
+    ],
+    "extra_agents": [
+     "direction"
+    ],
+    "agent_tone": "mixte",
+    "difficulty": "equilibre",
+    "weeks": 12,
+    "events": "rares",
+    "products": 1,
+    "options": {
+     "lines": 3
+    },
+    "company_name": "Soudures de l'Estuaire",
+    "players_min": 2,
+    "players_max": 6,
+    "seed": 303,
+    "tunings": {
+     "mtbf_factor": "decouverte",
+     "bottleneck_shape": "decouverte",
+     "defect_factor": "decouverte",
+     "promised_days": "decouverte",
+     "demand_variability": "decouverte",
+     "reliability_shift": "decouverte",
+     "mp_stock_days": "decouverte",
+     "pf_stock_days": "decouverte"
+    },
+    "event_plan": [],
+    "network": {
+     "fournisseur_economique": "national"
+    }
+   },
+   "fallback": false,
+   "reasons": [],
+   "attempts": 1,
+   "unmet": [],
+   "model": "qwen2.5:3b",
+   "prompt_version": 5,
+   "prompt_tokens": 1249,
+   "completion_tokens": 213,
+   "duration_ms": 4601,
+   "load_ms": 18,
+   "brief_sha256": "a18c2f293ea7b2cd694cf81070f8a61348abfa3932735dae1024043aa69c85ad"
+  }
+ ]
+}

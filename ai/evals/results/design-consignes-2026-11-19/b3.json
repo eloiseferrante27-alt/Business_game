@@ -1,0 +1,559 @@
+[
+ {
+  "id": "J01",
+  "points": {
+   "niveau": true,
+   "ton": true,
+   "aleas": true,
+   "secteur": true,
+   "unmet": true
+  },
+  "params": {
+   "pack": "usine",
+   "theme": "industrie",
+   "modules": [
+    "pilotage",
+    "production",
+    "maintenance"
+   ],
+   "extra_agents": [
+    "direction"
+   ],
+   "agent_tone": "mixte",
+   "difficulty": "decouverte",
+   "weeks": 4,
+   "events": "aucun",
+   "products": 1,
+   "options": {
+    "lines": 2
+   },
+   "company_name": null,
+   "players_min": 2,
+   "players_max": 6,
+   "seed": 101,
+   "tunings": {},
+   "event_plan": [],
+   "network": {
+    "fournisseur_standard": "proche",
+    "fournisseur_economique": "national"
+   }
+  },
+  "fallback": false,
+  "reasons": [],
+  "attempts": 1,
+  "unmet": [],
+  "model": "qwen2.5:3b",
+  "prompt_version": 4,
+  "prompt_tokens": 1222,
+  "completion_tokens": 194,
+  "duration_ms": 3557,
+  "load_ms": 12,
+  "brief_sha256": "676aa82c1f09401a8d5fdcccb03481332bd4e629f323a1771a3c7481422ad47e"
+ },
+ {
+  "id": "J02",
+  "points": {
+   "niveau": true,
+   "ton": true,
+   "aleas": false,
+   "secteur": false,
+   "unmet": false
+  },
+  "params": {
+   "pack": "usine",
+   "theme": "automobile",
+   "modules": [
+    "pilotage",
+    "production",
+    "maintenance"
+   ],
+   "extra_agents": [],
+   "agent_tone": "mixte",
+   "difficulty": "expert",
+   "weeks": 12,
+   "events": "rares",
+   "products": 1,
+   "options": {
+    "lines": 2
+   },
+   "company_name": null,
+   "players_min": 2,
+   "players_max": 6,
+   "seed": 202,
+   "tunings": {},
+   "event_plan": [],
+   "network": {}
+  },
+  "fallback": true,
+  "reasons": [
+   "tentative 1 : params : Value error, plan d'aléas : une semaine ne porte qu'un aléa",
+   "tentative 2 : params : Value error, plan d'aléas : une semaine ne porte qu'un aléa",
+   "tentative 3 : params : Value error, plan d'aléas : une semaine ne porte qu'un aléa",
+   "repli sur les paramètres par défaut du pack"
+  ],
+  "attempts": 3,
+  "unmet": [],
+  "model": "qwen2.5:3b",
+  "prompt_version": 4,
+  "prompt_tokens": 3786,
+  "completion_tokens": 812,
+  "duration_ms": 19616,
+  "load_ms": 81,
+  "brief_sha256": "b38dc6e07dacb09ba9fb0a4f24bb0f84c669baced6bf13875406998dfff8a48c"
+ },
+ {
+  "id": "J03",
+  "points": {
+   "niveau": true,
+   "ton": true,
+   "aleas": true,
+   "secteur": true,
+   "unmet": true
+  },
+  "params": {
+   "pack": "usine",
+   "theme": "industrie",
+   "modules": [
+    "pilotage",
+    "production",
+    "maintenance"
+   ],
+   "extra_agents": [
+    "direction"
+   ],
+   "agent_tone": "mixte",
+   "difficulty": "equilibre",
+   "weeks": 12,
+   "events": "rares",
+   "products": 1,
+   "options": {
+    "lines": 3
+   },
+   "company_name": "Soudures de l'Estuaire",
+   "players_min": 2,
+   "players_max": 6,
+   "seed": 303,
+   "tunings": {
+    "mtbf_factor": "decouverte",
+    "defect_factor": "expert",
+    "load": "expert",
+    "promised_days": "expert",
+    "demand_variability": "expert",
+    "reliability_shift": "expert",
+    "mp_stock_days": "expert",
+    "pf_stock_days": "expert"
+   },
+   "event_plan": [],
+   "network": {
+    "fournisseur_standard": "proche",
+    "fournisseur_economique": "national"
+   }
+  },
+  "fallback": false,
+  "reasons": [],
+  "attempts": 1,
+  "unmet": [],
+  "model": "qwen2.5:3b",
+  "prompt_version": 4,
+  "prompt_tokens": 1222,
+  "completion_tokens": 200,
+  "duration_ms": 5415,
+  "load_ms": 14,
+  "brief_sha256": "a18c2f293ea7b2cd694cf81070f8a61348abfa3932735dae1024043aa69c85ad"
+ },
+ {
+  "id": "J04",
+  "points": {
+   "niveau": true,
+   "ton": true,
+   "aleas": true,
+   "secteur": true,
+   "unmet": true
+  },
+  "params": {
+   "pack": "usine",
+   "theme": "industrie",
+   "modules": [
+    "production",
+    "maintenance"
+   ],
+   "extra_agents": [
+    "direction"
+   ],
+   "agent_tone": "mixte",
+   "difficulty": "decouverte",
+   "weeks": 12,
+   "events": "rares",
+   "products": 1,
+   "options": {
+    "lines": 3
+   },
+   "company_name": null,
+   "players_min": 2,
+   "players_max": 6,
+   "seed": 404,
+   "tunings": {},
+   "event_plan": [],
+   "network": {
+    "fournisseur_standard": "proche",
+    "fournisseur_economique": "national"
+   }
+  },
+  "fallback": false,
+  "reasons": [],
+  "attempts": 1,
+  "unmet": [],
+  "model": "qwen2.5:3b",
+  "prompt_version": 4,
+  "prompt_tokens": 1208,
+  "completion_tokens": 196,
+  "duration_ms": 5596,
+  "load_ms": 23,
+  "brief_sha256": "51381a3fe055b2b25f59a25bad1e766943d5cf730f19837f8d0267c30cbc7c57"
+ },
+ {
+  "id": "J05",
+  "points": {
+   "niveau": true,
+   "ton": true,
+   "aleas": true,
+   "secteur": true,
+   "unmet": true
+  },
+  "params": {
+   "pack": "usine",
+   "theme": "automobile",
+   "modules": [
+    "pilotage"
+   ],
+   "extra_agents": [
+    "direction"
+   ],
+   "agent_tone": "mixte",
+   "difficulty": "decouverte",
+   "weeks": 12,
+   "events": "rares",
+   "products": 1,
+   "options": {
+    "lines": 3
+   },
+   "company_name": null,
+   "players_min": 2,
+   "players_max": 6,
+   "seed": 505,
+   "tunings": {},
+   "event_plan": [],
+   "network": {
+    "fournisseur_standard": "proche",
+    "fournisseur_economique": "national"
+   }
+  },
+  "fallback": false,
+  "reasons": [],
+  "attempts": 1,
+  "unmet": [],
+  "model": "qwen2.5:3b",
+  "prompt_version": 4,
+  "prompt_tokens": 1227,
+  "completion_tokens": 179,
+  "duration_ms": 9454,
+  "load_ms": 62,
+  "brief_sha256": "21dc03f0c39b75ea0f90a5d2b001d566976593031046b5705db953da78cdb370"
+ },
+ {
+  "id": "J06",
+  "points": {
+   "niveau": true,
+   "ton": true,
+   "aleas": false,
+   "secteur": true,
+   "unmet": true
+  },
+  "params": {
+   "pack": "usine",
+   "theme": "industrie",
+   "modules": [
+    "pilotage",
+    "production",
+    "maintenance"
+   ],
+   "extra_agents": [
+    "direction"
+   ],
+   "agent_tone": "exigeant",
+   "difficulty": "expert",
+   "weeks": 12,
+   "events": "aucun",
+   "products": 1,
+   "options": {
+    "lines": 3
+   },
+   "company_name": null,
+   "players_min": 2,
+   "players_max": 6,
+   "seed": 606,
+   "tunings": {
+    "mp_stock_days": "decouverte",
+    "pf_stock_days": "decouverte"
+   },
+   "event_plan": [],
+   "network": {
+    "fournisseur_standard": "national",
+    "fournisseur_economique": "national"
+   }
+  },
+  "fallback": false,
+  "reasons": [],
+  "attempts": 1,
+  "unmet": [],
+  "model": "qwen2.5:3b",
+  "prompt_version": 4,
+  "prompt_tokens": 1223,
+  "completion_tokens": 176,
+  "duration_ms": 5532,
+  "load_ms": 156,
+  "brief_sha256": "05a9d00fae201eed53695b504c2ff1da40f5c810daac48cd7abd5230dc3db080"
+ },
+ {
+  "id": "J07",
+  "points": {
+   "niveau": true,
+   "ton": false,
+   "aleas": true,
+   "secteur": true,
+   "unmet": false
+  },
+  "params": {
+   "pack": "usine",
+   "theme": "industrie",
+   "modules": [
+    "pilotage",
+    "production",
+    "maintenance"
+   ],
+   "extra_agents": [
+    "direction"
+   ],
+   "agent_tone": "mixte",
+   "difficulty": "equilibre",
+   "weeks": 12,
+   "events": "rares",
+   "products": 1,
+   "options": {
+    "lines": 3
+   },
+   "company_name": "Soudures de l'Estuaire",
+   "players_min": 2,
+   "players_max": 6,
+   "seed": 303,
+   "tunings": {
+    "mtbf_factor": "decouverte",
+    "defect_factor": "expert",
+    "load": "expert",
+    "promised_days": "expert",
+    "demand_variability": "expert",
+    "reliability_shift": "expert",
+    "mp_stock_days": "expert",
+    "pf_stock_days": "expert"
+   },
+   "event_plan": [],
+   "network": {
+    "fournisseur_standard": "proche",
+    "fournisseur_economique": "national"
+   }
+  },
+  "fallback": false,
+  "reasons": [],
+  "attempts": 1,
+  "unmet": [
+   "lot.mp.non conforme",
+   "vague.de.chaleur"
+  ],
+  "model": "qwen2.5:3b",
+  "prompt_version": 4,
+  "prompt_tokens": 1402,
+  "completion_tokens": 44,
+  "duration_ms": 2266,
+  "load_ms": 14,
+  "brief_sha256": "a18c2f293ea7b2cd694cf81070f8a61348abfa3932735dae1024043aa69c85ad"
+ },
+ {
+  "id": "J08",
+  "points": {
+   "niveau": false,
+   "ton": true,
+   "aleas": false,
+   "secteur": true,
+   "unmet": true
+  },
+  "params": {
+   "pack": "usine",
+   "theme": "automobile",
+   "modules": [
+    "pilotage",
+    "production",
+    "maintenance"
+   ],
+   "extra_agents": [],
+   "agent_tone": "mixte",
+   "difficulty": "expert",
+   "weeks": 12,
+   "events": "rares",
+   "products": 1,
+   "options": {
+    "lines": 2
+   },
+   "company_name": null,
+   "players_min": 2,
+   "players_max": 6,
+   "seed": 202,
+   "tunings": {},
+   "event_plan": [],
+   "network": {}
+  },
+  "fallback": false,
+  "reasons": [],
+  "attempts": 1,
+  "unmet": [],
+  "model": "qwen2.5:3b",
+  "prompt_version": 4,
+  "prompt_tokens": 1311,
+  "completion_tokens": 121,
+  "duration_ms": 4849,
+  "load_ms": 9,
+  "brief_sha256": "b38dc6e07dacb09ba9fb0a4f24bb0f84c669baced6bf13875406998dfff8a48c"
+ },
+ {
+  "id": "J09",
+  "points": {
+   "niveau": true,
+   "ton": true,
+   "aleas": true,
+   "secteur": true,
+   "unmet": false
+  },
+  "params": {
+   "pack": "usine",
+   "theme": "industrie",
+   "modules": [
+    "pilotage",
+    "production",
+    "maintenance"
+   ],
+   "extra_agents": [
+    "direction"
+   ],
+   "agent_tone": "exigeant",
+   "difficulty": "expert",
+   "weeks": 5,
+   "events": "rares",
+   "products": 1,
+   "options": {
+    "lines": 3
+   },
+   "company_name": null,
+   "players_min": 2,
+   "players_max": 6,
+   "seed": 909,
+   "tunings": {},
+   "event_plan": [
+    {
+     "week": 2,
+     "event_id": "retard_transport"
+    },
+    {
+     "week": 3,
+     "event_id": "hausse_matieres"
+    },
+    {
+     "week": 4,
+     "event_id": "commande_exceptionnelle"
+    }
+   ],
+   "network": {
+    "fournisseur_standard": "national",
+    "fournisseur_economique": "import"
+   }
+  },
+  "fallback": false,
+  "reasons": [],
+  "attempts": 1,
+  "unmet": [
+   "lot.mp.non conforme",
+   "vague.de.chaleur"
+  ],
+  "model": "qwen2.5:3b",
+  "prompt_version": 4,
+  "prompt_tokens": 1217,
+  "completion_tokens": 237,
+  "duration_ms": 14741,
+  "load_ms": 41,
+  "brief_sha256": "74ac3253e71ad060d4b7a28dc86c917f1241c09ea07ed70a3e7044e3930ef733"
+ },
+ {
+  "id": "J10",
+  "points": {
+   "niveau": true,
+   "ton": true,
+   "aleas": true,
+   "secteur": false,
+   "unmet": false
+  },
+  "params": {
+   "pack": "usine",
+   "theme": "industrie",
+   "modules": [
+    "pilotage",
+    "production",
+    "maintenance"
+   ],
+   "extra_agents": [
+    "direction"
+   ],
+   "agent_tone": "mixte",
+   "difficulty": "expert",
+   "weeks": 12,
+   "events": "rares",
+   "products": 1,
+   "options": {
+    "lines": 3
+   },
+   "company_name": "Mécanique du Bocage",
+   "players_min": 2,
+   "players_max": 6,
+   "seed": 1010,
+   "tunings": {},
+   "event_plan": [
+    {
+     "week": 2,
+     "event_id": "retard_transport"
+    },
+    {
+     "week": 3,
+     "event_id": "hausse_matieres"
+    },
+    {
+     "week": 4,
+     "event_id": "lot_mp_non_conforme"
+    }
+   ],
+   "network": {
+    "fournisseur_standard": "proche",
+    "fournisseur_economique": "national"
+   }
+  },
+  "fallback": false,
+  "reasons": [],
+  "attempts": 1,
+  "unmet": [
+   "lot de matière non conforme"
+  ],
+  "model": "qwen2.5:3b",
+  "prompt_version": 4,
+  "prompt_tokens": 1231,
+  "completion_tokens": 259,
+  "duration_ms": 8113,
+  "load_ms": 36,
+  "brief_sha256": "4625a925d66b8ca171ad9cae7cc18469fca6165ff1159989dfd75ccd0405f9f0"
+ }
+]

@@ -1,0 +1,9 @@
+{
+ "id": "J01",
+ "seed": 101,
+ "brief": "Séance découverte pour des lycéens en forum des métiers : une PME qui soude des équipements en acier pour un distributeur de bricolage, sans mauvaise surprise.",
+ "fixed": {
+  "weeks": 4,
+  "events": "aucun"
+ }
+}

@@ -1,0 +1,10 @@
+{
+ "id": "J02",
+ "seed": 202,
+ "brief": "Des managers d'un sous-traitant automobile veulent un défi dur sur l'approvisionnement : fournisseurs peu fiables, stocks bas, pannes fréquentes et beaucoup d'aléas.",
+ "fixed": {
+  "theme": "automobile",
+  "difficulty": "expert",
+  "weeks": 12
+ }
+}

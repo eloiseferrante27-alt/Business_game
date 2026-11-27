@@ -1,0 +1,37 @@
+{
+ "id": "J08",
+ "seed": 808,
+ "brief": "Des managers d'un sous-traitant automobile veulent un défi dur sur l'approvisionnement : fournisseurs peu fiables, stocks bas, pannes fréquentes et beaucoup d'aléas.",
+ "regen": {
+  "from": "J02",
+  "section": "objectifs",
+  "note": "Plus indulgent : des pannes rares, et des aléas seulement dans les dernières semaines."
+ },
+ "keep_envoye": {
+  "pack": "usine",
+  "theme": "automobile",
+  "modules": [
+   "pilotage",
+   "production",
+   "maintenance"
+  ],
+  "extra_agents": [
+   "direction"
+  ],
+  "agent_tone": "exigeant",
+  "weeks": 12,
+  "products": 1,
+  "options": {
+   "lines": 3
+  },
+  "company_name": null,
+  "players_min": 2,
+  "players_max": 6,
+  "seed": 202,
+  "network": {
+   "fournisseur_standard": "national",
+   "fournisseur_economique": "national"
+  }
+ },
+ "note": "Plus indulgent : des pannes rares, et des aléas seulement dans les dernières semaines."
+}

@@ -1,0 +1,11 @@
+{
+ "id": "J04",
+ "seed": 404,
+ "brief": "Des étudiants en licence doivent comprendre la maintenance préventive et pourquoi les pannes arrêtent les lignes ; les achats ne sont pas le sujet.",
+ "fixed": {
+  "modules": [
+   "production",
+   "maintenance"
+  ]
+ }
+}

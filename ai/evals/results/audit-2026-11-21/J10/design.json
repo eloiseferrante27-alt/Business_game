@@ -1,0 +1,96 @@
+{
+ "params": {
+  "pack": "usine",
+  "theme": "industrie",
+  "modules": [
+   "pilotage",
+   "production",
+   "maintenance"
+  ],
+  "extra_agents": [
+   "direction"
+  ],
+  "agent_tone": "mixte",
+  "difficulty": "expert",
+  "weeks": 12,
+  "events": "rares",
+  "products": 1,
+  "options": {
+   "lines": 3
+  },
+  "company_name": "Mécanique du Bocage",
+  "players_min": 2,
+  "players_max": 6,
+  "seed": 1010,
+  "tunings": {
+   "mtbf_factor": "decouverte",
+   "mp_stock_days": "decouverte",
+   "pf_stock_days": "decouverte"
+  },
+  "event_plan": [],
+  "network": {
+   "fournisseur_standard": "proche",
+   "fournisseur_economique": "national"
+  }
+ },
+ "fallback": false,
+ "reasons": [],
+ "attempts": 1,
+ "unmet": [],
+ "model": "qwen2.5:3b",
+ "prompt_version": 4,
+ "prompt_tokens": 1236,
+ "completion_tokens": 206,
+ "duration_ms": 4324,
+ "load_ms": 8,
+ "brief_sha256": "4625a925d66b8ca171ad9cae7cc18469fca6165ff1159989dfd75ccd0405f9f0",
+ "essais": [
+  {
+   "params": {
+    "pack": "usine",
+    "theme": "industrie",
+    "modules": [
+     "pilotage",
+     "production",
+     "maintenance"
+    ],
+    "extra_agents": [
+     "direction"
+    ],
+    "agent_tone": "mixte",
+    "difficulty": "expert",
+    "weeks": 12,
+    "events": "rares",
+    "products": 1,
+    "options": {
+     "lines": 3
+    },
+    "company_name": "Mécanique du Bocage",
+    "players_min": 2,
+    "players_max": 6,
+    "seed": 1010,
+    "tunings": {
+     "mtbf_factor": "decouverte",
+     "mp_stock_days": "decouverte",
+     "pf_stock_days": "decouverte"
+    },
+    "event_plan": [],
+    "network": {
+     "fournisseur_standard": "proche",
+     "fournisseur_economique": "national"
+    }
+   },
+   "fallback": false,
+   "reasons": [],
+   "attempts": 1,
+   "unmet": [],
+   "model": "qwen2.5:3b",
+   "prompt_version": 4,
+   "prompt_tokens": 1236,
+   "completion_tokens": 206,
+   "duration_ms": 4324,
+   "load_ms": 8,
+   "brief_sha256": "4625a925d66b8ca171ad9cae7cc18469fca6165ff1159989dfd75ccd0405f9f0"
+  }
+ ]
+}

@@ -1,0 +1,90 @@
+{
+ "params": {
+  "pack": "usine",
+  "theme": "industrie",
+  "modules": [
+   "pilotage",
+   "production",
+   "maintenance"
+  ],
+  "extra_agents": [
+   "direction"
+  ],
+  "agent_tone": "exigeant",
+  "difficulty": "expert",
+  "weeks": 12,
+  "events": "rares",
+  "products": 1,
+  "options": {
+   "lines": 3
+  },
+  "company_name": null,
+  "players_min": 2,
+  "players_max": 6,
+  "seed": 606,
+  "tunings": {
+   "mtbf_factor": "decouverte"
+  },
+  "event_plan": [],
+  "network": {
+   "fournisseur_economique": "national"
+  }
+ },
+ "fallback": false,
+ "reasons": [],
+ "attempts": 1,
+ "unmet": [],
+ "model": "qwen2.5:3b",
+ "prompt_version": 5,
+ "prompt_tokens": 1250,
+ "completion_tokens": 173,
+ "duration_ms": 4324,
+ "load_ms": 12,
+ "brief_sha256": "05a9d00fae201eed53695b504c2ff1da40f5c810daac48cd7abd5230dc3db080",
+ "essais": [
+  {
+   "params": {
+    "pack": "usine",
+    "theme": "industrie",
+    "modules": [
+     "pilotage",
+     "production",
+     "maintenance"
+    ],
+    "extra_agents": [
+     "direction"
+    ],
+    "agent_tone": "exigeant",
+    "difficulty": "expert",
+    "weeks": 12,
+    "events": "rares",
+    "products": 1,
+    "options": {
+     "lines": 3
+    },
+    "company_name": null,
+    "players_min": 2,
+    "players_max": 6,
+    "seed": 606,
+    "tunings": {
+     "mtbf_factor": "decouverte"
+    },
+    "event_plan": [],
+    "network": {
+     "fournisseur_economique": "national"
+    }
+   },
+   "fallback": false,
+   "reasons": [],
+   "attempts": 1,
+   "unmet": [],
+   "model": "qwen2.5:3b",
+   "prompt_version": 5,
+   "prompt_tokens": 1250,
+   "completion_tokens": 173,
+   "duration_ms": 4324,
+   "load_ms": 12,
+   "brief_sha256": "05a9d00fae201eed53695b504c2ff1da40f5c810daac48cd7abd5230dc3db080"
+  }
+ ]
+}
