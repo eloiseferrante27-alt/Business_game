@@ -225,14 +225,17 @@ class GameParams(BaseModel):
         """Champs de l'ADR 0013 : refusés si le pack ne les déclare pas (une contrainte n'est jamais ignorée)."""
         errors = []
         limits = pack.get("limits", {})
-        for key in ("suppliers", "clients", "buildings"):
-            value = getattr(self, key)
+        # annexe 0013 §3 bis, complément 11 : clients None = un par produit, contrôlé si le pack déclare limits.clients
+        clients = self.products if self.clients is None and "clients" in limits else self.clients
+        for key, value in (("suppliers", self.suppliers), ("clients", clients), ("buildings", self.buildings)):
             if value is None:
                 continue
             if key not in limits:
                 errors.append(f"{key} : non réglable pour le pack {self.pack}")
             elif not limits[key][0] <= value <= limits[key][1]:
                 errors.append(f"{key} : entre {limits[key][0]} et {limits[key][1]} pour le pack {self.pack}")
+        if "clients" in limits and clients is not None and clients < self.products:
+            errors.append(f"clients : au moins un par produit ({self.products} produits, {clients} clients)")
         if self.ambiance is not None and self.ambiance not in pack.get("ambiances", {}):
             errors.append(f"ambiance inconnue du pack {self.pack} : {self.ambiance}")
         archetypes = pack.get("building_archetypes", {})
@@ -287,6 +290,8 @@ class Component(BaseModel):
     initial_stock: int = Field(ge=0)
     safety_stock: int = Field(ge=0)
     product_id: str
+    # usine (annexe 0013 §3 bis, complément 2) : palette de cette matière ; None = logistics.units_per_pallet_mp
+    units_per_pallet: int | None = Field(default=None, gt=0)
 
 
 class Supplier(BaseModel):
@@ -802,6 +807,8 @@ class Factory(BaseModel):
     )
     mp_safety_days: float = Field(default=1, ge=0, description="stock de sécurité matière (jours) du point de commande")
     initial_order: InitialOrder | None = None
+    # matières c2 et c3 (annexe 0013 §3 bis, complément 3) : une commande initiale par matière, initial_order compris
+    initial_orders: list[InitialOrder] = Field(default_factory=list, max_length=2)
     bom: list[BomItem] = Field(min_length=1)
     machines: list[Machine] = Field(min_length=1)
     crew: list[CrewMember] = Field(default_factory=list)
@@ -1659,13 +1666,22 @@ class SimSpec(BaseModel):
         for name, (start, end) in (
             ("créneau d'enlèvement du client", factory.customer.pickup_window_min),
             ("créneau de livraison du fournisseur", factory.logistics.delivery_window_min),
+            *((f"créneau d'enlèvement du client {c.id}", c.pickup_window_min) for c in factory.clients),
         ):
             if not 0 <= start < end <= day:
                 errors.append(f"{name} : 0 <= début < fin <= {day} minutes attendu")
         if factory.product_id not in ids["products"]:
             errors.append(f"usine : produit inconnu {factory.product_id}")
-        if factory.initial_order and factory.initial_order.offer_id not in {o.id for o in self.offers}:
-            errors.append(f"usine : commande initiale sur une offre inconnue {factory.initial_order.offer_id}")
+        # annexe 0013 §3 bis, complément 3 : offres connues, une commande initiale par matière au plus
+        component_of = {o.id: o.component_id for o in self.offers}
+        ordered: list[str] = []
+        for order in ([factory.initial_order] if factory.initial_order else []) + factory.initial_orders:
+            if order.offer_id not in component_of:
+                errors.append(f"usine : commande initiale sur une offre inconnue {order.offer_id}")
+            else:
+                ordered.append(component_of[order.offer_id])
+        errors += [f"usine : une commande initiale par matière au plus ({c})" for c in sorted(set(ordered))
+                   if ordered.count(c) > 1]  # fmt: skip
         if not any(b.product_id for b in factory.bom):  # nomenclature unique : un seul produit fabriqué
             errors += [
                 f"ligne {line.id} : produit {line.product_id} différent de celui de l'usine ({factory.product_id})"
@@ -1682,12 +1698,27 @@ class SimSpec(BaseModel):
             for b in factory.bom
             if b.component_id not in ids["components"] or (b.product_id and b.product_id not in ids["products"])
         ]
+        # annexe 0013 §3 bis, complément 1 : factory.Plant ne joue qu'une matière par produit, jamais partagée
+        bom_by_product: dict[str, list[str]] = {}
+        for b in factory.bom:
+            bom_by_product.setdefault(b.product_id or factory.product_id, []).append(b.component_id)
+        errors += [f"usine : produit {p} : une seule matière ({len(c)} articles)"
+                   for p, c in sorted(bom_by_product.items()) if len(c) > 1]  # fmt: skip
+        users: dict[str, set[str]] = {}
+        for product, components in bom_by_product.items():
+            for component in components:
+                users.setdefault(component, set()).add(product)
+        errors += [f"usine : matière {c} partagée par {' et '.join(sorted(makers))}"
+                   for c, makers in sorted(users.items()) if len(makers) > 1]  # fmt: skip
         clients = [c.id for c in factory.clients]
         if len(set(clients)) != len(clients):
             errors.append("identifiants de client en double")
         site_ids = {s.id for s in self.world.sites}
         errors += [f"client {c.id} : produit ou site inconnus" for c in factory.clients
                    if c.product_id not in ids["products"] or (c.site_id and c.site_id not in site_ids)]  # fmt: skip
+        if factory.clients:  # complément 7 : chaque produit a au moins un client
+            served = {c.product_id for c in factory.clients}
+            errors += [f"usine : produit {p} sans client" for p in sorted(ids["products"] - served)]
         machine_ids = [m.id for m in factory.machines]
         if len(set(machine_ids)) != len(machine_ids):
             errors.append("identifiants de machine en double")

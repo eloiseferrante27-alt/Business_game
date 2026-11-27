@@ -19,6 +19,9 @@ Ingestion d'un domaine : déposer les fichiers dans `knowledge/<domaine>/`, les 
 .\scripts\ingest.ps1 -Domain supply-chain    # ingestion + mesure de couverture (ai/evals/<domaine>.rag.jsonl)
 ```
 
+Réingestion : `ingest_bytes` (`backend/gmix/rag/ingest.py`) supprime les anciennes versions d'un fichier (même domaine, même nom, sha256 différent).
+Mesuré le 27/11 : `finance-entreprise` 14/14 (12 documents), `supply-chain` 35/38.
+
 Articles Wikipédia (CC BY-SA 4.0, déclarés automatiquement dans SOURCES.md), depuis `backend/` :
 
 ```powershell

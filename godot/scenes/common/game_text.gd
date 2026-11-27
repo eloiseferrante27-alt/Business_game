@@ -279,6 +279,13 @@ static func factory_dashboard_bbcode(spec: Dictionary, state: Dictionary) -> Str
 	var finished: Variant = stocks.get("pf")
 	if finished is Dictionary:
 		out.append("• Produits finis : %s palettes sur %s places" % [number(finished.get("pallets")), number(finished.get("capacity_pallets"))])
+	var by_product: Array = factory.get("by_product", [])
+	if by_product.size() > 1:  # à un seul produit, le bloc doublerait les stocks
+		out.append("\n[b]Par produit[/b]")
+		for p: Dictionary in by_product:
+			var otif := "n.d." if p.get("otif") == null else kpi_value("%", p["otif"])
+			var late := p.get("otif") != null and float(p["otif"]) < 90.0  # seuil d'attention du panneau par_produit
+			out.append("• %s : %s produits (%s palettes), %s expédiés, OTIF %s" % [esc(p.get("name", "?")), number(p.get("quantity")), number(p.get("pallets")), number(p.get("shipped")), "[color=%s]%s[/color]" % [ORANGE, otif] if late else otif])
 	out.append("\n" + history_bbcode(state.get("history", [])))
 	return "\n".join(out)
 

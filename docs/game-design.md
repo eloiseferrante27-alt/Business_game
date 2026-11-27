@@ -37,7 +37,7 @@ Les routes et les droits sont dans docs/roles.md.
 | Lignes | 1 à 3 (défaut 2), 4 machines en série chacune |
 | Durée | 4 à 12 semaines (défaut 6) |
 | Semaine | 5 jours de 480 min, début à 8 h, pas de 5 min ; pauses de 10, 20 et 10 min ; simulée minute par minute puis rejouée en 3D |
-| Secteurs | industrie, automobile (un produit) |
+| Secteurs | industrie, automobile (1 à 3 produits depuis T4b) |
 | Difficultés | découverte (charge 80 %), équilibré (85 %), expert (92 %, livraison à J+1) |
 | Aléas | niveau aucun, rares (probabilité 0,25) ou fréquents (0,5) ; 6 aléas : retard de transport, hausse des matières, commande exceptionnelle, creux de demande, lot de matière non conforme, vague de chaleur |
 | Cibles | OTIF 95 %, TRS 80 % (`criteria.trs` de `ai/packs/usine.yaml`, recalibré le 19/11 de 78 à 80, convention du jeu ; T0 signé le 21/11), 0 jour-ligne en rupture de matière, trésorerie finale >= départ + 60 % du gain du pilote automatique |
@@ -64,12 +64,26 @@ Un module sans titulaire tourne en pilote automatique (sauf la semaine où le fo
 | Secteur et domaine | secteurs, produits, notions citées | aucun | choix du domaine, du secteur, des notions visées | moteur du pack |
 | Modules et mécaniques | modules, actions, aléas, réglages | aucun | modules joués, réglages, plan d'aléas, objectifs | effets, verdict |
 | Rôles et PNJ (T7) | rôles, caractères, clés de faits | prénoms, figurants | découpage des rôles, caractères, présentations | faits des PNJ |
-| Produits et réseau | 1 à 4 produits (cible T4b), 3 à 8 fournisseurs, 1 à 4 clients (cible T4b) | choix dans les listes | nombres, classes de distance | délais, prix, OTIF |
+| Produits et réseau | 1 à 3 produits, 3 à 8 fournisseurs, 1 à 4 clients (T4b) | choix dans les listes | nombres, classes de distance | délais, prix, OTIF |
 | Bâtiments et pièces | archétypes, zonage sourcé | tailles, positions, pièces, portes | programme de bâtiments | temps de trajet |
 | Visuel | variantes d'assets importés | variante par objet, décor | ambiance | rien |
 | Sources du formateur (T8) | aucune | aucun | passages validés cités | aucun chiffre de document |
 
-Aujourd'hui (27/11, T4 et T5 livrés) : 1 produit, 3 à 8 fournisseurs (`params.suppliers`), 1 client, types de machine m1 à m4 par rang, 1 à 3 bâtiments (`params.buildings`) ou hall en U, taille et décor tirés de la graine, 3 rôles, aucun texte conçu. Multi-produits et clients : T4b (après T5, avant D2). Règle : le moteur seul calcule, une disposition vient de la graine, l'IA choisit dans un schéma fermé.
+Aujourd'hui (27/11, T4, T5 et T4b livrés) : 1 à 3 produits, 3 à 8 fournisseurs (`params.suppliers`), 1 à 4 clients, types de machine m1 à m4 par rang, 1 à 3 bâtiments (`params.buildings`) ou hall en U, taille et décor tirés de la graine, 3 rôles, aucun texte conçu. Règle : le moteur seul calcule, une disposition vient de la graine, l'IA choisit dans un schéma fermé.
+
+**Plusieurs produits et clients (T4b, pack usine)** :
+
+| Règle | Détail |
+|---|---|
+| Bornes | `limits.products` [1,3,1], `limits.clients` [1,4,1] ; au moins un client par produit ; clients = produits par défaut |
+| Lignes | une par produit : lignes = max(option `lines`, produits) |
+| Demande | partagée à parts égales (`partage_demande = parts_egales`) : `d // n`, plus 1 pour les `d % n` premiers clients |
+| Clients c2 à c4 | sites `client_b`, `client_c`, `client_d` clonés par `layout._build_network` ; le PNJ client ne parle que de c1 |
+| Calibrage (plus d'un produit seulement) | `factory_generation._calibrate` : entrepôt de produits finis à 30 palettes à 3 lignes (`entrepot_pf.lignes_cahier`, loi de Little) ; camion de matière du pilote : `factory_game._truck` ; une partie à 1 produit reste identique |
+| Affichage | bloc « Par produit » (`report.by_product`, `godot/scenes/common/game_text.gd`) si plus d'un produit ; vue publique `factory.by_product` ; commandes avec `client_id` et `product_id` ; faits des PNJ par matière et par produit |
+| Tests | `backend/tests/test_t4b_contract.py` + `fixtures/t4b_reference.json` (12 parties) ; régénération : `cd backend; .venv\Scripts\python -m tests.test_t4b_contract` |
+
+Mesures du 27/11 : 3 produits, 3 ou 4 clients, 3 difficultés, 2 secteurs, graines 1 à 3, 1 et 3 bâtiments : jouable 6/6 partout, OTIF minimal 98,6, au plus 2 semaines de rupture en expert. 3 produits, 4 clients, 3 bâtiments : `advance` 0,109 s, vue publique 22 188 caractères, génération environ 1,0 s ; quai à 4 clients environ 35 min de chargement par jour, aucun camion après 16 h. Le chariot garde sa vitesse (sourcée) même s'il ne limite pas 4 semaines.
 
 **Second domaine** : la finance d'entreprise (trésorerie et BFR d'une PME), décidé le 21/11 (ADR 0013 §6.2) (`finance-entreprise`, moteur `factory`, D0 fait) ; pack, corpus et audit en D1 à D3, non livrés.
 

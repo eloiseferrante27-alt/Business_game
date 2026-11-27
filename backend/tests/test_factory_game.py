@@ -183,10 +183,25 @@ def test_varied_factories_draw_machine_types_by_rank_and_keep_the_bottleneck() -
         assert max(first, key=lambda m: m["cycle_min"])["rank"] == 3
 
 
-def test_several_products_or_clients_are_refused_until_the_engine_plays_them() -> None:
-    for extra in ({"products": 2}, {"clients": 2}):
-        with pytest.raises(ValueError, match="entre 1 et 1"):
+def test_products_and_clients_outside_the_bounds_are_refused() -> None:
+    for extra in ({"products": 4, "clients": 4}, {"products": 1, "clients": 5}):
+        with pytest.raises(ValueError, match="less_than_equal|entre 1 et"):
             generate(GameParams(pack="usine", theme="industrie", modules=MODULES, seed=1, **extra))
+
+
+def test_three_products_four_clients_expert_is_playable() -> None:
+    spec = generate(GameParams(pack="usine", theme="industrie", modules=MODULES, seed=1, products=3, clients=4,
+                               difficulty="expert", buildings=3))  # fmt: skip
+    check = autopilot_check(spec)
+    assert check["playable"] and check["otif_mean"] >= 95
+
+
+def test_the_warehouse_grows_with_the_lines_only_for_several_products() -> None:
+    def pf(**kw: Any) -> int:
+        params = GameParams(pack="usine", theme="industrie", modules=MODULES, seed=1, **kw)
+        return generate(params)["factory"]["logistics"]["pf_capacity_pallets"]
+
+    assert pf(products=3, clients=3) == 30 and pf(products=1, options={"lines": 3}) == 20
 
 
 def test_the_world_is_placed_and_every_agent_has_a_route() -> None:

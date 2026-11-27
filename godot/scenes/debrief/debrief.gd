@@ -152,6 +152,12 @@ static func _body(box: Control, report: Dictionary) -> void:
 		box.add_child(Ui.label("Pannes et arrêt des goulots", 24))
 		for b: Dictionary in bottlenecks:
 			box.add_child(Ui.label(_bottleneck_line(b), 0, Ui.TEXT, true))
+	var by_product: Array = report.get("by_product", [])
+	if by_product.size() > 1:  # à un seul produit, le bloc doublerait le bilan
+		box.add_child(Ui.label("Par produit", 24))
+		for p: Dictionary in by_product:
+			var otif := "n.d." if p.get("otif") == null else GameText.kpi_value("%", p["otif"])
+			box.add_child(Ui.label("%s : %s produits (%s palettes), %s expédiés, OTIF %s" % [p.get("name", ""), GameText.number(p.get("quantity")), GameText.number(p.get("pallets")), GameText.number(p.get("shipped")), otif], 0, Ui.TEXT, true))
 	var text := Ui.rich()
 	text.text = GameText.debrief_bbcode(report, false)
 	box.add_child(text)

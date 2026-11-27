@@ -156,12 +156,16 @@ async def test_pack_options_and_validation() -> None:
         assert [t["id"] for t in atelier["themes"]] == [t["id"] for t in options["themes"]]  # clés d'origine = atelier
         assert [m["id"] for m in atelier["modules"]] == [m["id"] for m in options["modules"]]
         assert usine["engine"] == "factory" and [p["id"] for p in usine["params"]] == ["lines"]
-        assert usine["limits"]["products"][:2] == [1, 1] and {m["id"] for m in usine["modules"]} >= {"pilotage"}
+        assert (
+            usine["limits"]["products"] == [1, 3, 1]
+            and usine["limits"]["clients"] == [1, 4, 1]
+            and {m["id"] for m in usine["modules"]} >= {"pilotage"}
+        )
 
         atelier_params = USINE | {"pack": "atelier", "modules": ["production"], "products": 2, "options": {}}
         for bad in (
             USINE | {"pack": "inconnu"}, USINE | {"options": {"lines": 9}}, USINE | {"options": {"voies": 1}},
-            USINE | {"products": 2}, USINE | {"clients": 2},  # hors limites (T4b)
+            USINE | {"products": 4}, USINE | {"products": 0}, USINE | {"clients": 5},  # hors limites (T4b)
             USINE | {"buildings": 4}, USINE | {"buildings": 0},  # T5 : bornes appliquées côté serveur
             USINE | {"modules": ["approvisionnement"]},  # hors pack
             atelier_params | {"options": {"lines": 2}},  # l'atelier n'a pas d'option

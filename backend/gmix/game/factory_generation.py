@@ -30,20 +30,19 @@ def generate_factory(params: GameParams) -> dict[str, Any]:
         level[key] = pack["difficulties"][profile][key]
     theme = pack["themes"][params.theme]
     company = params.company_name or rng.choice(theme["companies"])
-    item = theme["products"][rng.randrange(len(theme["products"]))]
-    n_lines = int(params.options.get("lines", DEFAULT_LINES))
+    first = rng.randrange(len(theme["products"]))
+    # produit k = products[(i + k - 1) mod n] (annexe 0013 §3 bis, complément 8) ; une ligne au moins par produit
+    items = [theme["products"][(first + k) % len(theme["products"])] for k in range(params.products)]
+    n_lines = max(int(params.options.get("lines", DEFAULT_LINES)), params.products)
     played = list(params.modules)
     limits = pack["limits"]
-    if (params.products, params.clients or 1) != (limits["products"][2], limits["clients"][2]):
-        # shortcut: factory.Plant ne joue qu'un produit et un client ; à lever avec le moteur multi-produits
-        raise ValueError("Plusieurs produits ou clients : l'usine n'en joue qu'un (ADR 0013, T4)")
     varied = (params.suppliers or limits["suppliers"][2]) != limits["suppliers"][2]
 
-    machines = _machines(pack, item, level, n_lines, random.Random(f"{seed}:types") if varied else None)
-    suppliers, offers = _offers(pack, item, level, params)
+    machines = _machines(pack, items, level, n_lines, random.Random(f"{seed}:types") if varied else None)
+    suppliers, offers = _offers(pack, items, level, params)
     spec: dict[str, Any] = {
         "kind": "simulation", "version": 2, "seed": seed,
-        "meta": _meta(pack, params, theme, level, company, item),
+        "meta": _meta(pack, params, theme, level, company, items),
         "params": params.model_dump(),
         "products": [], "components": [], "suppliers": suppliers, "offers": offers, "lines": [],
         "modules": [], "roles": [],
@@ -65,7 +64,7 @@ def generate_factory(params: GameParams) -> dict[str, Any]:
     spec["modules"], spec["roles"] = _modules(pack, played)
     spec["notions"] = _notions(pack, spec)
     spec["events"] = [{"id": k, **v} for k, v in pack["events"].items() if set(v["modules"]) & set(played)]
-    _calibrate(spec, pack, level, item, machines)
+    _calibrate(spec, pack, level, items, machines, theme, params.clients or params.products)
     if len(params.world_plan) >= 2 or (params.buildings or 1) >= 2:  # campus : trajets calculés (annexe 0013 §2 bis)
         for field, key in (("walk_m_per_min", "trajet.marche_m_min"), ("forklift_m_per_min", "trajet.chariot_m_min"),
                            ("pallet_handling_min", "trajet.manutention_palette_min")):  # fmt: skip
@@ -93,15 +92,17 @@ def _val(pack: dict[str, Any], key: str) -> Any:
     return pack["values"][key]["value"]
 
 
-def _meta(pack, params, theme, level, company, item) -> dict[str, Any]:
+def _meta(pack, params, theme, level, company, items) -> dict[str, Any]:
     titles = [pack["modules"][m]["title"].lower() for m in params.modules]
     text = ", ".join(titles[:-1]) + (" et " if len(titles) > 1 else "") + titles[-1]
+    names = [i["name"].lower() for i in items]
+    product = ", ".join(names[:-1]) + (" et " if len(names) > 1 else "") + names[-1]
     return {
         "title": f"{company} · {theme['label']}", "company": company, "client": theme["client"],
         "theme": params.theme, "theme_label": theme["label"],
         "pitch": f"{theme['description']} Pendant {params.weeks} semaines, votre équipe assure "
         f"{'les modules' if len(titles) > 1 else 'le module'} {text} pour livrer "
-        f"{theme['client']} à la date promise : {item['name'].lower()}, sans rupture de matière ni stock inutile. "
+        f"{theme['client']} à la date promise : {product}, sans rupture de matière ni stock inutile. "
         f"Niveau {level['label'].lower()} : {_fragments(pack, params)}.",
         "difficulty": params.difficulty, "difficulty_label": level["label"], "weeks": params.weeks,
         "players": {"min": params.players_min, "max": params.players_max}, "language": "fr",
@@ -126,8 +127,9 @@ def _provenance(pack: dict[str, Any]) -> dict[str, Any]:
     return {k: {f: v[f] for f in ("status", "citation", "note") if f in v} for k, v in out.items()}
 
 
-def _machines(pack, item, level, n_lines, rng=None) -> list[dict[str, Any]]:
-    """Une ligne = les opérations du produit, chacune sur la machine du type indiqué (annexe §1)."""
+def _machines(pack, items, level, n_lines, rng=None) -> list[dict[str, Any]]:
+    """Une ligne = les opérations de son produit (ligne j : produit (j - 1) mod P), chacune sur la machine du type
+    indiqué (annexe §1)."""
     asset = next(
         e["asset"]
         for d in pack["departments"]
@@ -137,11 +139,15 @@ def _machines(pack, item, level, n_lines, rng=None) -> list[dict[str, Any]]:
     )  # 6c : l'asset de la machine est celui de l'élément « machine » du département production
     machines = []
     types = pack["machine_types"]
-    ops = item["operations"]
-    if rng:  # type tiré par rang parmi ceux qui le permettent (machine.types_par_operation), le même sur chaque ligne
-        ops = [(op, rng.choice([k for k, v in types.items() if rank in v["ranks"]]))
-               for rank, (op, _) in enumerate(ops, start=1)]  # fmt: skip
+    ops_of = []
+    for item in items:
+        ops = item["operations"]
+        if rng:  # type tiré par rang parmi ceux qui le permettent (machine.types_par_operation), le même par produit
+            ops = [(op, rng.choice([k for k, v in types.items() if rank in v["ranks"]]))
+                   for rank, (op, _) in enumerate(ops, start=1)]  # fmt: skip
+        ops_of.append(ops)
     for line in range(1, n_lines + 1):
+        item, ops = items[(line - 1) % len(items)], ops_of[(line - 1) % len(items)]
         for rank, (operation, type_id) in enumerate(ops, start=1):
             t = types[type_id]
             machines.append({
@@ -154,32 +160,37 @@ def _machines(pack, item, level, n_lines, rng=None) -> list[dict[str, Any]]:
                 "operators": t["operators"], "asset": asset,
             })  # fmt: skip
     if (shape := level.get("bottleneck_shape")) is not None:  # P2 : forme propre au goulot (la plus lente de la ligne)
-        for line in range(n_lines):
-            line_machines = machines[line * len(item["operations"]) :][: len(item["operations"])]
+        for line in range(1, n_lines + 1):
+            line_machines = [m for m in machines if m["line_id"] == f"l{line}"]
             max(line_machines, key=lambda m: m["cycle_min"])["weibull_shape"] = shape
     return machines
 
 
-def _offers(pack, item, level, params) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _offers(pack, items, level, params) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Fournisseurs du premier produit ; chacun offre la matière de chaque produit (ids o1, o2... par matière puis
+    fournisseur, annexe 0013 §3 bis)."""
     profiles = _val(pack, "fournisseur.profils")
-    mp = item["mp"]
     suppliers, offers = [], []
-    base = [(n, c, pr) for (n, c), pr in zip(mp["suppliers"], profiles, strict=True)]
+    base = [(n, c, pr) for (n, c), pr in zip(items[0]["mp"]["suppliers"], profiles, strict=True)]
     # règle de jeu : les 3 de la référence, puis les extra_suppliers du secteur (fournisseur.supplementaires)
     extra = [(e["name"], e["city"], e["profile"]) for e in pack["themes"][params.theme].get("extra_suppliers", [])]
     chosen = (base + extra)[: params.suppliers or len(base)]
-    for index, (name, city, profile) in enumerate(chosen, start=1):
-        p = profiles[profile]
-        lead = layout.site_lead_days({"params": params.model_dump()}, pack, f"fournisseur_{profile}")
-        reliability = max(30.0, min(100.0, p["reliability"] + level["reliability_shift"]))
-        cost = round(mp["cost"] * p["cost_factor"], 2)
-        suppliers.append({"id": f"s{index}", "name": name, "region": city})
-        offers.append({
-            "id": f"o{index}", "supplier_id": f"s{index}", "component_id": "c1", "profile": profile, "lead_time": lead,
-            "reliability": reliability, "unit_cost": cost, "min_order": p["min_pallets"],
-            "label": f"{mp['name']} · {name} ({city}) · {lead} j · {reliability:.0f} % à l'heure · "
-            f"{_money(cost)} €/u. · min. {p['min_pallets']} palette(s)",
-        })  # fmt: skip
+    for k, item in enumerate(items, start=1):
+        mp = item["mp"]
+        for index, (name, city, profile) in enumerate(chosen, start=1):
+            p = profiles[profile]
+            lead = layout.site_lead_days({"params": params.model_dump()}, pack, f"fournisseur_{profile}")
+            reliability = max(30.0, min(100.0, p["reliability"] + level["reliability_shift"]))
+            cost = round(mp["cost"] * p["cost_factor"], 2)
+            if k == 1:
+                suppliers.append({"id": f"s{index}", "name": name, "region": city})
+            offers.append({
+                "id": f"o{(k - 1) * len(chosen) + index}", "supplier_id": f"s{index}", "component_id": f"c{k}",
+                "profile": profile, "lead_time": lead, "reliability": reliability, "unit_cost": cost,
+                "min_order": p["min_pallets"],
+                "label": f"{mp['name']} · {name} ({city}) · {lead} j · {reliability:.0f} % à l'heure · "
+                f"{_money(cost)} €/u. · min. {p['min_pallets']} palette(s)",
+            })  # fmt: skip
     return suppliers, offers
 
 
@@ -202,8 +213,10 @@ def _notions(pack, spec) -> list[dict[str, Any]]:
     return [{"id": i, **{k: pack["notions"][i][k] for k in ("title", "text", "citation")}} for i in dict.fromkeys(ids)]
 
 
-def _calibrate(spec, pack, level, item, machines) -> None:
-    """Capacités, demande, stocks et trésorerie calés sur le débit attendu des machines (pack : client.charge)."""
+def _calibrate(spec, pack, level, items, machines, theme, n_clients) -> None:
+    """Capacités, demande, stocks et trésorerie calés sur le débit attendu des machines (pack : client.charge) ;
+    à plusieurs produits, demande et stocks par produit, plafonds au prorata des lignes (annexe 0013 §3 bis, n° 4)."""
+    item, n_products = items[0], len(items)
     lg_src = {
         "units_per_pallet_mp": item["mp"]["units_per_pallet"],
         "unload_min_per_pallet": _val(pack, "reception.dechargement_min_palette"),
@@ -221,10 +234,16 @@ def _calibrate(spec, pack, level, item, machines) -> None:
         "repair_travel_min": _val(pack, "maintenance.trajet_min"),
         "preventive_min": _val(pack, "maintenance.preventif_min"),
     }  # fmt: skip
+    if n_products > 1:  # loi de Little : même couverture en jours qu'au cahier (2 lignes) ; 1 produit : inchangé
+        n_lines = len({m["line_id"] for m in machines})
+        lg_src["pf_capacity_pallets"] = (
+            lg_src["pf_capacity_pallets"] * max(n_lines, 2) // _val(pack, "entrepot_pf.lignes_cahier")
+        )
     lot = _val(pack, "pilotage.taille_lot")
     spec["factory"] = {
         "product_id": "p1", "lot_size": lot, "pf_min": 1,
-        "bom": [{"component_id": "c1", "per_unit": item["mp"]["per_unit"]}],
+        "bom": [{"component_id": f"c{k}", "per_unit": it["mp"]["per_unit"]} | ({"product_id": f"p{k}"} if k > 1 else {})
+                for k, it in enumerate(items, start=1)],
         "machines": machines, "crew": [], "clock": copy.deepcopy(pack["clock"]),
         "logistics": lg_src,
         "customer": {
@@ -243,74 +262,109 @@ def _calibrate(spec, pack, level, item, machines) -> None:
     }  # fmt: skip
     line_ids = sorted({m["line_id"] for m in machines})
     spec["lines"] = [
-        {"id": lid, "name": f"Ligne {lid[1:]}", "product_id": "p1", "capacity": 1, "trs": 50.0, "label": ""}
+        {
+            "id": lid,
+            "name": f"Ligne {lid[1:]}",
+            "product_id": f"p{(int(lid[1:]) - 1) % n_products + 1}",
+            "capacity": 1,
+            "trs": 50.0,
+            "label": "",
+        }
         for lid in line_ids
     ]
     spec["products"] = [{
-        "id": "p1", "name": item["name"], "category": item["category"], "price": float(item["price"]),
-        "unit_cost": float(item["cost"]), "demand": 1, "component_id": "c1", "line_id": line_ids[0],
+        "id": f"p{k}", "name": it["name"], "category": it["category"], "price": float(it["price"]),
+        "unit_cost": float(it["cost"]), "demand": 1, "component_id": f"c{k}",
+        "line_id": next(x["id"] for x in spec["lines"] if x["product_id"] == f"p{k}"),
         "initial_stock": 0, "safety_stock": 0,
-    }]  # fmt: skip
-    mp = item["mp"]
+    } for k, it in enumerate(items, start=1)]  # fmt: skip
     spec["components"] = [{
-        "id": "c1", "name": mp["name"], "unit_cost": float(mp["cost"]), "usage": 1, "initial_stock": 0,
-        "safety_stock": 0, "product_id": "p1",
-    }]  # fmt: skip
+        "id": f"c{k}", "name": it["mp"]["name"], "unit_cost": float(it["mp"]["cost"]), "usage": 1, "initial_stock": 0,
+        "safety_stock": 0, "product_id": f"p{k}",
+    } | ({"units_per_pallet": it["mp"]["units_per_pallet"]} if k > 1 else {})
+        for k, it in enumerate(items, start=1)]  # fmt: skip
     spec["agents"] = [{"id": "x"}]  # Plant ne lit que les identifiants d'agents
     plant = factory.Plant(spec)
     hours = [factory.expected_h(plant, i) for i in range(plant.nl)]
-    per_day = sum(hours) * plant.mpd / 60
-    demand = max(1, int(level["load"] * per_day))
-    if demand / per_day >= MAX_LOAD:
-        raise ValueError("Charge réelle de l'usine trop haute pour la partie")
     yields = [factory.trs_factors(plant, i)["qualite"] for i in range(plant.nl)]
-    mp_day = demand / (sum(yields) / len(yields)) * mp["per_unit"]
-    cap_mp = lg_src["mp_capacity_pallets"] * lg_src["units_per_pallet_mp"]
     cap_pf = lg_src["pf_capacity_pallets"] * lg_src["units_per_case"] * lg_src["cases_per_pallet"]
-    stock_mp = min(round(level["mp_stock_days"] * mp_day), int(MP_FILL * cap_mp))
-    stock_pf = min(round(level["pf_stock_days"] * demand), cap_pf)
-    days = plant.days
-    spec["factory"]["customer"]["demand_per_day"] = demand
-    spec["factory"]["pf_min"] = min(cap_pf, math.ceil(_val(pack, "pilotage.pf_min_jours") * demand))
-    spec["factory"]["pf_max"] = min(cap_pf, math.ceil(_val(pack, "pilotage.pf_max_jours") * demand))
+    days, mp_days, demands, stock_mps = plant.days, [], [], []
+    for k, it in enumerate(items):
+        mine = [ln for ln in range(plant.nl) if plant.line_prod[ln] == k]
+        per_day = sum(hours[ln] for ln in mine) * plant.mpd / 60
+        demand = max(1, int(level["load"] * per_day))
+        if demand / per_day >= MAX_LOAD:
+            raise ValueError("Charge réelle de l'usine trop haute pour la partie")
+        mp_day = demand / (sum(yields[ln] for ln in mine) / len(mine)) * it["mp"]["per_unit"]
+        cap_mp = lg_src["mp_capacity_pallets"] * plant.upps[k] * len(mine) // plant.nl  # prorata des lignes
+        stock_mp = min(round(level["mp_stock_days"] * mp_day), int(MP_FILL * cap_mp))
+        stock_pf = min(round(level["pf_stock_days"] * demand), cap_pf * len(mine) // plant.nl)
+        demands.append(demand)
+        mp_days.append(mp_day)
+        stock_mps.append(stock_mp)
+        spec["products"][k] |= {"demand": demand * days, "initial_stock": stock_pf}
+        spec["components"][k] |= {"usage": max(1, round(mp_day * days)), "initial_stock": stock_mp,
+                                  "safety_stock": max(1, round(mp_day))}  # fmt: skip
+    top = max(demands)  # pf_min et pf_max communs, sur la plus forte demande d'un produit (complément 5)
+    spec["factory"]["pf_min"] = min(cap_pf // n_products, math.ceil(_val(pack, "pilotage.pf_min_jours") * top))
+    spec["factory"]["pf_max"] = min(cap_pf // n_products, math.ceil(_val(pack, "pilotage.pf_max_jours") * top))
+    for product in spec["products"]:
+        product["safety_stock"] = spec["factory"]["pf_min"]
     spec["factory"]["mp_safety_days"] = _val(pack, "stock_mp.stock_securite_jours")
     spec["factory"]["logistics"]["qc_block_threshold"] = _block_threshold(yields, lot)
-    spec["products"][0] |= {
-        "demand": demand * days,
-        "initial_stock": stock_pf,
-        "safety_stock": spec["factory"]["pf_min"],
-    }
-    spec["components"][0] |= {
-        "usage": max(1, round(mp_day * days)),
-        "initial_stock": stock_mp,
-        "safety_stock": max(1, round(mp_day)),
-    }
+    _clients(spec, theme, n_clients, demands)
     for line, theoretical, hour in zip(
         spec["lines"], (60 / m["cycle_min"] for m in _bottlenecks(plant)), hours, strict=True
     ):
         capacity = int(theoretical * plant.mpd / 60 * days)
         trs = max(30.0, min(100.0, round(100 * hour / theoretical, 1)))
-        line |= {"capacity": capacity, "trs": trs,
-                 "label": f"{line['name']} · {item['name']} · {capacity} u./sem. à 100 %"}  # fmt: skip
-    weekly_purchase = mp_day * days * mp["cost"]
+        name = items[int(line["product_id"][1:]) - 1]["name"]
+        line |= {"capacity": capacity, "trs": trs, "label": f"{line['name']} · {name} · {capacity} u./sem. à 100 %"}
+    weekly_purchase = sum(d * days * it["mp"]["cost"] for d, it in zip(mp_days, items, strict=True))
     spec["economy"]["initial_cash"] = round(weekly_purchase * level["cash_weeks"], -2)
-    _initial_order(spec, pack, level, mp_day, stock_mp)
+    _initial_orders(spec, pack, level, plant, mp_days, stock_mps)
 
 
-def _initial_order(spec, pack, level, mp_day, stock_mp) -> None:
-    """Règle n° 5a (calibrage non sourcé) : si le stock de départ couvre moins que délai + 1 jour, une commande
-    `offer` est déjà en route, arrivant au jour floor(mp_stock_days) (stock_mp.commande_initiale)."""
-    rule = _val(pack, "stock_mp.commande_initiale")
-    offer = next(o for o in spec["offers"] if o["profile"] == rule["offer"])
-    days = level["mp_stock_days"]
-    need = offer["lead_time"] + rule["cover_extra_days"] - days
-    if need <= 0:
+def _clients(spec, theme, n_clients, demands) -> None:
+    """Client i achète le produit ((i - 1) mod P) + 1 ; la demande d d'un produit est répartie entre ses n clients,
+    d // n chacun et 1 de plus pour les d % n premiers (client.partage_demande) ; `customer` reste celui du client 1.
+    1 produit et 1 client : `Factory.clients` reste vide (référence inchangée)."""
+    f, n_products = spec["factory"], len(demands)
+    names = [theme["client"], *theme.get("extra_clients", [])]
+    if n_products == 1 and n_clients == 1:
+        f["customer"]["demand_per_day"] = demands[0]
         return
-    upp = spec["factory"]["logistics"]["units_per_pallet_mp"]
-    free = spec["factory"]["logistics"]["mp_capacity_pallets"] - math.ceil(stock_mp / upp)
-    pallets = min(_val(pack, "fournisseur.camion_palettes"), free, math.ceil(round(need * mp_day / upp, 2)))
-    if pallets >= offer["min_order"]:
-        spec["factory"]["initial_order"] = {"offer_id": offer["id"], "pallets": pallets, "arrival_day": int(days)}
+    served = [i % n_products for i in range(n_clients)]
+    f["clients"] = []
+    for i, k in enumerate(served):
+        rank = served[:i].count(k)  # rang du client parmi ceux de son produit
+        share = demands[k] // served.count(k) + (rank < demands[k] % served.count(k))
+        f["clients"].append({**f["customer"], "id": f"c{i + 1}", "name": names[i], "product_id": f"p{k + 1}",
+                             "demand_per_day": max(1, share),
+                             "site_id": "client" if i == 0 else f"client_{chr(97 + i)}"})  # fmt: skip
+    f["customer"]["demand_per_day"] = f["clients"][0]["demand_per_day"]
+
+
+def _initial_orders(spec, pack, level, plant, mp_days, stock_mps) -> None:
+    """Règle n° 5a (calibrage non sourcé) : si le stock de départ d'une matière couvre moins que délai + 1 jour, une
+    commande `offer` est déjà en route, arrivant au jour floor(mp_stock_days) (stock_mp.commande_initiale) ; c1 dans
+    `initial_order`, c2 et c3 dans `initial_orders`. Place libre au prorata des lignes du produit."""
+    rule = _val(pack, "stock_mp.commande_initiale")
+    days, f = level["mp_stock_days"], spec["factory"]
+    for k, (mp_day, stock_mp) in enumerate(zip(mp_days, stock_mps, strict=True)):
+        offer = next(o for o in spec["offers"] if o["profile"] == rule["offer"] and o["component_id"] == plant.comps[k])
+        need = offer["lead_time"] + rule["cover_extra_days"] - days
+        if need <= 0:
+            continue
+        upp, lines = plant.upps[k], plant.line_prod.count(k)
+        free = f["logistics"]["mp_capacity_pallets"] * lines // plant.nl - math.ceil(stock_mp / upp)
+        pallets = min(_val(pack, "fournisseur.camion_palettes"), free, math.ceil(round(need * mp_day / upp, 2)))
+        if pallets >= offer["min_order"]:
+            order = {"offer_id": offer["id"], "pallets": pallets, "arrival_day": int(days)}
+            if k == 0:
+                f["initial_order"] = order
+            else:
+                f.setdefault("initial_orders", []).append(order)
 
 
 def _bottlenecks(plant) -> list[dict[str, Any]]:

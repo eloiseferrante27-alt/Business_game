@@ -334,6 +334,53 @@ Tests attendus (moteur-jeu) : 2 et 3 produits, 1 à 4 clients jouables au pilote
 1 client : spec et rapport de tour identiques à la référence ; conservation de la matière par composant et du PF par
 produit ; un client n'emporte jamais un autre produit ; mise à niveau de l'ancien état ; budget de génération tenu.
 
+Compléments du 27/11 (relecture du code à bcf8b89, plan de T4b) : manques du tableau, qui font partie de T4b.
+
+1. Nomenclature : `factory.Plant` refuse toute nomenclature de plus d'un article (`factory.py` l. 45), alors que
+   `SimSpec` accepte `BomItem.product_id` : une spec à 2 produits importée passe la validation, puis lève une erreur
+   500 au premier tour. `SimSpec` exige donc un article par produit, sans `product_id` = `Factory.product_id`
+   (« usine : produit p1 : une seule matière (2 articles) ») et une matière par produit (« usine : matière c1
+   partagée par p1 et p2 ») ; la fixture `two_products()` de `test_spec_0013.py` prend `c2`. Fait (spec.py, 27/11).
+2. Palette de matière : `Logistics.units_per_pallet_mp` est unique, mais chaque MP du pack a son `units_per_pallet`
+   (120 ou 150). Ajout facultatif `Component.units_per_pallet: int | None = None` (> 0 ; None : valeur de
+   `logistics`) ; le générateur ne le renseigne que pour `c2` et `c3`. Fait (spec.py, 27/11).
+3. Commande initiale : `Factory.initial_order` ne sert que `c1`. Ajout `Factory.initial_orders: list[InitialOrder]`
+   (2 au plus, vide par défaut) pour `c2` et `c3`, même forme que `initial_order` : `{offer_id, pallets (> 0),
+   arrival_day (>= 0, jour ouvré depuis le début de partie)}`. `SimSpec` : offre connue (« usine : commande initiale
+   sur une offre inconnue o99 »), une commande initiale par matière au plus, `initial_order` compris (« usine : une
+   commande initiale par matière au plus (c1) ») ; même règle n° 5a. Fait (spec.py, 27/11).
+4. Capacités communes : l'occupation du magasin est la somme, par matière, des palettes entamées (unités divisées par
+   la palette de la matière, arrondi au-dessus) plus les palettes posées ; celle de l'entrepôt, la somme par produit
+   (une palette ne porte qu'un produit). Le générateur répartit les plafonds au prorata des lignes du produit
+   (`n_k / lignes`) : stocks MP et PF de départ, place libre de la commande initiale.
+5. Seuils PF : `pf_min` et `pf_max` restent communs (§9), calculés sur la plus forte demande d'un produit et plafonnés
+   à la capacité PF divisée par P. Avec un produit : formule actuelle.
+6. Emballage : une palette en cours par produit ; les bons passent en FIFO comme aujourd'hui.
+7. Clients : la demande d du produit k est répartie entre ses n clients, `d // n` chacun et 1 de plus pour les
+   `d % n` premiers. Créneau (`pickup_window_min`), délai promis, variabilité et commandes par jour : ceux de
+   `customer`. Noms : `themes.<secteur>.client`, puis `extra_clients` dans l'ordre. `SimSpec` vérifie le
+   `Client.pickup_window_min` de chaque client comme celui de `customer` (« créneau d'enlèvement du client c1 :
+   0 <= début < fin <= 480 minutes attendu ») et, si `clients` n'est pas vide, qu'aucun produit n'est sans client
+   (« usine : produit p2 sans client ») ; contrôles faits (spec.py, 27/11). Sites : `layout._build_network` clone le
+   site `client` en `client_b`, `_c`, `_d` (comme les fournisseurs).
+8. Tirages : produit k = `theme.products[(i + k - 1) mod n]`, i étant le tirage actuel (aucun tirage de plus) ; le
+   flux de hasard du client `c1` garde sa clé actuelle, les autres clients y ajoutent leur id.
+9. Non-régression (1 produit, 1 client) : `Factory.clients` reste vide. « Identique » = mêmes valeurs pour toutes les
+   clés de la référence, hors `provenance` et `panels` (le pack change en T4b) ; seules clés nouvelles permises :
+   `initial_orders: []`, `units_per_pallet: null`, `by_product` et, dans les commandes client, `client_id` et
+   `product_id`. La référence est capturée avant toute modification du code (étape 1 du plan). `generate` passe par
+   `SimSpec.model_dump` : dès l'étape 2, sa spec porte `factory.initial_orders: []` et `components[].units_per_pallet:
+   null` ; la comparaison de `test_t4b_contract.py` retire ces clés à leur valeur vide avant d'égaler (jamais une
+   nouvelle capture).
+10. Vue publique : `factory.stocks.mp` a une entrée par matière ; `factory.stocks.pf` reste l'agrégat (Godot et le
+    panneau `bandeau_pf` inchangés) ; ajout `factory.by_product: [{product_id, name, quantity, pallets, shipped,
+    otif}]`, une ligne par produit même à 1 ; `orders.customer[]` gagne `client_id` et `product_id`. Historique
+    (`history[]`) et débrief : `by_product` (mêmes champs, sur la semaine ou la partie). Racines inchangées.
+11. `GameParams` : contrôle seulement si le pack déclare `limits.clients` (l'atelier n'a pas de clients). Nombre
+    effectif = `clients`, ou `products` s'il est None ; il tient dans `limits.clients` et vaut au moins `products`
+    (« clients : au moins un par produit (3 produits, 2 clients) »). Fait dans `_world_choice_errors` (27/11) ; le
+    garde-fou `ValueError` de `generate_factory` (l. 37-39) est retiré à l'étape 4 (moteur-jeu).
+
 Trajets (moteur-jeu, T5) : remplacé par le §2 bis, décision 3 (27/11).
 
 ## 4. Module finance du moteur `factory` (D2)
@@ -482,6 +529,13 @@ clé `correlation_id = document_id`, traitement idempotent (une réindexation re
    nomenclature -> erreur ; sans `product_id`, le test existant « différent de celui de l'usine » reste vert ;
    `clients` en double ou produit inconnu -> erreur ; `walk_m_per_min` seul -> « se renseignent ensemble ».
 9. `test_spec_contract.py` existant inchangé et vert (dont la mutation `template="atelier"`).
+10. T4b (étape 1 du plan, moteur-jeu) : `generate` à chaque borne de `limits` (min, max et défaut de chaque clé, puis
+    toutes au max) -> `SimSpec` relit la spec sans clé perdue ni exception ; `GameParams(products=3, clients=2)` ->
+    « au moins un par produit » ; `products=3` sans `clients` -> 3 clients ; atelier à 4 produits -> valide ;
+    2 articles sans `product_id` -> « une seule matière » ; `c1` pour p1 et p2 -> « partagée » ;
+    `Client.pickup_window_min` hors de la journée -> « créneau d'enlèvement », « 480 » ; produit sans client ->
+    « produit p2 sans client » ; `units_per_pallet=0` -> erreur ; `initial_orders` (forme `InitialOrder` :
+    `{offer_id, pallets, arrival_day}`) sur une offre inconnue -> « o99 », ou seconde commande de `c1` -> « c1 ».
 
 ## 8. Plan d'exécution
 
@@ -507,4 +561,4 @@ clé `correlation_id = document_id`, traitement idempotent (une réindexation re
   converti depuis le taux actuariel BdF dans le pack.
 - Même `discount_rate` côté clients et fournisseurs : simplification, à séparer en D2 si les sources divergent.
 - `Factory.lot_size`, `pf_min` et `pf_max` restent communs à tous les produits en T4 ; un réglage par produit serait un
-  ajout facultatif (règle commune).
+  ajout facultatif (règle commune). T4b : calcul des seuils communs au complément 5 du §3 bis.

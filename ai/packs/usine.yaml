@@ -306,9 +306,9 @@ clock:
 
 limits:                  # [min, max, défaut], format de `ranges` (annexe §1, 29/10) ; défauts = jeu de référence
   weeks: [4, 12, 6]
-  products: [1, 1, 1]    # bloqué à 1 jusqu'à T4b (moteur mono-produit) ; cible [1, 3, 1], values limites.produits
+  products: [1, 3, 1]    # ouvert en T4b (étape 7, 27/11) ; values limites.produits
   suppliers: [3, 8, 3]   # values limites.fournisseurs
-  clients: [1, 1, 1]     # bloqué à 1 jusqu'à T4b (moteur mono-client) ; cible [1, 4, 1], values limites.clients
+  clients: [1, 4, 1]     # ouvert en T4b (étape 7, 27/11) ; au moins un client par produit ; values limites.clients
   buildings: [1, 3, 1]   # values limites.batiments ; 1 = hall en U du jeu de référence, 2 ou 3 = campus
 
 params:
@@ -579,7 +579,18 @@ values:
   reception.quais: {value: 1, unit: camion à la fois, status: exemple, note: "Cahier §3.1 : un quai partagé avec l'expédition (décision de l'utilisateur du 28/10/2026)."}
 
   # --- Stock MP (cahier §3.2) ----------------------------------------------------------------------------
-  stock_mp.capacite_palettes: {value: 24, unit: palette, status: exemple, note: "Cahier §3.2 : racks de 24 emplacements."}
+  stock_mp.capacite_palettes:
+    value: 24
+    unit: palette
+    status: exemple
+    note: >-
+      Cahier §3.2 : racks de 24 emplacements. Commun à toutes les matières. Mesure du 27/11/2026 (étape 7 T4b) : à
+      3 matières, le pilote commande des camions de 6 palettes dans l'ordre c1, c2, c3 ; le point de commande vaut
+      7 palettes par matière ((3 + 1 + 2) jours x 1,1 palette par jour), les deux premières prennent le magasin et la
+      troisième manque (4 à 16 jours-ligne de rupture en équilibré et en expert). 30 palettes ne tiennent pas dans la
+      zone stock_mp (5 racks et la préparation des kits) : capacité gardée. Règle confiée à moteur-jeu (pilote
+      automatique) : camion d'une matière borné à sa part du magasin moins son point de commande, au moins le minimum
+      du fournisseur ; à 1 produit 24 - 12 > 6, camion de 6 inchangé.
   stock_mp.chariots: {value: 1, unit: chariot, status: exemple, note: "Cahier §3.2 : chariot de 1 200 kg (batterie : tranche 2)."}
   stock_mp.kit_min: {value: 8, unit: min par kit, status: calibre, note: "Cahier sans valeur : prélever la matière d'un lot de 24 et la livrer en tête de ligne. Indicatif ; à 3 lignes, environ 15 kits par jour occupent le chariot 2 h."}
   stock_mp.sortie_fifo: {value: FIFO, status: exemple, note: "Cahier §3.2 : sortie dans l'ordre d'arrivée. Pratique décrite par wikipedia-en-stock-rotation (notion rotation_fifo)."}
@@ -678,7 +689,18 @@ values:
   emballage.filmage_min_palette: {value: 5, unit: min, status: exemple, note: "Cahier §3.5."}
 
   # --- Entrepôt PF (cahier §4) ---------------------------------------------------------------------------
-  entrepot_pf.capacite_palettes: {value: 20, unit: palette, status: exemple, note: "Cahier §4 : 480 produits, environ 2 jours de demande à 2 lignes."}
+  entrepot_pf.capacite_palettes:
+    value: 20
+    unit: palette
+    status: exemple
+    note: >-
+      Cahier §4 : 480 produits, environ 2 jours de demande à 2 lignes (entrepot_pf.lignes_cahier). Mesure du
+      27/11/2026 (étape 7 T4b) : à 3 produits et 3 lignes, 20 palettes tiennent 1,4 jour de demande et chaque produit
+      y garde sa palette entamée ; l'entrepôt plein bloque l'emballage jusqu'au camion du client (OTIF du pilote 25 à
+      79 % en expert). À 30 palettes (même couverture en jours, loi de Little, wikipedia-en-little-s-law : stock =
+      débit x temps de séjour), OTIF 97 à 100 %. Règle confiée à moteur-jeu (factory_generation) : capacité =
+      20 x max(lignes, 2) / 2, soit 20 à 1 et 2 lignes (référence inchangée), 30 à 3 lignes.
+  entrepot_pf.lignes_cahier: {value: 2, unit: ligne, status: exemple, note: "Cahier §4 : l'entrepôt de 20 palettes sert l'usine du cahier à 2 lignes. Base de la règle de capacité ci-dessus (entrepot_pf.capacite_palettes), à lire par factory_generation."}
   entrepot_pf.chargement_min_palette: {value: 2, unit: min par palette, status: exemple, note: "Cahier §4."}
   entrepot_pf.stock_initial_jours: {status: calibre, note: "difficulties.pf_stock_days (1,2 ; 1 ; 0,5 jour de demande), toujours sous les 20 palettes."}
 
@@ -826,9 +848,12 @@ values:
     note: >-
       limits.products [1, 3, 1], règle de jeu, non sourcée. Défaut 1 = jeu de référence. Maximum 3 et non 4 (annexe 0013
       §1) : chaque produit a au moins sa ligne (Line.product_id, annexe §3) et la zone production tient 3 lignes au plus
-      (block_types.ligne, params.lines). Produits pris dans themes.<secteur>.products (4 par secteur). Aujourd'hui
-      [1, 1, 1] : le moteur ne joue qu'un produit (sinon erreur 500) ; la cible [1, 3, 1] revient avec la tranche T4b
-      (annexe 0013 § 3 bis).
+      (block_types.ligne, params.lines). Produits pris dans themes.<secteur>.products (4 par secteur), produit
+      k = products[(i + k - 1) mod 4] (annexe 0013 § 3 bis, complément 8) ; une MP et un composant c<k> par
+      produit ; vue par produit : panneau par_produit (factory.by_product). Ouvert à l'étape 7 du plan T4b
+      (27/11/2026). À 3 produits (3 lignes), magasin MP et entrepôt PF du cahier (24 et 20 palettes, dimensionnés
+      pour 2 lignes) bloquent le pilote en équilibré et en expert : voir entrepot_pf.capacite_palettes et
+      stock_mp.capacite_palettes (calibrage confié à moteur-jeu).
   limites.fournisseurs:
     status: calibre
     note: >-
@@ -840,9 +865,10 @@ values:
     status: calibre
     note: >-
       limits.clients [1, 4, 1], règle de jeu, non sourcée. 1 = jeu de référence (themes.<secteur>.client) ; au-delà,
-      themes.<secteur>.extra_clients dans l'ordre (client.supplementaires) ; 4 = plafond de Factory.clients. Aujourd'hui
-      [1, 1, 1] : le moteur ne joue qu'un client (sinon erreur 500) ; la cible [1, 4, 1] revient avec la tranche T4b
-      (annexe 0013 § 3 bis).
+      themes.<secteur>.extra_clients dans l'ordre (client.supplementaires) ; 4 = plafond de Factory.clients. Au moins un
+      client par produit (clients >= produits, GameParams, annexe 0013 § 3 bis, complément 11) ; demande d'un produit
+      répartie entre ses clients (client.partage_demande) ; le PNJ du département client ne parle que du client c1.
+      Ouvert à l'étape 7 du plan T4b (27/11/2026) ; quai unique mesuré à 4 clients (client.partage_demande).
   fournisseur.supplementaires:
     status: calibre
     note: >-
@@ -858,9 +884,31 @@ values:
     status: calibre
     note: >-
       Règle de jeu, non sourcée. Client k (1 à 4) achète le produit k modulo le nombre de produits (chaque produit a
-      au moins un client : il faut clients >= produits) ; la demande d'un produit (client.charge) est partagée à parts
-      égales entre ses clients, une commande par client et par jour (client.orders_per_day), même fenêtre
-      d'enlèvement (client.pickup_window_min), site cloné de network.sites.client (proche). Aucun nombre nouveau.
+      au moins un client : il faut clients >= produits) ; la demande d'un produit (client.charge) est partagée entre ses
+      clients (client.partage_demande), une commande par client et par jour (client.orders_per_day), même fenêtre
+      d'enlèvement (client.pickup_window_min), site cloné de network.sites.client en client_b, _c, _d (proche). Ids
+      c1 à c4 ; une commande porte client_id et product_id, le camion d'un client n'emporte que le PF de son produit
+      (annexe 0013 § 3 bis, compléments 7 et 10). Aucun nombre nouveau.
+  client.partage_demande:
+    value: parts_egales
+    unit: répartition de la demande d'un produit entre ses clients
+    status: calibre
+    note: >-
+      Règle de jeu, non sourcée (annexe 0013 § 3 bis, complément 7) : la demande d d'un produit (client.charge) est
+      répartie entre ses n clients, d // n chacun et 1 de plus pour les d % n premiers ; la somme reste d, donc la
+      charge calibrée et le jeu de référence (n = 1) ne changent pas. Exemple : 225 produits par jour pour 2 clients,
+      113 et 112. Simplification assumée : la demande réelle est concentrée sur peu de clients
+      (wikipedia-fr-principe-de-pareto l.28 : environ 80 % du CA par 20 % des clients, observation empirique, non
+      loi) ; des parts égales gardent chaque client lisible et l'OTIF de chacun comparable. Créneau : chaque client
+      garde client.pickup_window_min (14 h - 15 h 30 ; extra_clients ne porte que des noms, aucun créneau propre).
+      Conflit au quai unique : 2 min par palette (entrepot_pf.chargement_min_palette) ; à 3 lignes en expert,
+      environ 360 produits par jour (estimation : 225 du jeu de référence à 0,85 et 2 lignes, porté à 3 lignes et
+      0,92), soit 15 à 20 palettes (± 15 % de variabilité, palette entamée par client), 30 à 40 min de quai
+      pour 90 min de fenêtre : une file de camions est possible mais finit avant 16 h tant que les arrivées
+      s'étalent. Mesuré le 27/11/2026 (étape 7 T4b, 3 produits, 4 clients, expert, 3 bâtiments, graines 1 à 3, deux
+      secteurs, pilote et joueur passif) : environ 35 min de chargement par jour (8,6 min par camion, 24 au plus),
+      attente au quai 1,8 min en moyenne, 22 au plus, dernier camion parti à 15 h 48, aucun après 16 h, aucun camion
+      MP dans la fenêtre : le quai ne déborde pas, un seul créneau gardé pour tous les clients.
   machine.types_par_operation:
     status: calibre
     note: >-
@@ -942,7 +990,9 @@ values:
       8 + t, chariot occupé 8 + 2t (aller chargé, retour à vide) ; stock_mp.kit_min (8 min) ne compte plus que la
       préparation. Technicien (t = maintenance -> production, à pied) : aller seul, remplace maintenance.trajet_min.
       Exemple : racks à 40 m de la production, t = 0,4 min, kit remis à 8,4 min, chariot libre à 8,8 min ; atelier
-      de maintenance à 60 m, 60 / 75 = 0,8 min (3 min fixes dans le hall en U).
+      de maintenance à 60 m, 60 / 75 = 0,8 min (3 min fixes dans le hall en U). Simplification du jeu : les trajets
+      ne s'arrêtent pas aux pauses (pilotage.pauses), seule la préparation du kit les saute ; un trajet commencé
+      juste avant une pause s'achève pendant celle-ci (t de l'ordre de la minute dans un campus : cas rare).
   trajet.manutention_palette_min:
     value: 1
     unit: min par palette (prise et dépose)
@@ -955,15 +1005,17 @@ values:
       Prise seulement si une place PF est libre en comptant les palettes en route (place réservée à la prise) ;
       l'emballage attend la prise, le stock PF augmente à l'arrivée. Exemple : 35 m, t = 0,35 min, palette livrée à
       1,35 min, chariot libre à 1,7 min ; à 3 lignes, jusqu'à 17 palettes par jour, soit 29 min de chariot en plus
-      des 18 kits (environ 160 min) : le chariot reste sous les 480 min de la journée.
+      des 18 kits (environ 160 min) : le chariot reste sous les 480 min de la journée. Simplification du jeu : la prise,
+      la dépose et le trajet d'une palette ne s'arrêtent pas aux pauses (pilotage.pauses).
   zonage.marche_max_maintenance_m:
     value: 150
     unit: m de marche
     status: calibre
     note: >-
       Règle de jeu, non sourcée (zoning_rules max_walk_m, layout.path_m) : chemin à pied du centre de la maintenance
-      au centre de la production (pas à chaque machine) d'au plus 150 m, soit 2 min à trajet.marche_m_min (75 m/min), sous les 3 min du cahier (maintenance.trajet_min) :
-      un campus n'allonge pas l'arrêt d'une panne au-delà du jeu de référence. Le trajet reste petit devant le MTTR
+      au centre de la production (pas à chaque machine) d'au plus 150 m, soit 2 min à trajet.marche_m_min (75 m/min),
+      sous les 3 min du cahier (maintenance.trajet_min) : un campus n'allonge pas l'arrêt d'une panne au-delà du
+      jeu de référence. Le trajet reste petit devant le MTTR
       (30 à 60 min) : la leçon vraie est que la distance pèse surtout sur les kits du chariot, peu sur les pannes.
 
 # Archétypes de machine : les 4 machines de l'exemple du cahier (§5.2). L'opération affichée vient du produit.
@@ -1369,7 +1421,8 @@ departments:
       character: char_manager_f
       facts: usine_client
       # dit : commande du jour (produits, jour promis) ; OTIF du dernier tour (urgent sous l'objectif) ; commandes
-      # reçues en retard.
+      # reçues en retard. Plusieurs clients : elle est le client c1 et ne dit que ses commandes et ses faits
+      # (annexe 0013 § 3 bis, PNJ) ; les autres clients n'ont pas de PNJ.
       tasks: [passer les commandes, suivre les livraisons à la date promise, se plaindre des retards]
       notions: [otif]
 
@@ -1704,6 +1757,18 @@ panels:
       - {key: quantity, label: Lancés, format: int}
       - {key: done, label: Faits, format: int}
       - {key: status, label: État, format: state, labels: {attente: En attente, en_cours: En cours, termine: Terminé}}
+  # Une ligne par produit, même à 1 produit (annexe 0013 § 3 bis, complément 10) : aucun calcul nouveau.
+  - id: par_produit
+    type: table
+    title: Produits
+    placement: tableau_de_bord
+    source: factory.by_product
+    columns:
+      - {key: name, label: Produit}
+      - {key: quantity, label: Stock PF (produits), format: int}
+      - {key: pallets, label: Stock PF (palettes), format: int}
+      - {key: shipped, label: Expédiés, format: int}
+      - {key: otif, label: OTIF, format: pct, target: targets.otif, warn: 90}
   - id: poste_machine
     type: table
     title: Cette machine
@@ -1720,7 +1785,9 @@ panels:
     source: factory.orders.customer
     columns:
       - {key: id, label: Commande}
-      - {key: quantity, label: Produits, format: int}
+      - {key: client_id, label: Client}
+      - {key: product_id, label: Produit}
+      - {key: quantity, label: Quantité, format: int}
       - {key: due_day, label: Jour promis, format: int}
       - {key: shipped, label: Expédiés, format: int}
       - {key: status, label: État, format: state, labels: {ouverte: Ouverte, livree: Livrée, en_retard: En retard}}
@@ -1808,7 +1875,9 @@ panels:
     source: factory.orders.customer
     columns:
       - {key: id, label: Commande}
-      - {key: quantity, label: Produits, format: int}
+      - {key: client_id, label: Client}
+      - {key: product_id, label: Produit}
+      - {key: quantity, label: Quantité, format: int}
       - {key: due_day, label: Jour promis, format: int}
       - {key: shipped, label: Expédiés, format: int}
       - {key: status, label: État, format: state, labels: {ouverte: Ouverte, livree: Livrée, en_retard: En retard}}

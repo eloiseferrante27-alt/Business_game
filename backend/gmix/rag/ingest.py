@@ -53,6 +53,19 @@ async def ingest_bytes(
 ) -> dict[str, Any]:
     """Ajoute le document à la session (flush, sans commit : l'appelant décide)."""
     checksum = hashlib.sha256(data).hexdigest()
+    # Nouvelle version d'un fichier : les anciennes (même domaine et nom, autre sha256) partent (passages en cascade).
+    name = Path(filename).name
+    older = await session.scalars(
+        select(KnowledgeDocument).where(
+            KnowledgeDocument.domain_slug == domain,
+            KnowledgeDocument.checksum != checksum,
+            KnowledgeDocument.source_uri.like(f"{domain}/%-%"),
+        )
+    )
+    for doc in older:
+        if doc.source_uri.removeprefix(f"{domain}/")[13:] == name:  # 12 hex + "-"
+            await session.delete(doc)
+    await session.flush()
     existing = await session.scalar(select(KnowledgeDocument.id).where(KnowledgeDocument.checksum == checksum))
     if existing:
         return {"status": "skipped", "document_id": str(existing)}

@@ -42,10 +42,6 @@ class Plant:
 
     def __init__(self, spec: dict[str, Any]) -> None:
         f = spec["factory"]
-        if len(f["bom"]) != 1:
-            raise ValueError(
-                "Une seule matière par produit en tranche 1 (nomenclature à plusieurs articles : tranche 3)"
-            )
         clock, self.lg, self.cu, self.rs, self.costs = (
             f["clock"],
             f["logistics"],
@@ -60,9 +56,6 @@ class Plant:
         self.T = self.days * self.mpd
         self.breaks = sorted((s, d) for s, d in clock["breaks"])
         self.lot_size, self.pf_min, self.protect = f["lot_size"], f["pf_min"], f["protect_buffer"]
-        self.component, self.per_unit = f["bom"][0]["component_id"], f["bom"][0]["per_unit"]
-        self.need = math.ceil(self.lot_size * self.per_unit)  # matière d'un kit (un lot)
-        self.upp = self.lg["units_per_pallet_mp"]
         self.pallet_pf = self.lg["units_per_case"] * self.lg["cases_per_pallet"]
         used = {m["line_id"] for m in f["machines"]}
         self.line_ids = [line["id"] for line in spec["lines"] if line["id"] in used]
@@ -82,13 +75,41 @@ class Plant:
         ]
         self.scale = [m["mtbf_h"] * 60 / math.gamma(1 + 1 / m["weibull_shape"]) for m in self.machines]
         self.agents = {a["id"] for a in spec["agents"]} | {c["id"] for c in f["crew"]}
-        self.mp0 = next(c["initial_stock"] for c in spec["components"] if c["id"] == self.component)
-        self.pf0 = next(p["initial_stock"] for p in spec["products"] if p["id"] == f["product_id"])
+        # produits fabriqués (un par ligne en multi-produit) : une matière, une nomenclature, un stock PF chacun ;
+        # les attributs sans suffixe (component, upp, mp0...) sont ceux du premier produit (partie à un produit)
+        made = {line.get("product_id", f["product_id"]) for line in spec["lines"] if line["id"] in used}
+        self.pids = [p["id"] for p in spec["products"] if p["id"] in made]
+        self.np = len(self.pids)
+        bom = {b.get("product_id") or f["product_id"]: b for b in f["bom"]}
+        comps = {c["id"]: c for c in spec["components"]}
+        self.comps = [bom[pid]["component_id"] for pid in self.pids]
+        self.p_of_comp = {c: p for p, c in enumerate(self.comps)}
+        self.per_units = [bom[pid]["per_unit"] for pid in self.pids]
+        self.needs = [math.ceil(self.lot_size * u) for u in self.per_units]  # matière d'un kit (un lot)
+        self.upps = [comps[c].get("units_per_pallet") or self.lg["units_per_pallet_mp"] for c in self.comps]
+        self.mp0s = [comps[c]["initial_stock"] for c in self.comps]
+        self.pf0s = [next(p["initial_stock"] for p in spec["products"] if p["id"] == pid) for pid in self.pids]
+        self.component, self.per_unit, self.need, self.upp = (
+            self.comps[0],
+            self.per_units[0],
+            self.needs[0],
+            self.upps[0],
+        )
+        self.mp0, self.pf0 = self.mp0s[0], self.pf0s[0]
+        made_by = {x["id"]: x.get("product_id", f["product_id"]) for x in spec["lines"]}
+        self.line_prod = [self.pids.index(made_by[lid]) for lid in self.line_ids]
+        self.prod_of_line = dict(zip(self.line_ids, self.line_prod, strict=True))
+        self.multi = bool(f.get("clients")) or self.np > 1  # états et vues gardent leur forme d'avant sinon
+        self.clients = [  # un acheteur par client ; sans `clients`, `customer` seul achète le produit de l'usine
+            {**c, "p": self.pids.index(c["product_id"])} for c in f.get("clients") or []
+        ] or [{**f["customer"], "id": "c1", "p": self.pids.index(f["product_id"]), "site_id": None}]
         sites = (spec.get("world") or {}).get("sites") or []  # camions de la carte : aucun événement sans site
         by_supplier = {s["supplier_id"]: s["id"] for s in sites if s.get("supplier_id")}
         self.offer_site = {o["id"]: by_supplier[o["supplier_id"]] for o in spec.get("offers", [])
                            if o.get("supplier_id") in by_supplier}  # fmt: skip
         self.client_site = next((s["id"] for s in sites if s.get("kind") == "client"), None)
+        for c in self.clients:
+            c["site"] = c.get("site_id") or self.client_site
         # trajets du campus (annexe 0013 §2 bis) : vitesses absentes (1 bâtiment) = durées fixes du hall de référence
         self.kit_t, self.walk_t = 0.0, self.lg["repair_travel_min"]
         self.pal_h = self.pal_t = None
@@ -102,6 +123,12 @@ class Plant:
 
 def _rng(plant: Plant, *key: Any) -> random.Random:
     return random.Random(":".join(str(k) for k in (plant.seed, *key)))
+
+
+def _split(key: Any) -> tuple[int, int]:
+    """Clé d'un camion client : le jour (client c1, forme historique) ou « jour-n° du client »."""
+    day, _, k = str(key).partition("-")
+    return int(day), int(k or 0)
 
 
 def _hazard(rng: random.Random) -> float:
@@ -145,7 +172,19 @@ def initial_state(plant: Plant) -> dict[str, Any]:
         "ofs": [],
         "lot_of": {},
         "lot_left": {},
-        "mp": {"units": plant.mp0, "staged": 0, "quarantine": 0, "reserved": 0},
+        "mp": {"units": sum(plant.mp0s), "staged": 0, "quarantine": 0, "reserved": 0}
+        | (
+            {
+                "by": {
+                    "units": list(plant.mp0s),
+                    "staged": [0] * plant.np,
+                    "quarantine": [0] * plant.np,
+                    "reserved": [0] * plant.np,
+                }
+            }
+            if plant.multi
+            else {}
+        ),
         "inflight": [0] * plant.nl,
         "starve": [None] * plant.nl,
         "pending": [],
@@ -154,9 +193,10 @@ def initial_state(plant: Plant) -> dict[str, Any]:
         "insp": {"busy": False, "queue": []},
         "orders": [],
         "loading": {},
-        "pf": {"units": plant.pf0},
+        "pf": {"units": sum(plant.pf0s)} | ({"by": list(plant.pf0s)} if plant.multi else {}),
         "qc": {"busy": False, "wake": None},
-        "pack": {"conf": 0, "busy": None, "cases": 0, "units": 0, "wait": False},
+        "pack": {"conf": 0, "busy": None, "cases": 0, "units": 0, "wait": False}
+        | ({"by_conf": [0] * plant.np, "p": None} if plant.multi else {}),
         "tech": {"busy": 0, "queue": []},
         "fk": {"busy": 0},
         "events": [],
@@ -193,7 +233,7 @@ def order_mp(
     commande : `cost_index` fige la hausse de coût en vigueur ce jour-là. `day` : jour de la commande (défaut : début
     du tour)."""
     day = fs["day"] if day is None else day
-    if pallets < offer["min_order"] or offer["component_id"] != plant.component:
+    if pallets < offer["min_order"] or offer["component_id"] not in plant.p_of_comp:
         raise ValueError("Commande inférieure au minimum du fournisseur ou matière inconnue")
     fs["ids"]["po"] += 1
     po_id = f"po{fs['ids']['po']}"
@@ -254,7 +294,8 @@ class _Sim:
         P = self.P = plant
         self.fs = fs
         self.auto = auto or {}
-        self.budget = self.auto.get("order", {}).get("budget", 0.0)
+        first = self.auto.get("order") or {}  # une règle d'achat, ou une liste (une par matière : budget commun)
+        self.budget = (first[0] if isinstance(first, list) else first).get("budget", 0.0)
         self.week = week
         self.effects = effects
         self.T = float(P.T)
@@ -318,7 +359,8 @@ class _Sim:
         self.lot_of = {int(k): v for k, v in fs["lot_of"].items()}
         self.lot_left = {int(k): v for k, v in fs["lot_left"].items()}
         mp = fs["mp"]
-        self.mp, self.staged, self.quar, self.res = mp["units"], mp["staged"], mp["quarantine"], mp["reserved"]
+        by = mp.get("by") or {k: [mp[k]] for k in ("units", "staged", "quarantine", "reserved")}  # par matière
+        self.mp, self.staged, self.quar, self.res = by["units"], by["staged"], by["quarantine"], by["reserved"]
         self.inflight = fs["inflight"]
         self.starve = fs["starve"]
         self.pending = fs["pending"]
@@ -327,12 +369,13 @@ class _Sim:
         self.insp_busy, self.insp_q = fs["insp"]["busy"], deque(tuple(x) for x in fs["insp"]["queue"])
         self.orders = fs["orders"]
         self.loading = fs["loading"]
-        self.pf = fs["pf"]["units"]
+        self.pf = fs["pf"].get("by") or [fs["pf"]["units"]]
         self.qc_busy, self.qc_wake = fs["qc"]["busy"], fs["qc"]["wake"]
         pk = fs["pack"]
         self.conf, self.pk_busy, self.pk_cases, self.pk_units, self.pk_wait = (
-            pk["conf"], pk["busy"], pk["cases"], pk["units"], pk["wait"],
+            pk.get("by_conf") or [pk["conf"]], pk["busy"], pk["cases"], pk["units"], pk["wait"],
         )  # fmt: skip
+        self.pk_p = pk.get("p")  # produit de la palette en cours d'emballage (None : palette vide)
         self.tech_busy, self.repair_q = fs["tech"]["busy"], [tuple(x) for x in fs["tech"]["queue"]]
         self.fk_busy, self.transit = fs["fk"]["busy"], fs["fk"].get("transit", 0)
         self.totals = fs["totals"]
@@ -346,6 +389,7 @@ class _Sim:
         self.starve_days: set[tuple[int, int]] = set()
         self.scrap_turn = self.shipped_turn = 0
         self.consumed = 0
+        self.shipped_p = [0] * P.np
         self.received = {"trucks": 0, "pallets": 0, "accepted": 0, "quarantined": 0, "wait_min": 0.0}
         self.tech_stats = {"repairs": 0, "wait_min": 0.0, "waited": 0, "busy_min": 0.0}
         self.prev_done: list[str] = []
@@ -357,6 +401,7 @@ class _Sim:
         self.frames: list[list[Any]] = []
         self.qc_count = 0
         self.packed = {"cases": 0, "pallets": 0}
+        self.packed_p = [0] * P.np
         self.not_last = [i for i in range(P.n) if i not in P.last]
         self.disp = {
             "mdone": self._mdone, "mfail": self._mfail, "msetup": self._msetup, "mostop": self._mostop,
@@ -707,12 +752,16 @@ class _Sim:
             ]
             if not wanting:
                 return
-            if self.mp - self.res < P.need:  # pas assez de matière : les lignes sans kit s'arrêtent
-                for ln in wanting:
-                    if not self.pools[ln] and self.starve[ln] is None:
-                        self.starve[ln] = now
+            ready = []
+            for ln in wanting:
+                p = P.line_prod[ln]
+                if self.mp[p] - self.res[p] >= P.needs[p]:
+                    ready.append(ln)
+                elif not self.pools[ln] and self.starve[ln] is None:  # pas assez de matière : la ligne s'arrête
+                    self.starve[ln] = now
+            if not ready:
                 return
-            ln = min(wanting, key=lambda x: (len(self.pools[x]), x))
+            ln = min(ready, key=lambda x: (len(self.pools[x]), x))
             if self.starve[ln] is not None:
                 self._close_starve(ln, now)
             of = self.ofq[ln][0]
@@ -726,7 +775,7 @@ class _Sim:
             self.fs["ids"]["lot"] += 1
             lot = self.fs["ids"]["lot"]
             self.lot_of[lot], self.lot_left[lot] = of["id"], P.lot_size
-            self.res += P.need
+            self.res[P.line_prod[ln]] += P.needs[P.line_prod[ln]]
             self.inflight[ln] += 1
             self.fk_busy += 1
             end = self._work_end(now, P.lg["kit_min"])
@@ -748,14 +797,15 @@ class _Sim:
         else:
             self.fk_busy -= 1
         self.inflight[ln] -= 1
-        self.mp -= P.need
-        self.res -= P.need
-        self.consumed += P.need
+        p = P.line_prod[ln]
+        self.mp[p] -= P.needs[p]
+        self.res[p] -= P.needs[p]
+        self.consumed += P.needs[p]
         self.kits[ln] += 1
         self.pools[ln].append([lot, P.lot_size])
         self.pool_n[ln] += P.lot_size
         self.totals["launched"] += P.lot_size
-        self._ev(now, "kit_livre", self.lot_of[lot], line_id=P.line_ids[ln], quantity=P.need)
+        self._ev(now, "kit_livre", self.lot_of[lot], line_id=P.line_ids[ln], quantity=P.needs[p])
         if not self.fk_busy:
             self._agent(now, "agent_stock_mp", "disponible", "stock_mp")
         self._flush_staged(now)
@@ -764,13 +814,17 @@ class _Sim:
 
     # -- réception ---------------------------------------------------------------------------------------------------
 
-    def _places(self, units: int) -> int:
-        return -(-units // self.P.upp)
+    def _places(self, p: int) -> int:
+        """Places du stock MP si une palette de plus de la matière `p` y entrait (palette = taille de sa matière)."""
+        P = self.P
+        return sum(-(-(self.mp[q] + (P.upps[q] if q == p else 0)) // P.upps[q]) for q in range(P.np))
 
     def _flush_staged(self, now: float) -> None:
-        while self.staged and self._places(self.mp + self.P.upp) <= self.P.lg["mp_capacity_pallets"]:
-            self.staged -= 1
-            self.mp += self.P.upp
+        P = self.P
+        for p in range(P.np):
+            while self.staged[p] and self._places(p) <= P.lg["mp_capacity_pallets"]:
+                self.staged[p] -= 1
+                self.mp[p] += P.upps[p]
 
     def _dock_take(self, now: float, what: str, key: Any, since: float) -> None:
         """Un camion prend le quai (fournisseur : déchargement ; client : chargement)."""
@@ -787,7 +841,7 @@ class _Sim:
             self.dock_stats["busy_min"] += end - now
             self._push(end, "unl", key)
         else:
-            info = self.loading[str(key)]
+            info = self.loading[str(key)]  # key : jour, ou « jour-n° du client » pour les clients suivants
             pallets = sum(-(-q // P.pallet_pf) for _, q in info["ship"])
             end = self._work_end(now, pallets * P.lg["load_min_per_pallet"])
             self._agent(now, "chauffeur_client", "occupe", "quai", end)
@@ -800,7 +854,8 @@ class _Sim:
             site = self.P.offer_site.get(self.receiving[key]["offer_id"])
             subject = key
         else:
-            site, subject = self.P.client_site, f"client-{self.fs['day'] + int(key)}"
+            day, k = _split(key)
+            site, subject = self.P.clients[k]["site"], f"client-{self.fs['day'] + day}" + (f"-{k}" if k else "")
         if site:
             self._ev(now, kind, subject, site_id=site)
 
@@ -840,17 +895,18 @@ class _Sim:
         P = self.P
         self.insp_busy = False
         po = self.receiving[po_id]
+        p = P.p_of_comp[po["component_id"]]
         rate = min(0.5, P.lg["supplier_nonconform_rate"] + self.effects.get("nonconform", 0.0))
         if _rng(P, "fournisseur", po_id, "palette", k).random() < rate:
-            po["quarantined"] += P.upp
-            self.quar += P.upp
+            po["quarantined"] += P.upps[p]
+            self.quar[p] += P.upps[p]
         else:
-            po["accepted"] += P.upp
-            self.costs["mp"] += P.upp * po.get("unit_price", po["unit_cost"])  # quarantaine : avoir, rien à payer
-            if self.staged == 0 and self._places(self.mp + P.upp) <= P.lg["mp_capacity_pallets"]:
-                self.mp += P.upp
+            po["accepted"] += P.upps[p]
+            self.costs["mp"] += P.upps[p] * po.get("unit_price", po["unit_cost"])  # quarantaine : avoir
+            if self.staged[p] == 0 and self._places(p) <= P.lg["mp_capacity_pallets"]:
+                self.mp[p] += P.upps[p]
             else:
-                self.staged += 1
+                self.staged[p] += 1
         po["left"] -= 1
         if not po["left"]:
             del self.receiving[po_id]
@@ -907,7 +963,7 @@ class _Sim:
             self.good[ln] += 1
             self.totals["good"] += 1
             self.ofd[self.lot_of[code >> 1]]["good"] += 1
-            self.conf += 1
+            self.conf[self.P.line_prod[ln]] += 1
             self._pack_try(now)
         self._qc_try(now)
 
@@ -918,8 +974,15 @@ class _Sim:
         if self.pk_cases == lg["cases_per_pallet"]:
             self.pk_busy = "wrap"
             self._push(self._work_end(now, lg["wrap_min_per_pallet"]), "wrap")
-        elif self.conf >= lg["units_per_case"]:
-            self.conf -= lg["units_per_case"]
+            return
+        p = (
+            self.pk_p
+        )  # une palette ne porte qu'un produit : palette vide, le plus gros stock contrôlé (puis le premier)
+        if p is None:
+            p = max(range(self.P.np), key=lambda q: (self.conf[q], -q))
+        if self.conf[p] >= lg["units_per_case"]:
+            self.pk_p = p
+            self.conf[p] -= lg["units_per_case"]
             self.pk_units += lg["units_per_case"]
             self.pk_busy = "case"
             self._push(self._work_end(now, lg["pack_min_per_case"]), "case")
@@ -942,30 +1005,39 @@ class _Sim:
         carried = P.pal_h is not None
         if carried and self.fk_busy >= P.rs["forklifts"]:
             return
-        places = -(-(self.pf + (self.transit + 1) * P.pallet_pf) // P.pallet_pf)  # place réservée, palettes en route
+        places = sum(-(-u // P.pallet_pf) for u in self.pf) + self.transit + 1  # place réservée, palettes en route
         if not self.pk_wait or places > P.lg["pf_capacity_pallets"]:
             return
+        p = self.pk_p or 0
         self.pk_wait = False
         self.pk_units -= P.pallet_pf
         self.pk_cases = 0
+        self.pk_p = None
         if carried:
             self.fk_busy += 1
             self.transit += 1
             self.fk_busy_min += P.pal_h + 2 * P.pal_t
-            self._push(now + P.pal_h + P.pal_t, "pdel")
+            self._push(now + P.pal_h + P.pal_t, "pdel", p)
             self._push(now + P.pal_h + 2 * P.pal_t, "fkfree")
         else:
-            self._arrive(now)
+            self._arrive(now, p)
         self._pack_try(now)
 
-    def _arrive(self, now: float) -> None:
-        self.pf += self.P.pallet_pf
+    def _arrive(self, now: float, p: int) -> None:
+        self.pf[p] += self.P.pallet_pf
         self.packed["pallets"] += 1
-        self._ev(now, "palette", "pf", quantity=self.P.pallet_pf)
+        self.packed_p[p] += 1
+        self._ev(now, "palette", "pf", quantity=self.P.pallet_pf, **self._who(p))
 
-    def _pdel(self, now: float, _a: Any, _b: Any) -> None:
+    def _who(self, p: int, client: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Champs de produit (et de client) ajoutés aux événements d'une partie à plusieurs produits ou clients."""
+        if not self.P.multi:
+            return {}
+        return {"product_id": self.P.pids[p]} | ({"client_id": client["id"]} if client else {})
+
+    def _pdel(self, now: float, p: int, _b: Any) -> None:
         self.transit -= 1
-        self._arrive(now)
+        self._arrive(now, p)
 
     def _fkfree(self, now: float, _a: Any, _b: Any) -> None:
         self.fk_busy -= 1
@@ -977,49 +1049,57 @@ class _Sim:
     # -- client ------------------------------------------------------------------------------------------------------
 
     def _day(self, now: float, day: int, _: Any) -> None:
-        P, cu = self.P, self.P.cu
-        rng = _rng(P, "demande", day)
-        base = cu["demand_per_day"] / cu["orders_per_day"] * self.effects.get("demand", 1.0)
-        for _k in range(cu["orders_per_day"]):
-            self.fs["ids"]["co"] += 1
-            q = max(1, round(base * (1 + cu["variability"] * (2 * rng.random() - 1))))
-            order = {"id": f"c{self.fs['ids']['co']}", "quantity": q, "day": day, "due_day": day + cu["promised_days"],
-                     "shipped_day": None, "status": "ouverte", "on_time": None}  # fmt: skip
-            self.orders.append(order)
-            self._ev(now, "commande_client", order["id"], quantity=q, due_day=order["due_day"])
-        lo, hi = cu["pickup_window_min"]
-        self._push(now + lo + rng.random() * (hi - lo), "pick", day)
-
-    def _pick(self, now: float, day: int, _: Any) -> None:
-        """Le camion du client arrive : il emporte, dans l'ordre, les commandes que le stock PF couvre en entier."""
         P = self.P
-        stock, ship = self.pf, []
+        for k, cl in enumerate(P.clients):
+            rng = _rng(P, "demande", day) if cl["id"] == "c1" else _rng(P, "demande", day, cl["id"])
+            base = cl["demand_per_day"] / cl["orders_per_day"] * self.effects.get("demand", 1.0)
+            for _k in range(cl["orders_per_day"]):
+                self.fs["ids"]["co"] += 1
+                q = max(1, round(base * (1 + cl["variability"] * (2 * rng.random() - 1))))
+                order = {"id": f"c{self.fs['ids']['co']}", "quantity": q, "day": day,
+                         "due_day": day + cl["promised_days"], "shipped_day": None, "status": "ouverte",
+                         "on_time": None}  # fmt: skip
+                if P.multi:
+                    order |= {"client_id": cl["id"], "product_id": P.pids[cl["p"]]}
+                self.orders.append(order)
+                self._ev(now, "commande_client", order["id"], quantity=q, due_day=order["due_day"],
+                         **self._who(cl["p"], cl))  # fmt: skip
+            lo, hi = cl["pickup_window_min"]
+            self._push(now + lo + rng.random() * (hi - lo), "pick", day, k)
+
+    def _pick(self, now: float, day: int, k: int) -> None:
+        """Le camion du client arrive : il emporte, dans l'ordre, les commandes que le stock PF couvre en entier."""
+        P, cl = self.P, self.P.clients[k]
+        key = day if k == 0 else f"{day}-{k}"
+        stock, ship = self.pf[cl["p"]], []
         for o in self.orders:
-            if o["shipped_day"] is None and o["quantity"] <= stock:
+            if o["shipped_day"] is None and o.get("client_id", cl["id"]) == cl["id"] and o["quantity"] <= stock:
                 ship.append([o["id"], o["quantity"]])
                 stock -= o["quantity"]
         if not ship:
             return
-        self.loading[str(day)] = {"ship": ship}
+        self.loading[str(key)] = {"ship": ship}
         if self.dock_busy < P.rs["docks"]:
-            self._dock_take(now, "pick", day, now)
+            self._dock_take(now, "pick", key, now)
         else:
-            self.dock_q.append(["pick", day, now])
+            self.dock_q.append(["pick", key, now])
 
-    def _load(self, now: float, day: int, _: Any) -> None:
+    def _load(self, now: float, key: Any, _: Any) -> None:
         P = self.P
         self.dock_busy -= 1
-        self._truck_ev(now, "camion_part", "pick", day)
-        info = self.loading.pop(str(day))
+        self._truck_ev(now, "camion_part", "pick", key)
+        info = self.loading.pop(str(key))
+        cl = P.clients[_split(key)[1]]
         today = self.fs["day"] + int(now // P.mpd)
         by_id = {o["id"]: o for o in self.orders}
         for oid, q in info["ship"]:
             o = by_id[oid]
-            self.pf -= q
+            self.pf[cl["p"]] -= q
+            self.shipped_p[cl["p"]] += q
             self.shipped_turn += q
             self.totals["shipped"] += q
             o["shipped_day"], o["status"], o["on_time"] = today, "livree", today <= o["due_day"]
-            self._ev(now, "expedition", oid, quantity=q, on_time=o["on_time"])
+            self._ev(now, "expedition", oid, quantity=q, on_time=o["on_time"], **self._who(cl["p"], cl))
         self._agent(now, "chauffeur_client", "disponible", "client")
         self._store(now)
         self._dock_next(now)
@@ -1036,7 +1116,17 @@ class _Sim:
         for m in self.M:
             if m.cur is not None:
                 en_cours += 1
-        return [self.mp, en_cours, control, self.conf, 0, self.scrap_turn, self.pk_units, self.pf, self.shipped_turn]
+        return [
+            sum(self.mp),
+            en_cours,
+            control,
+            sum(self.conf),
+            0,
+            self.scrap_turn,
+            self.pk_units,
+            sum(self.pf),
+            self.shipped_turn,
+        ]
 
     def _frame(self, now: float, k: int, _: Any) -> None:
         self.frames.append(
@@ -1063,42 +1153,54 @@ class _Sim:
     def _auto(self, now: float, d: int, _: Any) -> None:
         """Décision quotidienne du pilote : la matière d'abord (l'OF compte sur elle), puis les OF."""
         P, fs = self.P, self.fs
-        order = self.auto.get("order")
-        if order:
+        orders = self.auto.get("order") or []
+        for order in orders if isinstance(orders, list) else [orders]:
             offer = order["offer"]
-            on_order = sum(po["pallets"] for po in self.pending)
-            position = -(-self.mp // P.upp) + self.staged + on_order  # en palettes
+            p = P.p_of_comp[offer["component_id"]]
+            on_order = sum(po["pallets"] for po in self.pending if po["component_id"] == offer["component_id"])
+            position = -(-self.mp[p] // P.upps[p]) + self.staged[p] + on_order  # en palettes
             while position <= order["reorder"]:
-                free = P.lg["mp_capacity_pallets"] - (-(-self.mp // P.upp) + self.staged + on_order)
+                held = sum(-(-self.mp[q] // P.upps[q]) + self.staged[q] for q in range(P.np))
+                free = P.lg["mp_capacity_pallets"] - (held + sum(po["pallets"] for po in self.pending))
                 pallets = min(order["truck"], free)
                 if pallets < offer["min_order"]:
                     break
-                price = pallets * P.upp * offer["unit_cost"] * order["cost_index"]
+                price = pallets * P.upps[p] * offer["unit_cost"] * order["cost_index"]
                 if price > self.budget:
                     break
                 self.budget -= price
                 order_mp(P, fs, offer, pallets, order["cost_index"], fs["day"] + d)
                 self._schedule_truck(fs["pending"][-1])
-                on_order += pallets
                 position += pallets
         launch = self.auto.get("launch")
         if launch:
-            yields = launch["yields"]
-            good_wip = sum((of["quantity"] - of["out"]) * yields[of["line_id"]] for of in fs["ofs"])
-            open_orders = sum(o["quantity"] for o in self.orders if o["shipped_day"] is None)
-            need = P.pf_min - (self.pf + good_wip + self.conf + self.pk_units - open_orders)
-            if need > 0:
-                need = max(need, launch.get("pf_max", P.pf_min) - (P.pf_min - need))  # campagne : jusqu'à pf_max
-                mean_yield = sum(yields.values()) / P.nl
-                lots = math.ceil(need / (P.lot_size * mean_yield))
-                for ln, lid in enumerate(P.line_ids):
-                    share = min(40, math.ceil(lots / P.nl))
-                    if share > 0:
-                        launch_of(P, fs, lid, share)
-                        of = fs["ofs"][-1]
-                        self.ofd[of["id"]] = of
-                        self.ofq[ln].append(of)
-                        self.lots_left[ln] += of["lots"]
+            yields, launched = launch["yields"], False
+            for p in range(P.np):  # le stock PF se tient produit par produit
+                lines = [ln for ln in range(P.nl) if P.line_prod[ln] == p]
+                good_wip = sum((of["quantity"] - of["out"]) * yields[of["line_id"]]
+                               for of in fs["ofs"] if P.prod_of_line[of["line_id"]] == p)  # fmt: skip
+                pid = P.pids[p]
+                open_orders = sum(
+                    o["quantity"]
+                    for o in self.orders
+                    if o["shipped_day"] is None and o.get("product_id", P.pids[0]) == pid
+                )
+                packing = self.pk_units if (self.pk_p or 0) == p else 0
+                need = P.pf_min - (self.pf[p] + good_wip + self.conf[p] + packing - open_orders)
+                if need > 0:
+                    need = max(need, launch.get("pf_max", P.pf_min) - (P.pf_min - need))  # campagne : jusqu'à pf_max
+                    mean_yield = sum(yields[P.line_ids[ln]] for ln in lines) / len(lines)
+                    lots = math.ceil(need / (P.lot_size * mean_yield))
+                    for ln in lines:
+                        share = min(40, math.ceil(lots / len(lines)))
+                        if share > 0:
+                            launch_of(P, fs, P.line_ids[ln], share)
+                            of = fs["ofs"][-1]
+                            self.ofd[of["id"]] = of
+                            self.ofq[ln].append(of)
+                            self.lots_left[ln] += of["lots"]
+                    launched = True
+            if launched:
                 self._kit_try(now)
 
     def run(self) -> None:
@@ -1172,13 +1274,18 @@ class _Sim:
         keep_lots = sorted(self.lot_of)[-KEPT_LOTS:]
         fs["lot_of"] = {str(k): self.lot_of[k] for k in keep_lots}
         fs["lot_left"] = {str(k): v for k, v in self.lot_left.items()}
-        fs["mp"] = {"units": self.mp, "staged": self.staged, "quarantine": self.quar, "reserved": self.res}
+        fs["mp"] = {"units": sum(self.mp), "staged": sum(self.staged), "quarantine": sum(self.quar),
+                    "reserved": sum(self.res)}  # fmt: skip
+        if P.multi:
+            fs["mp"]["by"] = {"units": self.mp, "staged": self.staged, "quarantine": self.quar, "reserved": self.res}
         fs["dock"] = {"busy": self.dock_busy, "queue": [[w, k, s - T] for w, k, s in self.dock_q]}
         fs["insp"] = {"busy": self.insp_busy, "queue": [list(x) for x in self.insp_q]}
-        fs["pf"] = {"units": self.pf}
+        fs["pf"] = {"units": sum(self.pf)} | ({"by": self.pf} if P.multi else {})
         fs["qc"] = {"busy": self.qc_busy, "wake": None if self.qc_wake is None else self.qc_wake - T}
-        fs["pack"] = {"conf": self.conf, "busy": self.pk_busy, "cases": self.pk_cases, "units": self.pk_units,
+        fs["pack"] = {"conf": sum(self.conf), "busy": self.pk_busy, "cases": self.pk_cases, "units": self.pk_units,
                       "wait": self.pk_wait}  # fmt: skip
+        if P.multi:
+            fs["pack"] |= {"by_conf": self.conf, "p": self.pk_p}
         fs["tech"] = {"busy": self.tech_busy, "queue": [[t - T, i] for t, i in self.repair_q]}
         fs["fk"] = {"busy": self.fk_busy, "transit": self.transit} if P.pal_h is not None else {"busy": self.fk_busy}
         # commandes : statut du jour, puis on ne garde que les ouvertes et les dernières closes
@@ -1189,6 +1296,11 @@ class _Sim:
                 o["status"] = "en_retard"
         due = [o for o in self.orders if day0_ <= o["due_day"] < today]
         self.otif = {"due": len(due), "on_time": sum(1 for o in due if o["on_time"])}
+        self.due_p = [[0, 0] for _ in range(P.np)]  # [dues, à l'heure] par produit
+        for o in due:
+            row = self.due_p[P.pids.index(o.get("product_id", P.pids[0]))]
+            row[0] += 1
+            row[1] += bool(o["on_time"])
         closed = [o for o in self.orders if o["shipped_day"] is not None]
         fs["orders"] = [o for o in self.orders if o["shipped_day"] is None] + closed[-KEPT_ORDERS:]
         done = [of for of in fs["ofs"] if of["status"] == "termine"]
@@ -1206,7 +1318,7 @@ class _Sim:
     def report(self, day0: int) -> dict[str, Any]:
         P = self.P
         due, on_time = self.otif["due"], self.otif["on_time"]
-        return {
+        report = {
             "minutes": P.T,
             "day": day0,
             "lines": {
@@ -1235,6 +1347,13 @@ class _Sim:
             "shipped": self.shipped_turn,
             "costs": self.costs,
         }  # fmt: skip
+        if P.multi:  # partie à un produit et un client : rapport inchangé (référence de la tranche T4b)
+            report["by_product"] = [  # palettes emballées, unités expédiées, commandes échues et à l'heure du tour
+                {"product_id": pid, "shipped": self.shipped_p[p], "pallets": self.packed_p[p],
+                 "due": self.due_p[p][0], "on_time": self.due_p[p][1]}
+                for p, pid in enumerate(P.pids)
+            ]  # fmt: skip
+        return report
 
 
 def simulate(

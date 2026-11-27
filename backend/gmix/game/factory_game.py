@@ -30,7 +30,8 @@ KEPT_CLOSED = factory.KEPT_ORDERS
 def initial_state(spec: dict[str, Any]) -> dict[str, Any]:
     plant = factory.Plant(spec)
     fs = factory.initial_state(plant)
-    if first := spec["factory"].get("initial_order"):  # commande déjà en route (règle n° 5a), payée à la réception
+    f = spec["factory"]  # commandes déjà en route (règle n° 5a, une par matière), payées à la réception
+    for first in ([f["initial_order"]] if f.get("initial_order") else []) + (f.get("initial_orders") or []):
         offer = next(o for o in spec["offers"] if o["id"] == first["offer_id"])
         factory.order_mp(plant, fs, offer, first["pallets"], day=first["arrival_day"] - offer["lead_time"])
     return {
@@ -63,9 +64,28 @@ def _name(spec: dict[str, Any], line_id: str) -> str:
     return next(line["name"] for line in spec["lines"] if line["id"] == line_id)
 
 
+def _mp_by(plant: factory.Plant, fs: dict[str, Any], key: str) -> list[int]:
+    """Matière par composant (`key` : units, staged, quarantine, reserved) ; l'agrégat à un produit et un client."""
+    return fs["mp"]["by"][key] if plant.multi else [fs["mp"][key]]
+
+
+def _pf_by(plant: factory.Plant, fs: dict[str, Any]) -> list[int]:
+    return fs["pf"]["by"] if plant.multi else [fs["pf"]["units"]]
+
+
+def _upp(plant: factory.Plant, component_id: str) -> int:
+    return plant.upps[plant.p_of_comp[component_id]]
+
+
+def _engaged(plant: factory.Plant, state: dict[str, Any]) -> float:
+    """Matière en route, payée à la livraison."""
+    return sum(po["pallets"] * _upp(plant, po["component_id"]) * po["unit_price"] for po in state["fs"]["pending"])
+
+
 def _rack_pallets(plant: factory.Plant, fs: dict[str, Any]) -> int:
     """Places occupées au magasin matière : stock rangé, palettes en attente de place et commandes en route."""
-    stock = -(-fs["mp"]["units"] // plant.upp) + fs["mp"]["staged"]
+    units, staged = _mp_by(plant, fs, "units"), _mp_by(plant, fs, "staged")
+    stock = sum(-(-u // upp) + s for u, upp, s in zip(units, plant.upps, staged, strict=True))
     return stock + sum(po["pallets"] for po in fs["pending"])
 
 
@@ -81,8 +101,8 @@ def _h_order(spec: dict[str, Any], state: dict[str, Any], v: dict[str, Any]) -> 
     offer = next(o for o in spec["offers"] if o["id"] == v["offer"])
     if v["pallets"] < offer["min_order"]:
         raise GameRuleError(f"Ce fournisseur impose au moins {offer['min_order']} palettes par commande")
-    price = round(v["pallets"] * plant.upp * offer["unit_cost"] * state["cost_index"], 2)
-    due = round(sum(po["pallets"] * plant.upp * po["unit_price"] for po in state["fs"]["pending"]), 2)
+    price = round(v["pallets"] * _upp(plant, offer["component_id"]) * offer["unit_cost"] * state["cost_index"], 2)
+    due = round(_engaged(plant, state), 2)
     if price > state["cash"] - due:  # la matière en route sera payée à la livraison
         raise GameRuleError(
             f"Trésorerie insuffisante : la commande coûte {money(price)}, {money(state['cash'])} en caisse "
@@ -136,21 +156,34 @@ def _yields(plant: factory.Plant) -> list[float]:
     return [factory.trs_factors(plant, ln)["qualite"] for ln in range(plant.nl)]
 
 
-def _daily_mp(plant: factory.Plant) -> float:
-    """Matière consommée par jour pour servir la demande moyenne, rebuts compris."""
-    return plant.cu["demand_per_day"] / (sum(_yields(plant)) / plant.nl) * plant.per_unit
+def _daily_mp(plant: factory.Plant, p: int = 0) -> float:
+    """Matière du produit p consommée par jour pour servir sa demande moyenne (ses clients), rebuts compris."""
+    yields = [y for y, q in zip(_yields(plant), plant.line_prod, strict=True) if q == p]
+    demand = sum(c["demand_per_day"] for c in plant.clients if c["p"] == p)
+    return demand / (sum(yields) / len(yields)) * plant.per_units[p]
 
 
 def _reorder_point(spec: dict[str, Any], plant: factory.Plant, offer: dict[str, Any]) -> int:
     """Point de commande en palettes = (délai L + période de revue R de 1 jour + stock de sécurité SS) x conso/jour
-    / palette (wikipedia-en-safety-stock, § Inventory policy)."""
+    / palette (wikipedia-en-safety-stock, § Inventory policy), de la matière de l'offre."""
+    p = plant.p_of_comp[offer["component_id"]]
     days = offer["lead_time"] + 1 + spec["factory"].get("mp_safety_days", 1)
-    return math.ceil(days * _daily_mp(plant) / plant.upp)
+    return math.ceil(days * _daily_mp(plant, p) / plant.upps[p])
 
 
-def _standard_offer(spec: dict[str, Any]) -> dict[str, Any]:
-    offers = sorted(spec["offers"], key=lambda o: o["lead_time"])
+def _standard_offer(spec: dict[str, Any], component_id: str | None = None) -> dict[str, Any]:
+    mine = [o for o in spec["offers"] if component_id in (None, o["component_id"])]
+    offers = sorted(mine, key=lambda o: o["lead_time"])
     return next((o for o in offers if o["profile"] == "standard"), offers[len(offers) // 2])
+
+
+def _truck(plant: factory.Plant, offer: dict[str, Any], reorder: int) -> int:
+    """Camion d'une matière : à plusieurs produits, les racks sont communs, donc la part des lignes du produit
+    moins le point de commande (au plus un camion de six) ; à un produit, le camion standard."""
+    if plant.np == 1:
+        return MAX_TRUCK_PALLETS
+    share = plant.lg["mp_capacity_pallets"] * plant.line_prod.count(plant.p_of_comp[offer["component_id"]]) // plant.nl
+    return max(offer["min_order"], min(MAX_TRUCK_PALLETS, share - reorder))
 
 
 def _autopilot(
@@ -172,12 +205,14 @@ def _autopilot(
         settings["protect"] = dict.fromkeys(plant.line_ids, "aucune")
     if "pilotage" in played:
         return None
-    offer = _standard_offer(spec)
-    reorder = _reorder_point(spec, plant, offer)
+    budget = state["cash"] - _engaged(plant, state)  # déjà engagé ; un budget commun, pris dans la première règle
+    orders = [
+        {"offer": offer, "reorder": (ro := _reorder_point(spec, plant, offer)), "truck": _truck(plant, offer, ro),
+         "cost_index": state["cost_index"], "budget": budget}
+        for offer in (_standard_offer(spec, c) for c in plant.comps)
+    ]  # fmt: skip
     return {
-        "order": {"offer": offer, "reorder": reorder, "truck": MAX_TRUCK_PALLETS, "cost_index": state["cost_index"],
-                  "budget": state["cash"] - sum(po["pallets"] * plant.upp * po["unit_price"]
-                                                for po in state["fs"]["pending"])},  # déjà engagé
+        "order": orders if plant.multi else orders[0],
         "launch": {"pf_max": spec["factory"].get("pf_max") or plant.pf_min,
                    "yields": dict(zip(plant.line_ids, _yields(plant), strict=True))},
     }  # fmt: skip
@@ -203,7 +238,9 @@ def advance(spec: dict[str, Any], state: dict[str, Any], played: set[str]) -> di
         plant, new["fs"], week, {k: v for k, v in effects.items() if k in SIM_EFFECTS}, auto
     )
     snap = _snapshot(plant, new["fs"], timeline, report, new["snap"])
-    revenue = report["shipped"] * spec["products"][0]["price"]
+    rows = _by_product(plant, report)
+    price = {p["id"]: p["price"] for p in spec["products"]}
+    revenue = sum(r["shipped"] * price[r["product_id"]] for r in rows)  # somme par produit (annexe 0013 §3 bis)
     staff = sum(m["operators"] for m in plant.machines) * plant.days * plant.mpd / 60 * plant.costs["operator_per_h"]
     relief = report["relief_min"] / 60 * plant.costs["operator_per_h"]
     costs = {"repair": report["costs"]["repair"], "preventive": report["costs"]["preventive"],
@@ -226,13 +263,48 @@ def advance(spec: dict[str, Any], state: dict[str, Any], played: set[str]) -> di
     }  # fmt: skip
     new["history"].append(
         {"week": week, **kpis, "event": new["last"]["event"], "lost": lost, "returns": 0, "delays": len(delayed),
-         "wear": _wear(plant, report, effects.get("mtbf", 1.0)), "preventive": len(report["preventive"]["done"])}
+         "wear": _wear(plant, report, effects.get("mtbf", 1.0)), "preventive": len(report["preventive"]["done"]),
+         "by_product": _week_products(spec, plant, new["fs"], rows)}
     )  # fmt: skip
     if week >= spec["meta"]["weeks"]:
         new["status"], new["event"] = "finished", None
     else:
         new["week"], new["event"] = week + 1, roll_event(spec, week + 1)
     return new
+
+
+def _by_product(plant: factory.Plant, report: dict[str, Any]) -> list[dict[str, Any]]:
+    """Expédié, palettes emballées, commandes échues et à l'heure du tour, par produit (un produit : le rapport)."""
+    return report.get("by_product") or [
+        {"product_id": plant.pids[0], "shipped": report["shipped"], "pallets": report["packed"]["pallets"],
+         "due": report["orders"]["due"], "on_time": report["orders"]["on_time"]}
+    ]  # fmt: skip
+
+
+def _week_products(
+    spec: dict[str, Any], plant: factory.Plant, fs: dict[str, Any], rows: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Ligne par produit de l'historique : stock PF en fin de tour, expédié et OTIF (0-100) de la semaine."""
+    names, stock = {p["id"]: p["name"] for p in spec["products"]}, _pf_by(plant, fs)
+    return [
+        {"product_id": r["product_id"], "name": names[r["product_id"]], "quantity": stock[i],
+         "pallets": -(-stock[i] // plant.pallet_pf), "shipped": r["shipped"],
+         "otif": round(100 * r["on_time"] / r["due"], 1) if r["due"] else None}
+        for i, r in enumerate(rows)
+    ]  # fmt: skip
+
+
+def _game_products(spec: dict[str, Any], state: dict[str, Any], plant: factory.Plant) -> list[dict[str, Any]]:
+    """Table par produit de la partie : stock PF actuel, expédié cumulé, OTIF moyen des semaines (vue et débrief)."""
+    weeks = [h["by_product"] for h in state["history"] if h.get("by_product")]
+    now = _week_products(spec, plant, state["fs"], [
+        {"product_id": pid, "shipped": 0, "due": 0, "on_time": 0} for pid in plant.pids
+    ])  # fmt: skip
+    for i, row in enumerate(now):
+        otifs = [w[i]["otif"] for w in weeks if w[i]["otif"] is not None]
+        row["shipped"] = sum(w[i]["shipped"] for w in weeks)
+        row["otif"] = round(sum(otifs) / len(otifs), 1) if otifs else None
+    return now
 
 
 def _wear(plant: factory.Plant, report: dict[str, Any], mtbf_factor: float) -> dict[str, Any]:
@@ -332,8 +404,9 @@ def _snapshot(
             "performance": min(100.0, 100 * r["out"] / (th * run_h)) if run_h > 0 else None,
             "qualite": 100 * r["good"] / r["out"] if ok else None,
         }  # fmt: skip
-    rec, upp = report["reception"], plant.upp
-    edges = [["fournisseur", "reception", rec["pallets"] * upp], ["reception", "stock_mp", rec["accepted"]]]
+    rec = report["reception"]
+    delivered = rec["accepted"] + rec["quarantined"] if plant.multi else rec["pallets"] * plant.upp  # palettes mêlées
+    edges = [["fournisseur", "reception", delivered], ["reception", "stock_mp", rec["accepted"]]]
     for ln, lid in enumerate(plant.line_ids):
         ms = plant.line_machines[ln]
         edges.append(["stock_mp", plant.mids[ms[0]], report["lines"][lid]["entered"]])
@@ -400,11 +473,19 @@ def _factory_view(spec: dict[str, Any], state: dict[str, Any], plant: factory.Pl
             "wip": wip, "capacity": round(factory.theoretical_h(plant, ln) * plant.T / 60),
             "trs": None if got["trs"] is None else round(got["trs"], 1),
         })  # fmt: skip
-    std = _standard_offer(spec)
-    reorder = _reorder_point(spec, plant, std)
-    component = next(c for c in spec["components"] if c["id"] == plant.component)
-    pending = sum(po["pallets"] for po in fs["pending"])
-    mp_units = fs["mp"]["units"]
+    names = {c["id"]: c["name"] for c in spec["components"]}
+    mp_stocks = [  # une entrée par matière
+        {
+            "component_id": cid,
+            "name": names[cid],
+            "quantity": units,
+            "pallets": -(-units // upp),
+            "capacity_pallets": plant.lg["mp_capacity_pallets"],
+            "reorder_point": _reorder_point(spec, plant, _standard_offer(spec, cid)),
+            "pending": sum(po["pallets"] for po in fs["pending"] if po["component_id"] == cid),
+        }
+        for cid, units, upp in zip(plant.comps, _mp_by(plant, fs, "units"), plant.upps, strict=True)
+    ]  # fmt: skip
     pf = fs["pf"]["units"]
     expected = [factory.trs_factors(plant, ln) for ln in range(plant.nl)]
     measured = [snap["lines"][lid] for lid in plant.line_ids]
@@ -439,17 +520,7 @@ def _factory_view(spec: dict[str, Any], state: dict[str, Any], plant: factory.Pl
         "machines": machines,
         "lines": lines,
         "stocks": {
-            "mp": [
-                {
-                    "component_id": component["id"],
-                    "name": component["name"],
-                    "quantity": mp_units,
-                    "pallets": -(-mp_units // plant.upp),
-                    "capacity_pallets": plant.lg["mp_capacity_pallets"],
-                    "reorder_point": reorder,
-                    "pending": pending,
-                }
-            ],  # fmt: skip
+            "mp": mp_stocks,
             "pf": {
                 "quantity": pf,
                 "pallets": -(-pf // plant.pallet_pf),
@@ -476,10 +547,13 @@ def _factory_view(spec: dict[str, Any], state: dict[str, Any], plant: factory.Pl
                     "due_day": o["due_day"],
                     "shipped": o["quantity"] if o["shipped_day"] is not None else 0,
                     "status": o["status"],
+                    "client_id": o.get("client_id", "c1"),
+                    "product_id": o.get("product_id", plant.pids[0]),
                 }
                 for o in customer
             ],  # fmt: skip
         },
+        "by_product": _game_products(spec, state, plant),
         "agents": agents,
         "products": dict(zip(COUNTERS[1:], snap["counters"][1:], strict=True)),
         "flow": {"nodes": nodes, "edges": [{"from": a, "to": b, "count": c} for a, b, c in snap["edges"]]},
@@ -538,12 +612,18 @@ def _alerts(spec: dict[str, Any], state: dict[str, Any], view: dict[str, Any]) -
                                     module_id=t["module_id"], department_id=t["department_id"], ref=ref,
                                     action=action))  # fmt: skip
 
-    mp = f["stocks"]["mp"][0]
-    if mp["pallets"] + mp["pending"] < mp["reorder_point"]:
-        offer = _standard_offer(spec)
-        pallets = min(MAX_TRUCK_PALLETS, mp["capacity_pallets"] - mp["pallets"] - mp["pending"])
-        order = ("commander_mp", {"offer": offer["id"], "pallets": pallets}) if pallets >= offer["min_order"] else None
-        emit("reorder", "reorder:c1", mp, ref="mp:c1", action=order)
+    held = sum(m["pallets"] + m["pending"] for m in f["stocks"]["mp"])  # le magasin est commun à toutes les matières
+    plant = factory.Plant(spec)
+    for mp in f["stocks"]["mp"]:
+        if mp["pallets"] + mp["pending"] < mp["reorder_point"]:
+            offer = _standard_offer(spec, mp["component_id"])
+            truck = _truck(plant, offer, mp["reorder_point"])
+            pallets = min(truck, mp["capacity_pallets"] - held)
+            order = (
+                ("commander_mp", {"offer": offer["id"], "pallets": pallets}) if pallets >= offer["min_order"] else None
+            )
+            cid = mp["component_id"]
+            emit("reorder", f"reorder:{cid}", mp, ref=f"mp:{cid}", action=order)
     snap = state.get("snap") or {}
     for lid, line in (((snap.get("report") or {}).get("lines")) or {}).items():
         if line["stockout_min"]:
@@ -599,7 +679,8 @@ def debrief(spec: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
     events = {e["id"]: e["title"] for e in spec["events"]}
     return {
         "status": state["status"], "company": spec["meta"]["company"], "weeks_played": len(history), "kpis": finals,
-        "history": history, "lessons": _lessons(spec, state), "bottlenecks": bottleneck_wear(spec, state),
+        "history": history, "by_product": _game_products(spec, state, factory.Plant(spec)),
+        "lessons": _lessons(spec, state), "bottlenecks": bottleneck_wear(spec, state),
         "preventive": preventive_balance(spec, state),
         "notions": [n for n in spec["notions"] if n["id"] in notion_ids],
         "events": [{"week": h["week"], "title": events.get(h["event"], h["event"])} for h in history if h["event"]],
@@ -616,7 +697,7 @@ def _lessons(spec: dict[str, Any], state: dict[str, Any]) -> list[str]:
     starved = sum(h["stockouts"] for h in history)
     if starved:
         weeks = sum(1 for h in history if h["stockouts"])
-        reorder = _reorder_point(spec, factory.Plant(spec), _standard_offer(spec))
+        reorder = _reorder_point(spec, factory.Plant(spec), _standard_offer(spec, spec["components"][0]["id"]))
         lessons.append(
             f"{starved} jour(s)-ligne arrêté(s) faute de matière, sur {weeks} semaine(s). Repère : recommandez quand "
             "stock et palettes commandées passent sous le point de commande (consommation pendant le délai + stock "
@@ -768,7 +849,7 @@ def _facts_reception(spec: dict[str, Any], state: dict[str, Any], view: dict[str
 
 
 def _facts_stock_mp(spec: dict[str, Any], state: dict[str, Any], view: dict[str, Any]) -> list[Fact]:
-    mp = view["factory"]["stocks"]["mp"][0]
+    stocks = view["factory"]["stocks"]["mp"]  # une matière par produit (3 au plus)
     rep = _rep(state)
     facts: list[Fact] = []
     stopped = [line["stockout_min"] for line in rep["lines"].values() if line["stockout_min"]] if rep else []
@@ -776,19 +857,26 @@ def _facts_stock_mp(spec: dict[str, Any], state: dict[str, Any], view: dict[str,
         total, n = num(sum(stopped), 0), len(rep["lines"])
         facts.append((True, f"Les {n} lignes ont été arrêtées {total} minutes au total faute de matière.")
                      if n > 1 else (True, f"La ligne a été arrêtée {total} minutes faute de matière."))  # fmt: skip
-    left = mp["capacity_pallets"] - mp["pallets"] - mp["pending"]
-    if mp["pallets"] + mp["pending"] < mp["reorder_point"]:
-        stock = f"{num(mp['pallets'], 0)} palettes en stock et {num(mp['pending'], 0)} en commande"
-        facts.append(
-            (True, f"{stock}, sous le point de commande de {num(mp['reorder_point'], 0)} : il faut commander.")
-        )
+    pallets, pending = sum(m["pallets"] for m in stocks), sum(m["pending"] for m in stocks)
+    left = stocks[0]["capacity_pallets"] - pallets - pending  # un magasin commun à toutes les matières
+    for mp in stocks:
+        if mp["pallets"] + mp["pending"] < mp["reorder_point"]:
+            what = f"{mp['name']} : " if len(stocks) > 1 else ""
+            stock = f"{what}{num(mp['pallets'], 0)} palettes en stock et {num(mp['pending'], 0)} en commande"
+            facts.append(
+                (True, f"{stock}, sous le point de commande de {num(mp['reorder_point'], 0)} : il faut commander.")
+            )
     facts.append(
         (
             False,
-            f"Magasin : {num(mp['pallets'], 0)} palettes sur {num(mp['capacity_pallets'], 0)} places, "
-            f"{num(max(left, 0), 0)} libres une fois comptées les {num(mp['pending'], 0)} en commande.",
+            f"Magasin : {num(pallets, 0)} palettes sur {num(stocks[0]['capacity_pallets'], 0)} places, "
+            f"{num(max(left, 0), 0)} libres une fois comptées les {num(pending, 0)} en commande.",
         )
     )
+    if len(stocks) > 1:  # le stock de chaque matière, en palettes
+        facts.append(
+            (False, " ; ".join(f"{m['name']} : {num(m['pallets'], 0)} palettes en stock" for m in stocks) + ".")
+        )
     return facts
 
 
@@ -798,14 +886,16 @@ def _facts_production(spec: dict[str, Any], state: dict[str, Any], view: dict[st
     for m in f["machines"]:
         if m["bottleneck"] and m["state"] == "panne":
             facts.append((True, f"Le goulot {m['name']} est en panne."))
+    products = {p["id"]: p["name"] for p in spec["products"]}
+    made = {ln["id"]: products[ln["product_id"]] for ln in spec["lines"]}
     for line in f["lines"]:
         if line["real_h"] is not None:
             slow = line["real_h"] < 0.9 * line["expected_h"]
+            what = f"{line['name']} ({made[line['id']]})" if len(products) > 1 else line["name"]  # produit de la ligne
             facts.append(
                 (
                     slow,
-                    f"{line['name']} : {num(line['real_h'])} bons par heure mesurés "
-                    f"pour {num(line['expected_h'])} attendus.",
+                    f"{what} : {num(line['real_h'])} bons par heure mesurés pour {num(line['expected_h'])} attendus.",
                 )
             )
     open_of = [of for of in f["orders"]["production"] if of["status"] != "termine"]
@@ -881,16 +971,16 @@ def _facts_pilotage(spec: dict[str, Any], state: dict[str, Any], view: dict[str,
     late = [o for o in orders if o["status"] == "en_retard"]
     open_ = [o for o in orders if o["status"] != "livree"]
     stock = f["stocks"]["pf"]
-    wip = sum(line["wip"] for line in f["lines"])
     facts: list[Fact] = [(bool(late), f"{len(open_)} commande(s) ouverte(s), dont {len(late)} en retard.")]
-    if stock["quantity"] + wip < stock["min"]:
-        facts.append(
-            (
-                True,
-                f"Stock fini et en-cours à {stock['quantity'] + wip}, sous le minimum de {stock['min']} : "
-                "lancer des ordres.",
-            )
-        )
+    prod_of_line = factory.Plant(spec).prod_of_line
+    for p, row in enumerate(f["by_product"]):  # le minimum s'applique à chaque produit (pf_min commun)
+        wip = sum(line["wip"] for line in f["lines"] if prod_of_line[line["id"]] == p)
+        if row["quantity"] + wip < stock["min"]:
+            what = "Stock fini" if len(f["by_product"]) == 1 else f"{row['name']} : stock fini"
+            facts.append(
+                (True, f"{what} et en-cours à {row['quantity'] + wip}, sous le minimum de {stock['min']} : "
+                       "lancer des ordres.")
+            )  # fmt: skip
     otif, trs = view["kpis"]["otif"], view["kpis"]["trs"]
     if otif is not None:
         facts.append(
@@ -904,7 +994,7 @@ def _facts_pilotage(spec: dict[str, Any], state: dict[str, Any], view: dict[str,
 
 
 def _facts_entrepot_pf(spec: dict[str, Any], state: dict[str, Any], view: dict[str, Any]) -> list[Fact]:
-    stock = view["factory"]["stocks"]["pf"]
+    stock, by_product = view["factory"]["stocks"]["pf"], view["factory"]["by_product"]
     late = sum(1 for o in view["factory"]["orders"]["customer"] if o["status"] == "en_retard")
     facts: list[Fact] = []
     if stock["pallets"] >= stock["capacity_pallets"]:
@@ -912,14 +1002,21 @@ def _facts_entrepot_pf(spec: dict[str, Any], state: dict[str, Any], view: dict[s
     if late:
         facts.append((True, f"{late} commande(s) en retard faute de stock complet."))
     facts.append((False, f"{stock['pallets']} palettes en stock sur {stock['capacity_pallets']} places."))
+    if len(by_product) > 1:  # une palette ne porte qu'un produit
+        facts.append((False, " ; ".join(f"{r['name']} : {r['pallets']} palettes" for r in by_product) + "."))
     return facts
 
 
 def _facts_client(spec: dict[str, Any], state: dict[str, Any], view: dict[str, Any]) -> list[Fact]:
     otif, targets = view["kpis"]["otif"], spec["targets"]
-    open_ = [o for o in view["factory"]["orders"]["customer"] if o["status"] != "livree"]
+    mine = [o for o in view["factory"]["orders"]["customer"] if o["client_id"] == "c1"]  # le PNJ parle de c1 seul
+    open_ = [o for o in mine if o["status"] != "livree"]
     facts: list[Fact] = []
-    if otif is not None and otif < targets["otif"]:
+    multi = bool(spec["factory"].get("clients"))
+    late = sum(1 for o in open_ if o["status"] == "en_retard")
+    if multi and late:  # l'OTIF agrégé mêle les clients : le client ne cite que ses commandes
+        facts.append((True, f"{late} de nos commande(s) sont en retard."))
+    elif not multi and otif is not None and otif < targets["otif"]:
         facts.append(
             (
                 True,

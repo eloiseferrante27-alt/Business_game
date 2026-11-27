@@ -19,6 +19,31 @@ calendaires. Pénalités de retard : `montant x taux annuel x jours de retard / 
 - La Banque de France et l'Insee multiplient par 360 (ODP 2025, annexe 2, p. 61 et 62 ; formules Insee p. 64). C'est
   une convention d'agrégat comptable annuel, sans objet dans un jeu qui compte des semaines.
 
+**Base 365 des pénalités : réserve levée sur le principe, maintenue sur le diviseur** (revue du 2026-11-27).
+- Principe sourcé : intérêts simples, comptés par jour, à un taux annuel. Directive 2011/7/UE du 16/02/2011 (JO UE
+  L 48 du 23/02/2011), que L441-10 transpose, considérant 15 : « Il convient que les intérêts légaux exigibles en cas
+  de retard de paiement soient calculés quotidiennement en tant qu'intérêts simples » ; art. 2, 6) : « "intérêts
+  légaux pour retard de paiement", les intérêts simples pour retard de paiement, dont le taux est égal à la somme du
+  taux de référence et de huit points de pourcentage au moins ». Texte lu le 2026-11-27 sur
+  http://publications.europa.eu/resource/celex/32011L0007 (Office des publications de l'UE, version FR).
+- L441-10, II (Code de commerce, rédaction de l'ordonnance n° 2019-359, lu le 2026-11-27 sur
+  https://codes.droit.org/payloads/Code%20de%20commerce.xml, reprise Légifrance du 2026-11-26, LEGIARTI000038414392)
+  fixe le taux (« taux d'intérêt appliqué par la Banque centrale européenne à son opération de refinancement la plus
+  récente majoré de 10 points de pourcentage », plancher « trois fois le taux d'intérêt légal ») mais aucun diviseur.
+  service-public.gouv.fr F23211 (vérifié le 07/08/2026) dit seulement : « Les pénalités de retard sont une sanction
+  pécuniaire qui s'applique pour chaque jour de retard de paiement ».
+- Diviseur 365 : aucun texte français officiel trouvé qui le fixe pour les pénalités. Seul appui public : le guichet
+  luxembourgeois (droit luxembourgeois, page du 06/01/2026), « (Montant dû x taux d'intérêt légal x nombre de jours de
+  retard) / (365 x 100) », https://guichet.public.lu/fr/entreprises/gestion-juridique-comptabilite/facturation/encaissement/interets-retard.html.
+  En droit français, l'année vaut 365 jours dans l'annexe à l'art. R314-3 du Code de la consommation (TAEG, § 3), par
+  analogie seulement. Le jeu n'a pas d'année bissextile : 365 reste une convention, présentée comme telle.
+- Sites essayés sans formule officielle : entreprendre.service-public.gouv.fr F23211 ; economie.gouv.fr (fiche DGCCRF
+  du 23/12/2025, avis CEPC n° 13-07 : PDF refusé, HTTP 403) ; brochure DGCCRF « délais de paiement » (DREETS
+  Nouvelle-Aquitaine, sans formule) ; Your Europe (calculateur sans méthode écrite) ; BOFiP (intérêt de retard
+  fiscal, autre régime). Bpifrance Création donne « / 365 » mais n'est pas retenue (site d'information, non normatif).
+- Débrief : « Les pénalités sont des intérêts simples comptés par jour (directive 2011/7/UE) ; le jeu divise le taux
+  annuel par 365, l'usage courant. »
+
 **Écart avec la convention officielle.** À encours égal, DSO Banque de France = DSO du jeu x 360/365, soit 1,4 % de
 moins (42 jours BdF valent 42,6 jours calendaires). Présentation au joueur :
 - libellé de l'indicateur : « DSO (jours calendaires) » ;
@@ -51,14 +76,29 @@ t = 20 %) ; c'est une leçon de débrief possible.
 **Règle.** Inchangée (annexe § 4.3, étape 4). `rate_year` est le **taux nominal annuel du contrat** ; les intérêts de la
 semaine valent `capital x rate_year / 52`. Même convention pour `economy.interest_rate_week` (agios).
 
-**Pourquoi.** Pour les crédits destinés à une activité professionnelle, le Code de la consommation, art. R314-2
-(version du 01/10/2016, décret n° 2016-884, lue sur Légifrance le 2026-11-24), dispose : « Le taux effectif global est
-un taux annuel, proportionnel au taux de période, à terme échu » ; hors périodicité annuelle, il est obtenu « en
-multipliant le taux de période par le rapport entre la durée de l'année civile et celle de la période unitaire ». La
-convention proportionnelle est donc celle du crédit aux entreprises en France. Le taux actuariel
+**Pourquoi.** Code de la consommation, art. R314-2, texte français officiel (réserve levée le 2026-11-27 ; la version
+du 2026-11-24 venait d'une traduction). Rédaction du décret n° 2016-884 du 29 juin 2016 (JO du 30/06/2016),
+LEGIARTI000032807606, en vigueur ; lu sur https://codes.droit.org/payloads/Code%20de%20la%20consommation.xml (reprise
+des données Légifrance par droit.org, mise à jour du code du 2026-11-20). Extraits exacts :
+> « Pour les opérations de crédit destinées à financer les besoins d'une activité professionnelle ou destinées à des
+> personnes morales de droit public, le taux effectif global est un taux annuel, proportionnel au taux de période, à
+> terme échu et exprimé pour cent unités monétaires. Le taux de période et la durée de la période doivent être
+> expressément communiqués à l'emprunteur. »
+> « Lorsque la périodicité des versements est irrégulière, la période unitaire est celle qui correspond au plus petit
+> intervalle séparant deux versements. Le plus petit intervalle de calcul ne peut cependant être inférieur à un mois. »
+> « Lorsque les versements sont effectués avec une fréquence autre qu'annuelle, le taux effectif global est obtenu en
+> multipliant le taux de période par le rapport entre la durée de l'année civile et celle de la période unitaire. Le
+> rapport est calculé, le cas échéant, avec une précision d'au moins une décimale. »
+
+La convention proportionnelle est donc celle du crédit aux entreprises en France. Le taux actuariel
 (1 + i)^(1/52) - 1 est celui du TAEG des consommateurs (art. R314-3) et des statistiques de la Banque de France.
-Le rapport légal exact pour une semaine est 365/7 = 52,14 ; le jeu prend 52 (année de 52 semaines) : écart relatif
-0,27 % (à 4 % : 0,0769 % contre 0,0767 % par semaine), négligeable.
+Nuance : R314-2 règle l'expression du TEG, pas le calcul des intérêts ; son calcul ne descend pas sous le mois. Le jeu
+n'affiche pas de TEG : il applique un **taux nominal** proportionnel à des intérêts payés chaque semaine, ce que la
+règle ne contredit pas. Ne pas écrire au joueur « TEG hebdomadaire ».
+Nombre de semaines : le rapport de R314-2 pour une semaine serait 365/7 = 52,1 (une décimale) ; le jeu prend 52,
+valeur que l'annexe à l'art. R314-3 retient pour le TAEG : « Une année compte 365 jours, ou, pour les années
+bissextiles, 366 jours, 52 semaines ou 12 mois normalisés » (même source, LEGIARTI000053516619, décret n° 2026-105).
+Écart relatif 0,27 % (à 4 % : 0,0769 % contre 0,0767 % par semaine), négligeable.
 
 **Calibrage (D2).** Les taux Banque de France sont des taux actuariels annualisés (TESE, méthodologie du 05/07/2017,
 fiche `taux-credits-entreprises-bdf-stat-info-2026-09.md`). Dans le pack, convertir puis arrondir au centième :
@@ -102,7 +142,12 @@ Vérifié sur la source : L441-10 et D441-5 (Légifrance), ODP 2025 (p. 7, 9, 18
 | `affacturage-bdf-fiche-422.md` | - | Juste (85-95 %, 8-15 %, 0,2-2 % du TTC, indice + jusqu'à 2,5 %, 365 Md€ en 2021, LME 2009 vérifiés p. 1-4). |
 
 Nouvelle fiche à créer : Code de la consommation, art. R314-2 (TEG des crédits professionnels, proportionnel), lien
-Légifrance LEGIARTI000032807606.
+Légifrance LEGIARTI000032807606, avec la ligne « > Source : Code de la consommation, art. R314-2 (décret n° 2016-884),
+texte lu le 2026-11-27 sur codes.droit.org (reprise Légifrance) » et les trois extraits du § 3, mot pour mot.
+
+Ajout à `code-commerce-l441-10-d441-5-delais-paiement.md` (rag-knowledge), avec sa source : « Les intérêts légaux pour
+retard de paiement sont des intérêts simples calculés quotidiennement (directive 2011/7/UE, considérant 15 et art. 2,
+6) ; L441-10 ne fixe pas le nombre de jours de l'année : le jeu prend 365 par convention. »
 
 ## 6. Texte de remplacement du § 9 de l'annexe (pour l'architecte)
 

@@ -85,7 +85,7 @@ débrief. Les pages des autres départements sont en lecture seule.
 ## 5. Génération des mondes
 
 Cible ADR 0013 (§2) : deux demandes différentes donnent deux mondes et deux jeux différents. État livré au 21/11 : la
-demande règle des chiffres d'une usine unique ; le plan en U et les textes ne changent pas. Depuis T4 (26/11) : 3 à 8 fournisseurs (`params.suppliers`) et types de machine m1 à m4 par rang ; produits et clients restent à 1 jusqu'à T4b.
+demande règle des chiffres d'une usine unique ; le plan en U et les textes ne changent pas. Depuis T4 (26/11) : 3 à 8 fournisseurs (`params.suppliers`) et types de machine m1 à m4 par rang . Depuis T4b (27/11) : 1 à 3 produits et 1 à 4 clients.
 
 | Qui décide | Quoi | État |
 |---|---|---|

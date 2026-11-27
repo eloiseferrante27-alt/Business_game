@@ -380,19 +380,22 @@ def _build_network(spec: dict[str, Any], pack: dict[str, Any], hall: list[float]
         if o["supplier_id"] not in suppliers_of.setdefault(o["profile"], []):
             suppliers_of[o["profile"]].append(o["supplier_id"])
     names_of = {s["id"]: s["name"] for s in spec.get("suppliers", [])}
+    clients = (spec.get("factory") or {}).get("clients") or []  # un site par client : client, client_b, _c, _d
     referenced = {d["site"] for d in pack.get("departments", []) if d.get("site")}
     names = [
         n for n, s in net["sites"].items()
         if s["kind"] == "client" or n in referenced or s.get("supplier_profile") in suppliers_of
     ]  # fmt: skip
-    info, base, owner = {}, {}, {}
+    info, base, owner, client_label = {}, {}, {}, {}
     for n in list(names):
         s = net["sites"][n]
         cls = chosen_class(spec, pack, n)
-        ids = suppliers_of.get(s.get("supplier_profile")) or [None]
-        for k, sid in enumerate(ids):  # un site par fournisseur : le premier garde celui du pack, les autres le clonent
+        ids = suppliers_of.get(s.get("supplier_profile")) or [None] * (len(clients) if s["kind"] == "client" else 1)
+        for k, sid in enumerate(ids or [None]):  # un site par fournisseur ou client : le premier garde celui du pack
             site = n if k == 0 else f"{n}_{chr(97 + k)}"  # _b, _c… (pas de chiffre dans un code)
             info[site], base[site], owner[site] = (s, cls, net["distance_classes"][cls]), n, sid
+            if sid is None and k:
+                client_label[site] = clients[k]["name"]
             if k:
                 names.append(site)
     columns: dict[str, int] = {}
@@ -418,7 +421,7 @@ def _build_network(spec: dict[str, Any], pack: dict[str, Any], hall: list[float]
         travel_h = dc["km"] / speed
         sites.append({
             "id": n, "kind": s["kind"], "external": True,
-            "label": site_label(n, s) if base[n] == n else names_of[owner[n]],
+            "label": site_label(n, s) if base[n] == n else client_label.get(n) or names_of[owner[n]],
             "area": [x0, z0, x0 + cell, z0 + cell], "gate": [cx, z0],
             "supplier_id": owner[n],
             "distance_class": cls, "km": dc["km"], "travel_h": round(travel_h, 2),

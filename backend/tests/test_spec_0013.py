@@ -296,9 +296,11 @@ def test_finance_bounds_and_requirements(usine_pack, sim_spec) -> None:  # noqa:
 
 def two_products() -> dict[str, Any]:
     raw = factory_spec()
-    raw["products"].append({**raw["products"][0], "id": "p2", "name": "Vanne", "line_id": "l2"})
+    raw["products"].append({**raw["products"][0], "id": "p2", "name": "Vanne", "line_id": "l2", "component_id": "c2"})
+    raw["components"].append({**raw["components"][0], "id": "c2", "name": "Corps", "product_id": "p2"})
+    raw["offers"].append({**raw["offers"][0], "id": "o2", "component_id": "c2"})
     raw["lines"][1]["product_id"] = "p2"
-    raw["factory"]["bom"] = [{"component_id": "c1", "per_unit": 1, "product_id": p} for p in ("p1", "p2")]
+    raw["factory"]["bom"] = [{"component_id": f"c{n}", "per_unit": 1, "product_id": f"p{n}"} for n in (1, 2)]
     return raw
 
 

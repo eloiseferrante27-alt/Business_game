@@ -80,6 +80,8 @@ class ErrorCatcher:
 var _only: PackedStringArray = []
 var _pack := "atelier"  # --pack=usine : parcours du pack usine
 var _buildings := 0  # --buildings=2|3 (avec --pack=usine) : jeu créé en campus, contrôlé par _check_campus
+var _products := 0  # --products=<n> (avec --pack=usine) : nombre de produits, 0 = valeur du formulaire
+var _clients := 0  # --clients=<m> (avec --pack=usine) : nombre de clients, 0 = défaut du moteur
 var _catcher :=ErrorCatcher.new()
 var _checks := 0
 var _failures: Array[String] = []
@@ -112,6 +114,8 @@ func _run() -> void:
 	_only = str(args.get("only", "A,B,V")).split(",")
 	_pack = str(args.get("pack", "atelier"))
 	_buildings = int(args.get("buildings", "0"))
+	_products = int(args.get("products", "0"))
+	_clients = int(args.get("clients", "0"))
 	OS.add_logger(_catcher)
 	get_window().size = Vector2i(1280, 720)  # sans fenêtre, la taille serait 64 x 64 : la zone visible et les rayons du curseur divergeraient
 	_stub_presence()
@@ -224,7 +228,7 @@ func _trainer_journey() -> void:
 
 	var params: Dictionary = USINE_PARAMS if _pack == "usine" else MAIN_PARAMS
 	_begin("A.2","Génération par paramètres non par défaut (pack %s)" % _pack)
-	var game: Dictionary = await _generate_campus(home, params) if _buildings > 0 else await _generate(home, params)
+	var game: Dictionary = await _generate_campus(home, params) if _buildings > 0 or _products > 0 or _clients > 0 else await _generate(home, params)
 	if game.is_empty():
 		return
 
@@ -292,6 +296,8 @@ func _trainer_journey() -> void:
 		if factory_back == null:
 			return
 		await _play_to_the_end(factory_back)
+		if _products > 0:  # §3 bis : une ligne par produit dans l'état public
+			_check(((Session.state().get("factory", {}) as Dictionary).get("by_product", []) as Array).size() == _products, "état public : factory.by_product a %d ligne(s)" % _products)
 		_begin("A.12v", "Pack usine à 8 fournisseurs : les 8 offres de « commander_mp » dans le poste, sans débordement")
 		await _check_eight_suppliers()
 		return
@@ -789,6 +795,9 @@ func _check_design(home: Control) -> void:
 		var drafted := await _raw(_trainer, HTTPClient.METHOD_GET, "/api/v1/games/%s" % str(home.get("_design_game")))
 		_check((drafted["data"] as Dictionary).get("status", "") == "draft", "le jeu conçu est un brouillon à relire")
 		_check((drafted["data"] as Dictionary).has("review"), "la revue du brouillon est fournie")
+	mode.select(0)  # retour au formulaire : A.2 clique « Générer »
+	mode.item_selected.emit(0)
+	await _frames(2)
 
 
 func _check_home_form(home: Control) -> bool:
@@ -881,14 +890,18 @@ func _select_pack(home: Control, pack_id: String) -> void:
 ## `--buildings=n` : le formulaire n'a pas de champ « bâtiments », le jeu est donc créé par POST /games (mêmes clés que le
 ## formulaire, plus `buildings`) ; un refus de l'API (borne du pack, 422) est un échec explicite.
 func _generate_campus(home: Control, params: Dictionary) -> Dictionary:
-	if not _check(_pack == "usine" and _buildings >= 2 and _buildings <= 3, "--buildings=%d : exige --pack=usine et 2 ou 3" % _buildings):
+	if not _check(_pack == "usine" and (_buildings == 0 or (_buildings >= 2 and _buildings <= 3)), "--buildings=%d : exige --pack=usine et 2 ou 3" % _buildings):
 		return {}
 	var body := {
 		"pack": params["pack"], "theme": params["theme"], "modules": params["modules"], "extra_agents": params["agents"],
 		"agent_tone": params["tone"], "difficulty": params["difficulty"], "events": params["events"], "weeks": params["weeks"],
-		"products": params["products"], "options": params["options"], "company_name": params["company"],
-		"players_min": params["players"][0], "players_max": params["players"][1], "buildings": _buildings,
+		"products": _products if _products > 0 else params["products"], "options": params["options"], "company_name": params["company"],
+		"players_min": params["players"][0], "players_max": params["players"][1],
 	}
+	if _buildings > 0:
+		body["buildings"] = _buildings
+	if _clients > 0:
+		body["clients"] = _clients
 	var res := await _raw(_trainer, HTTPClient.METHOD_POST, "/api/v1/games", body, 120.0)
 	if not _check(res["ok"], "création du jeu usine avec %d bâtiments" % _buildings, "refusée par l'API (%s) : limits.buildings du pack usine ?" % res["error"]):
 		return {}
@@ -896,7 +909,10 @@ func _generate_campus(home: Control, params: Dictionary) -> Dictionary:
 	var detail := await _find_game(_trainer, title)
 	if not _check(not detail.is_empty(), "le jeu est dans GET /games", title):
 		return {}
-	_check(int(detail["spec"]["params"]["buildings"]) == _buildings, "paramètre buildings conservé dans la spec")
+	if _buildings > 0:
+		_check(int(detail["spec"]["params"]["buildings"]) == _buildings, "paramètre buildings conservé dans la spec")
+	if _clients > 0:
+		_check(int(detail["spec"]["params"]["clients"]) == _clients, "paramètre clients conservé dans la spec")
 	_check_generated(detail, params)
 	await home.call("_load_games")
 	await _frames(2)
@@ -962,7 +978,8 @@ func _check_generated(detail: Dictionary, params: Dictionary) -> void:
 	_check(applied["difficulty"] == params["difficulty"], "difficulté : %s" % params["difficulty"])
 	_check(applied["events"] == params["events"], "aléas : %s" % params["events"])
 	_check(int(applied["weeks"]) == int(params["weeks"]) and int(spec["meta"]["weeks"]) == int(params["weeks"]), "durée : %d semaines" % params["weeks"])
-	_check(int(applied["products"]) == int(params["products"]) and (spec["products"] as Array).size() == int(params["products"]), "%d produits" % params["products"])
+	var n_products := _products if _products > 0 else int(params["products"])  # --products l'emporte sur le formulaire
+	_check(int(applied["products"]) == n_products and (spec["products"] as Array).size() == n_products, "%d produits" % n_products)
 	_check((spec["modules"] as Array).size() == modules.size(), "%d modules dans la spec" % modules.size())
 	if params.has("pack"):
 		_check(applied["pack"] == params["pack"] and spec["meta"]["pack"] == params["pack"], "pack envoyé : %s" % params["pack"])
@@ -971,7 +988,7 @@ func _check_generated(detail: Dictionary, params: Dictionary) -> void:
 	if params.get("pack", "atelier") == "usine":  # un agent parlant par département (10) + les agents en plus, plus des figurants
 		_check((spec["agents"] as Array).size() == 10 + agents.size(), "%d agents dans la spec (10 départements + en plus)" % (10 + agents.size()))
 		_check((spec["factory"]["crew"] as Array).size() > 0 and spec["world"]["template"] == ("campus" if _buildings > 0 else "usine"), "spec usine : figurants et gabarit du monde")
-		_check(int(spec["params"]["options"]["lines"]) == (spec["lines"] as Array).size(), "une ligne de la spec par ligne demandée")
+		_check(maxi(int(spec["params"]["options"]["lines"]), n_products if _products > 0 else 0) == (spec["lines"] as Array).size(), "une ligne de la spec par ligne demandée (au moins une par produit)")
 	else:
 		_check((spec["agents"] as Array).size() == modules.size() + agents.size(), "%d agents dans la spec (modules + en plus)" % (modules.size() + agents.size()))
 	_check((spec["roles"] as Array).size() == modules.size(), "un rôle par module")

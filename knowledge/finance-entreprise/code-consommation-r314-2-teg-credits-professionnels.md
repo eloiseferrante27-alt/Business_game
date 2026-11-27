@@ -1,18 +1,17 @@
-# TEG des crédits professionnels : méthode proportionnelle (Code de la consommation, art. R314-2)
+# Taux effectif global des crédits professionnels : taux proportionnel (Code de la consommation, art. R314-2)
 
-> Source : Code de la consommation, article R314-2 (en vigueur depuis le 1er octobre 2016, décret n° 2016-884 du 29 juin 2016, art. 11-II), https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000032807616. Légifrance refuse la lecture automatique : le contenu a été lu dans la traduction publiée par french-business-law.com (https://french-business-law.com/rench-legislation-art/article-r314-2-of-the-french-consumer-code, traduction automatique DeepL issue de Légifrance, sans texte français). Consulté le 2026-11-26. Texte français à relire sur Légifrance avant toute citation littérale ; l'état de vigueur à ce jour n'est pas confirmé.
-> Licence : texte officiel ; synthèse rédigée en interne ; conditions de réutilisation de Légifrance à confirmer.
+> Source : Code de la consommation, art. R314-2 (décret n° 2016-884), texte lu le 2026-11-27 sur codes.droit.org (reprise Légifrance)
+> Référence : LEGIARTI000032807606 (décret n° 2016-884 du 29 juin 2016, JO du 30/06/2016), https://codes.droit.org/payloads/Code%20de%20la%20consommation.xml, code à jour du 2026-11-20.
+> Licence : texte officiel ; réutilisation des données publiques de Légifrance (reprise droit.org).
 
-## Contenu
+## Extraits (texte français)
 
-- Champ : crédits destinés à financer une activité professionnelle, ou consentis à des personnes morales de droit public.
-- Le taux effectif global (TEG) est un taux annuel, « proportionnel au taux de période ».
-- Le taux de période et la durée de la période doivent être communiqués expressément à l'emprunteur.
-- Le taux de période est calculé de façon actuarielle, sur une période unitaire correspondant à la périodicité des versements ; il couvre capital, intérêts et frais.
-- Remboursements irréguliers : la période unitaire est le plus petit intervalle entre deux versements, sans pouvoir être inférieure à un mois.
-- Ouverture de crédit à usage professionnel : le taux est calculé sur l'ensemble des droits mis à disposition du client.
-- Les frais de garantie et d'officiers publics ou ministériels sont exclus s'ils ne peuvent être chiffrés avec précision avant la conclusion du contrat.
+> « Pour les opérations de crédit destinées à financer les besoins d'une activité professionnelle ou destinées à des personnes morales de droit public, le taux effectif global est un taux annuel, proportionnel au taux de période, à terme échu et exprimé pour cent unités monétaires. Le taux de période et la durée de la période doivent être expressément communiqués à l'emprunteur. »
+
+> « Lorsque la périodicité des versements est irrégulière, la période unitaire est celle qui correspond au plus petit intervalle séparant deux versements. Le plus petit intervalle de calcul ne peut cependant être inférieur à un mois. »
+
+> « Lorsque les versements sont effectués avec une fréquence autre qu'annuelle, le taux effectif global est obtenu en multipliant le taux de période par le rapport entre la durée de l'année civile et celle de la période unitaire. Le rapport est calculé, le cas échéant, avec une précision d'au moins une décimale. »
 
 ## Pour le jeu
 
-Le TEG d'un crédit professionnel se déduit du taux de période par proportionnalité (TEG = taux de période x nombre de périodes par an), alors que le taux de période lui-même est actuariel. Ne pas confondre avec les taux TESE de la Banque de France (actuariels annualisés).
+Le calcul du TEG ne descend pas sous le mois : le jeu n'affiche aucun « TEG hebdomadaire ». Il applique un taux nominal annuel, proportionnel : intérêts de la semaine = capital x taux annuel / 52. Le nombre 52 vient de l'annexe de l'art. R314-3 : « Une année compte 365 jours, ou, pour les années bissextiles, 366 jours, 52 semaines ou 12 mois normalisés » (LEGIARTI000053516619). Ne pas confondre avec les taux TESE de la Banque de France, actuariels annualisés.

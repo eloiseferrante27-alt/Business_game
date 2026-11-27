@@ -73,11 +73,13 @@ Reporté : D17 (critère « pannes évitées au goulot », refus si le passif ga
 
 Écarts de propriété pour la prochaine rétro : ia-runtime a encore modifié docs/ai-runtime.md ; godot-dev a relancé la pile (`start.ps1 -NoGame`), réservé à devops ; trois agents interrompus le 21/11 par la limite d'API.
 
-**T2 fait le 24/11, à commiter (devops)** : contrats de la § 3.5 de l'ADR 0013 dans `backend/gmix/game/spec.py` : `Building`, `Room`, `World` (gabarit `campus`), `PlannedBuilding`, `Client`, `Finance`, `LoanOffer`, `Investment`, `Due`, `Loan`, `TrainerExcerpt`, plus `DesignRequest.domain` et `document_ids`. Champs facultatifs, `version` reste 2. Annexe `docs/decisions/0013-annexe-contrats.md` nouvelle ; aucun topic Kafka changé ; tests : `backend/tests/test_spec_0013.py` (38).
+**T2 fait le 24/11, commité (b11aa8f)** : contrats de la § 3.5 de l'ADR 0013 dans `backend/gmix/game/spec.py` : `Building`, `Room`, `World` (gabarit `campus`), `PlannedBuilding`, `Client`, `Finance`, `LoanOffer`, `Investment`, `Due`, `Loan`, `TrainerExcerpt`, plus `DesignRequest.domain` et `document_ids`. Champs facultatifs, `version` reste 2. Annexe `docs/decisions/0013-annexe-contrats.md` nouvelle ; aucun topic Kafka changé ; tests : `backend/tests/test_spec_0013.py` (38).
 
 Mesures qa-reviewer, 24/11 : `test.ps1 -Integration` ruff OK, pytest 903 passés, Godot 148 fichiers OK ; `-Flow -NoLlm` 686 vérifications, 0 échec ; `-Flow -NoLlm -Pack usine` 514, 0 échec (nouvelle référence, c'était 428) ; `-Tour` 236 écrans, 0 défaut. Verdict : bon pour commit. Le hash du commit sera noté ensuite.
 
-**Session du 27/11 : corrections, T5, T6 — à commiter**
+**Session du 27/11 : corrections, T5, T6 — commités et poussés (bcf8b89, 8f36f11..bcf8b89)**
+
+Commit bcf8b89 « T5, T6 : campus de 1 à 3 bâtiments, trajets calculés, garde-fou des nombres des PNJ ; corrections D1 ». `test.ps1 -Fast` : 953 passés avant le commit. Avec 1 bâtiment, aucun chiffre de la partie de référence ne change.
 
 | Livré | Détail |
 |---|---|
@@ -87,9 +89,21 @@ Mesures qa-reviewer, 24/11 : `test.ps1 -Integration` ruff OK, pytest 903 passés
 
 Mesures qa-reviewer, 27/11 : `test.ps1 -Integration` 1005 passés, 1 échec corrigé depuis (clé `guard`) ; `-Flow -NoLlm` 687 ; `-Pack usine` 522 ; `-Buildings 3` 530 ; `-Flow -Design` 72 ; `-Tour` 236 écrans, 0 défaut ; `smoke.ps1` OK.
 
-Restes : durées de trajet (kit, palette) sans les pauses (game-designer) ; T4b après T7 ; réserves de D1 ouvertes (R314-2 en traduction, base 365 jours) ; le chariot ne limite pas encore la partie à 4 semaines (recalibrage possible).
+Restes :
+- R314-2 lu seulement en traduction : l'utilisateur doit coller le texte Légifrance.
+- Base de 365 jours des pénalités de retard : hypothèse non sourcée.
+- Durées des kits et des palettes sans les pauses : à noter dans la provenance (game-designer).
+- Le chariot ne limite pas encore une partie de 4 semaines : recalibrage possible si l'utilisateur le veut.
+- `-Integration` et `-Flow` non relancés après le correctif de la route de dialogue (`pop` de `guard` dans `lobbies.py`).
+- Rétrospective `coach-equipe` : [retro-2026-11-27.md](retro-2026-11-27.md), 3 propositions appliquées.
 
-**Prochaine session : T7 (rôles répartis), puis T4b, puis T8 et D2**, selon l'ordre de l'ADR 0013.
+**T4b fait le 27/11 (1 à 3 produits, 1 à 4 clients, correction de l'ingestion RAG, sources de la finance), à commiter (devops).** Détail : docs/game-design.md (section T4b), restes dans docs/blocages.md.
+
+Mesures du 27/11 : `test.ps1 -Integration` 1051 passés (`test_timeline.py` instable en suite complète, passe seul) ; `-Flow` 814 ou 815 ; `-Flow -Pack usine` 530 ; `-Flow -Pack usine -Products 3 -Clients 4 -Buildings 3` 554 ; `-Flow -Design` 72 ; 0 échec ; `smoke.ps1` OK.
+
+Restes de T4b : seuil d'OTIF de 90 codé en dur (`game_text.gd`) ; `pf_min` par produit et plafond de produits finis en palettes reportés à D3 ; pas de champ « Clients » au formulaire du formateur (T10) ; faits des PNJ à 3 produits non mesurés par les évaluations.
+
+**Prochaine action : T7 (rôles répartis entre 3 et 6 joueurs ; game-designer, moteur-jeu, backend-api)**, puis (T8, D2), T9, D3, T10, T11 (Première version). Ordre de l'ADR 0013 : T5 -> T4b -> T7 -> (T8, D2).
 
 **Session du 24-26/11 : T3, T4 (sauf T4b), D1 — commité et poussé le 26/11 (8f36f11, push b11aa8f..8f36f11)**
 
@@ -97,14 +111,14 @@ T2 commité et poussé (b11aa8f). T3 fait le 24/11. Validé par qa-reviewer le 2
 
 | Livré | Détail |
 |---|---|
-| T4 (sauf multi-produits) | `layout.place_world` tire de la graine la taille du hall (48 x 30 m plus 0, 4, 8 ou 12 m) et le décor `world.decor` (45 éléments au plus ; `DecorItem`, `Decor` dans `spec.py`) ; `world_fingerprint` : 9 mondes distincts sur 12 graines par secteur ; Godot lit le décor de la spec (repli sur sa graine 42 pour les anciens jeux) ; 3 à 8 fournisseurs (`params.suppliers`) ; types de machine m1 à m4 par rang (`Machine.type`). Produits et clients restent à 1 (bornes du pack `[1,1,1]`) |
-| D1 | `knowledge/finance-entreprise/` : 12 fiches (dont R314-2 et VAN de l'OQLF) ; `ai/evals/finance-entreprise.rag.jsonl` : Rappel@4 14/14 ; `docs/audits/finance-entreprise-conventions.md` : jours calendaires base 365, tout hors taxe, taux `rate_year/52`. Réserves pour D3 : R314-2 lu seulement en traduction (Légifrance refuse la lecture automatique) ; base 365 des pénalités de retard : simple hypothèse |
+| T4 (sauf multi-produits) | `layout.place_world` tire de la graine la taille du hall (48 x 30 m plus 0, 4, 8 ou 12 m) et le décor `world.decor` (45 éléments au plus ; `DecorItem`, `Decor` dans `spec.py`) ; `world_fingerprint` : 9 mondes distincts sur 12 graines par secteur ; Godot lit le décor de la spec (repli sur sa graine 42 pour les anciens jeux) ; 3 à 8 fournisseurs (`params.suppliers`) ; types de machine m1 à m4 par rang (`Machine.type`). Produits et clients étaient à 1 à cette date (bornes du pack `[1,1,1]`, levées en T4b) |
+| D1 | `knowledge/finance-entreprise/` : 12 fiches (dont R314-2 et VAN de l'OQLF) ; `ai/evals/finance-entreprise.rag.jsonl` : Rappel@4 14/14 ; `docs/audits/finance-entreprise-conventions.md` : jours calendaires base 365, tout hors taxe, taux `rate_year/52`. Réserves de D1 levées le 27/11 : R314-2 lu en français sur codes.droit.org ; base 365 : principe sourcé (directive 2011/7/UE), chiffre = convention |
 
 Mesures qa-reviewer, 26/11 : `test.ps1 -Integration` 935 passés, 0 échec, Godot 148 fichiers OK ; `-Flow -NoLlm` 687 ; `-Flow -NoLlm -Pack usine` 522 ; `-Flow -Design` 72, tous à 0 échec ; `-Tour` 236 écrans, 0 défaut ; `smoke.ps1` OK. Verdict : bon pour commit. Le hash sera noté après le commit.
 
 Défauts mineurs ouverts : `test_game_flow.py:174` (test de budget sensible à la charge du poste, moteur-jeu) ; `spec.py:137` `GameParams.products` vaut 3 par défaut alors que le pack usine borne à 1 (à confirmer par l'architecte) ; contrôle `clients >= products` à écrire dans `GameParams` en T4b.
 
-T5 et T6 : faits le 27/11 (bloc ci-dessous). **T4b (multi-produits et clients) vient après T7 et avant D2** (annexe 0013 § 3 bis).
+T5, T6 et T4b : faits le 27/11 (le contrôle `clients >= products` et les bornes ci-dessus sont réglés par T4b).
 
 Écarts pour la rétro : le 24/11, moteur-jeu a fait `git stash` puis `stash pop` (git est à devops) ; rag-knowledge a tenté d'écrire dans `ai/evals/` ; l'ajout d'un contrôle dans `GameParams` a été refusé à l'architecte par les permissions ; le brief de 4a supposait le champ `decor` déjà dans le contrat.
 
