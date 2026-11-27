@@ -84,13 +84,13 @@ obtient un code d'accès. Détail des routes et des droits : docs/roles.md.
 ## Mondes et assets
 
 L'IA ne crée jamais de géométrie : elle choisit des paramètres dans les listes du pack, et le placeur
-(`gmix.game.layout`, ADR 0009 ; depuis T4 (26/11) à graine : taille du hall et décor `world.decor` tirés de la graine de la partie, ADR 0013 §3.4 ; `apply_edits` sans graine ; plusieurs bâtiments : T5) pose les objets du catalogue `ai/assets.yaml` sur les grilles du
+(`gmix.game.layout`, ADR 0009 ; depuis T4 (26/11) à graine : taille du hall et décor `world.decor` tirés de la graine de la partie, ADR 0013 §3.4 ; `apply_edits` sans graine ; `place_campus` pour 2 ou 3 bâtiments depuis T5, 27/11) pose les objets du catalogue `ai/assets.yaml` sur les grilles du
 pack, contrôlés par les règles de placement (`check_placement`).
 
 | Pack | Monde (`spec.world`) | Statut |
 |---|---|---|
 | Usine (`ai/packs/usine.yaml`) | hall de 48 x 30 m en U, 11 départements dont 2 externes (fournisseur, client) reliés par des routes, 1 à 3 lignes de 4 machines, semaine simulée minute par minute (`gmix.game.factory`) puis rejouée en 3D | principal |
-| Cible ADR 0013 (T5) | 1 à 3 bâtiments à pièces, trajets calculés ; le hall en U devient le programme de référence et le repli | non livré |
+| Campus (ADR 0013, T5) | 1 à 3 bâtiments (`params.buildings`) : `hall_production`, `entrepot`, `atelier_maintenance`, une pièce par département, zonage ; `layout.place_campus` (20 tirages à graine, puis disposition de référence, sinon `LayoutError`), `travel_min` ; le hall en U reste le programme de référence et le repli (1 bâtiment : jeu inchangé) | livré le 27/11 (qa-reviewer) |
 | Second domaine (finance d'entreprise : trésorerie et BFR d'une PME, ADR 0013 §6 ; pack D2) | monde et pack à écrire, moteur `factory` réutilisé (ADR 0013 §4.2) | non livré (D1-D3) |
 | Atelier (`ai/simulation.yaml`) | hall de 32 x 24 m repris du jeu de référence ; postes et trajets des agents dans les allées libres (vérifiés par les tests) | gelé, gardé en repli |
 

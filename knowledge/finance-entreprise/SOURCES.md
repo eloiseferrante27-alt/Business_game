@@ -36,7 +36,7 @@ droit d'usage. Chaque fiche est une synthèse rédigée en interne à partir d'u
 - Le PDF du rapport de l'Observatoire sur banque-france.fr, EUR-Lex et Légifrance (téléchargement direct) refusent la lecture automatique : le rapport a été lu dans la copie de vie-publique.fr, Légifrance par lecture de page.
 - Webstat (page dynamique) n'a pas été lu : les taux viennent du Stat Info de la Banque de France qui en est tiré ; les codes de séries restent à relever.
 - Taux d'intérêt légal professionnel : 2,75 % au 2e semestre 2026 (2,62 % au 1er), relayé par des sites cités, arrêté du 26 juin 2026 non lu sur Légifrance ; taux BCE 2,15 % (1er janvier) et 2,40 % (1er juillet) lus sur service-public.fr (F23211). EURIBOR et €STR : non lus.
-- Pénalités de retard : base de jours 365 non lue explicitement pour les relations entre professionnels (documentée pour l'intérêt légal, F783) ; ordonnance n° 2023-1210 (L441-11) introuvable, retirée.
+- Pénalités de retard : base de jours 365 non lue explicitement pour les relations entre professionnels (documentée pour l'intérêt légal, F783) ; ordonnance n° 2023-1210 (L441-11) introuvable, retirée. Indice non retenu comme source (2026-11-27) : le guide Bpifrance Création (https://bpifrance-creation.fr/boiteaoutils/taux-penalites-retard) donne « montant impayé x taux x jours de retard / 365 », sans base légale citée ; DGCCRF/economie.gouv.fr/service-public non lisibles sur ce point.
 - R314-2 lu en traduction (Légifrance refuse la lecture automatique) : texte français à relire.
 
 ## Non couvert

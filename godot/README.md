@@ -2,7 +2,7 @@
 
 Éditeur : `.\scripts\godot.ps1` · vérification headless : `.\scripts\godot.ps1 -Check` ·
 liaison avec le backend : `.\scripts\smoke.ps1` (compte jetable) · jeu : `.\scripts\godot.ps1 -Run` ·
-contrôles du client : `.\scripts\godot.ps1 -Tour [-Snapshot]` et `.\scripts\godot.ps1 -Flow [-NoLlm] [-Pack <slug>] [-Design]`
+contrôles du client : `.\scripts\godot.ps1 -Tour [-Snapshot]` et `.\scripts\godot.ps1 -Flow [-NoLlm] [-Pack <slug>] [-Buildings <2|3>] [-Design]`
 (voir « Contrôles du client »).
 
 ## Parcours

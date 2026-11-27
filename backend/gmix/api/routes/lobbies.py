@@ -531,13 +531,14 @@ async def talk_to_agent(
         detail = f"{agent['name']} ne répond pas : IA indisponible ({exc})"
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail) from exc
     remember = result.pop("remember")  # décision serveur : le client ne la voit pas
+    guard = result.pop("guard", None)  # motif interne du garde-fou : journal seulement (absent si injection)
     if remember:
         session.add(
             NpcMemory(lobby_id=lobby.id, npc_id=npc_id, user_id=user.id, speaker=user.display_name,
                       message=body.message, reply=result["reply"], week=view["week"])
         )  # fmt: skip
         await session.commit()
-    transcript = {"npc_id": npc_id, "message": body.message, "remember": remember} | result
+    transcript = {"npc_id": npc_id, "message": body.message, "remember": remember, "guard": guard} | result
     envelope = Envelope(
         type="npc.exchange", source="api", lobby_id=lobby.id, actor=Actor(user_id=user.id), payload=transcript
     )

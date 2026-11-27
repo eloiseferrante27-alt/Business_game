@@ -19,6 +19,11 @@ const VIEWS := {
 	"atelier.png": [Vector3(-7, 5.5, 7), Vector3(1, 1, -4)],
 	"quais.png": [Vector3(6, 6, 20), Vector3(6, 1, 6)],
 }
+const CAMPUS_VIEWS := {  # `--fixture=campus3` : la rangée de bâtiments vue d'en haut, puis l'entrée de b1 et l'intérieur
+	"campus_ensemble.png": [Vector3(0, 70, -62), Vector3(0, 0, 4)],
+	"campus_entree.png": [Vector3(-34, 8, -22), Vector3(-34, 1.5, 0)],
+	"campus_interieur.png": [Vector3(-26, 14, -12), Vector3(-34, 0, 8)],
+}
 const FACTORY_VIEWS := {
 	"usine_ensemble.png": [Vector3(0, 52, 44), Vector3(0, 0, 4)],
 	"usine_lignes.png": [Vector3(-2, 9, 13), Vector3(0, 0, -3)],
@@ -74,7 +79,11 @@ func _ready() -> void:
 	add_child(camera)
 	camera.make_current()
 	camera.far = 250.0
-	var views: Dictionary = FACTORY_VIEWS if GmixFactoryState.is_factory(Session.spec()) else VIEWS
+	var views: Dictionary = VIEWS
+	if Session.spec().get("world", {}).get("template", "") == "campus":
+		views = CAMPUS_VIEWS
+	elif GmixFactoryState.is_factory(Session.spec()):
+		views = FACTORY_VIEWS
 	for file: String in views:
 		camera.position = views[file][0]
 		camera.look_at(views[file][1])

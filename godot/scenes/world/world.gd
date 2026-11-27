@@ -47,11 +47,17 @@ const DECLUTTER_S := 0.2  # période du tri des étiquettes qui se recouvrent (v
 const DENIED_PAUSE_MS := 1500
 const FOG_BEGIN := 70.0  # m depuis la caméra : le hall entier reste net, la pelouse se fond dans l'horizon sauge
 const FOG_END := 170.0
+const CELL := 4.0  # m : grille du campus et module des murs (prop_wall_panel)
+const PASSAGE := 2.0  # m : ouverture d'une porte de pièce
 const LAWN_SIZE := 420.0  # plus loin que FOG_END : le bord du sol n'est jamais visible
 
 var _catalog: Dictionary = {}
 var _factory := false  # gabarit usine (spec.world.template)
 var _hall := HALL
+var _buildings: Array = []  # gabarit campus : spec.world.buildings (vide sinon)
+var _doors: Array[Node3D] = []  # campus : portes posées (entrées et portes de pièces), contrôlé par flow_test
+var _rooms_built := {}  # campus : id de pièce -> true une fois ses cloisons posées
+var _view_max := 62.0  # m : distance maximale de la caméra Sims, plus grande sur un campus
 var _site := ATELIER_SITE
 var _keep_clear: Array[Rect2] = []  # usine : ni arbre ni buisson sur le hall, les départements et les objets
 var _warned: Dictionary = {}  # assets sans scène déjà signalés
@@ -93,6 +99,9 @@ func _ready() -> void:
 	_factory = GmixFactoryState.is_factory(Session.spec())
 	var size: Array = world.get("size", [HALL.x, HALL.y])
 	_hall = Vector2(float(size[0]), float(size[1]))
+	if world.get("template", "") == "campus":
+		_buildings = world.get("buildings", [])
+		_view_max = maxf(_view_max, _campus_rect().size.x / 1.15)  # FOV 38, 16/9 : l'écran couvre ~1,2 fois la distance en largeur
 	_site = _compute_site(world)
 	_build_environment()
 	_build_hall()
@@ -125,6 +134,9 @@ func _ready() -> void:
 	_sims.follow_target = _player
 	_sims.exclude = [_player.get_rid()]
 	_sims.bounds = _site.grow(-1.0)
+	_sims.distance_max = _view_max
+	if not _buildings.is_empty() and world.has("bounds"):
+		_sims.bounds = GmixFactoryState.area_rect(world["bounds"])  # la rangée de bâtiments entière
 	add_child(_sims)
 	_sims.ground_clicked.connect(_on_ground_clicked)
 	_sims.object_clicked.connect(_on_object_clicked)
@@ -365,7 +377,7 @@ func _look_of(at: String) -> Variant:
 func _compute_site(world: Dictionary) -> Rect2:
 	if not _factory:
 		return ATELIER_SITE
-	var hall := Rect2(-_hall / 2.0, _hall)
+	var hall := _campus_rect() if not _buildings.is_empty() else Rect2(-_hall / 2.0, _hall)
 	var site := hall
 	_keep_clear.append(hall.grow(5.0))
 	for department: Dictionary in Session.spec().get("departments", []):
@@ -831,8 +843,8 @@ func _build_environment() -> void:
 	environment.fog_enabled = true
 	environment.fog_mode = Environment.FOG_MODE_DEPTH
 	environment.fog_light_color = UiTokens.FOG
-	environment.fog_depth_begin = FOG_BEGIN
-	environment.fog_depth_end = FOG_END
+	environment.fog_depth_begin = maxf(FOG_BEGIN, _view_max * 1.2 + 20.0)  # un campus vu de loin reste net
+	environment.fog_depth_end = environment.fog_depth_begin + (FOG_END - FOG_BEGIN)
 	environment.fog_sky_affect = 0.0
 	var world_environment := WorldEnvironment.new()
 	world_environment.environment = environment
@@ -845,7 +857,7 @@ func _build_environment() -> void:
 	sun.shadow_enabled = true
 	sun.shadow_blur = 1.6  # ombres douces
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS  # 6 Go de VRAM partagés avec Ollama
-	sun.directional_shadow_max_distance = 90.0
+	sun.directional_shadow_max_distance = maxf(90.0, _view_max + 40.0)
 	add_child(sun)
 	var grass := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
@@ -910,6 +922,9 @@ func _is_built(spot: Vector3) -> bool:
 ## en acier, contreventements de toiture, éclairage, aire de livraison devant les quais (façade ouverte).
 ## Charpente et luminaires sont dans `_roof` (cachés en vue Sims) ; les murs sont abaissables (`_wall`).
 func _build_hall() -> void:
+	if not _buildings.is_empty():
+		_build_campus()
+		return
 	if _factory:
 		_build_factory_hall()
 		return
@@ -953,6 +968,152 @@ func _build_hall() -> void:
 		lamp.omni_range = 11.0
 		lamp.position = Vector3(x, 6.2, -0.5)
 		add_child(lamp)
+
+
+## Emprise de tous les bâtiments de `spec.world.buildings`.
+func _campus_rect() -> Rect2:
+	var rect := GmixFactoryState.area_rect((_buildings[0] as Dictionary)["area"])
+	for building: Dictionary in _buildings:
+		rect = rect.merge(GmixFactoryState.area_rect(building["area"]))
+	return rect
+
+
+## Campus (`world.template == "campus"`, ADR 0013) : par bâtiment une dalle, un toit (caché en vue Sims), des murs de façade
+## en modules `walls` (style du bâtiment), la porte `door` à l'entrée, une ouverture à chaque porte de quai ; par pièce
+## (`world.rooms`) des cloisons de 3 m percées d'une porte. Les zones des départements restent celles de `_zone`.
+## Raccourci : une dalle par bâtiment (et par pièce de bureau) et non un prop_floor_slab par cellule de 4 m (160 nœuds).
+func _build_campus() -> void:
+	_roof = Node3D.new()
+	add_child(_roof)
+	var rooms: Array = Session.spec()["world"].get("rooms", [])
+	var docks: Array[Vector2] = []
+	for item: Dictionary in Session.spec()["world"].get("objects", []):
+		if item["asset"] == "prop_dock_door":
+			docks.append(Vector2(float(item["position"][0]), float(item["position"][1])))
+	for building: Dictionary in _buildings:
+		var rect := GmixFactoryState.area_rect(building["area"])
+		var middle := rect.get_center()
+		Mesher.box(self, Vector3(rect.size.x, 0.04, rect.size.y), Vector3(middle.x, -0.02, middle.y), Palette.material(Palette.CONCRETE, "concrete"))
+		Mesher.box(self, Vector3(rect.size.x, 0.03, 8), Vector3(middle.x, -0.025, rect.end.y + 4), Palette.material(Palette.FORECOURT, "concrete"))  # aire des camions
+		Mesher.box(_roof, Vector3(rect.size.x, 0.3, rect.size.y), Vector3(middle.x, 6.15, middle.y), Palette.material(Palette.STEEL, "steel"))
+		var columns := ceili(rect.size.x / 16.0)
+		var lines := ceili(rect.size.y / 16.0)
+		for x in columns:  # luminaires : la lumière reste allumée en vue Sims
+			for z in lines:
+				var lamp := OmniLight3D.new()
+				lamp.light_color = Color(1.0, 0.93, 0.81)
+				lamp.light_energy = 1.4
+				lamp.omni_range = 14.0
+				lamp.position = Vector3(rect.position.x + (x + 0.5) * rect.size.x / columns, 5.6, rect.position.y + (z + 0.5) * rect.size.y / lines)
+				add_child(lamp)
+		var mine: Array[Dictionary] = []
+		for room: Dictionary in rooms:
+			if room["building_id"] == building["id"]:
+				mine.append(room)
+				if room["kind"] == "bureau":  # sol de résine, plus clair
+					var floor_rect := GmixFactoryState.area_rect(room["area"])
+					Mesher.box(self, Vector3(floor_rect.size.x, 0.045, floor_rect.size.y), Vector3(floor_rect.get_center().x, -0.0175, floor_rect.get_center().y), Mesher.material(Palette.WALL_LIGHT.lerp(Palette.SAGE, 0.15)))
+		_build_facade(building, rect, mine, docks)
+		for room: Dictionary in mine:
+			_build_partitions(building, rect, room)
+
+
+## Façade d'un bâtiment : quatre murs de 6 m. Ouvertures : l'entrée (porte sectionnelle de 4 m), les portes de quai et les
+## portes des pièces qui touchent la façade (porte piétonne). Normale = vers l'extérieur.
+func _build_facade(building: Dictionary, rect: Rect2, rooms: Array[Dictionary], docks: Array[Vector2]) -> void:
+	var entrance: Array = building["entrance"]
+	var sides := {  # nom -> [coordonnée fixe, début, fin, le long de X, normale]
+		"n": [rect.position.y, rect.position.x, rect.end.x, true, Vector3(0, 0, -1)],
+		"s": [rect.end.y, rect.position.x, rect.end.x, true, Vector3(0, 0, 1)],
+		"w": [rect.position.x, rect.position.y, rect.end.y, false, Vector3(-1, 0, 0)],
+		"e": [rect.end.x, rect.position.y, rect.end.y, false, Vector3(1, 0, 0)],
+	}
+	var gaps := {"n": [], "s": [], "w": [], "e": []}
+	(gaps["n"] as Array).append([float(entrance[0]), CELL, "sectionnelle"])
+	for dock in docks:
+		if absf(dock.y - rect.end.y) < 2.0 and dock.x > rect.position.x and dock.x < rect.end.x:
+			(gaps["s"] as Array).append([dock.x, _footprint("prop_dock_door").x, ""])  # la porte de quai est un objet de la spec
+	for room: Dictionary in rooms:
+		for door: Array in room["doors"]:
+			for key: String in sides:
+				var side: Array = sides[key]
+				var along := float(door[0] if side[3] else door[1])
+				var across := float(door[1] if side[3] else door[0])
+				if absf(across - float(side[0])) < 0.05 and not (key == "n" and absf(along - float(entrance[0])) < CELL):
+					(gaps[key] as Array).append([along, PASSAGE, "pietonne"])
+	for key: String in sides:
+		var side: Array = sides[key]
+		_wall_line(building, float(side[0]), float(side[1]), float(side[2]), bool(side[3]), 6.0, side[4] as Vector3, gaps[key])
+
+
+## Cloisons (3 m) autour d'une pièce, sauf les côtés déjà en façade (à moins de 1,5 m) ; une porte percée là où `doors` le dit.
+func _build_partitions(building: Dictionary, outer: Rect2, room: Dictionary) -> void:
+	_rooms_built[room["id"]] = true
+	var rect := GmixFactoryState.area_rect(room["area"])
+	var edges := [
+		[rect.position.y, rect.position.x, rect.end.x, true, Vector3(0, 0, -1), absf(rect.position.y - outer.position.y)],
+		[rect.end.y, rect.position.x, rect.end.x, true, Vector3(0, 0, 1), absf(rect.end.y - outer.end.y)],
+		[rect.position.x, rect.position.y, rect.end.y, false, Vector3(-1, 0, 0), absf(rect.position.x - outer.position.x)],
+		[rect.end.x, rect.position.y, rect.end.y, false, Vector3(1, 0, 0), absf(rect.end.x - outer.end.x)],
+	]
+	for edge: Array in edges:
+		if float(edge[5]) < 1.5:
+			continue
+		var gaps := []
+		for door: Array in room["doors"]:
+			var across := float(door[1] if edge[3] else door[0])
+			if absf(across - float(edge[0])) < 0.05:
+				gaps.append([float(door[0] if edge[3] else door[1]), PASSAGE, "pietonne"])
+		_wall_line(building, float(edge[0]), float(edge[1]), float(edge[2]), bool(edge[3]), 3.0, edge[4] as Vector3, gaps)
+
+
+## Un mur droit en modules de `building.walls` (4 m, étirés pour tomber juste) entre `from` et `to` sur l'axe X ou Z, à la
+## coordonnée `fixed` ; `gaps` = [centre, largeur, type de porte] : une ouverture, avec la porte `building.door` si le type
+## n'est pas vide (la porte piétonne est étirée à la largeur de l'ouverture pour que le maillage de navigation passe).
+func _wall_line(building: Dictionary, fixed: float, from: float, to: float, along_x: bool, height: float, outward: Vector3, gaps: Array) -> void:
+	gaps.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	var cursor := from
+	var pieces: Array[Vector2] = []
+	for gap: Array in gaps:
+		pieces.append(Vector2(cursor, float(gap[0]) - float(gap[1]) / 2.0))
+		cursor = float(gap[0]) + float(gap[1]) / 2.0
+		if not str(gap[2]).is_empty():
+			var door := _instance(str(building["door"]))
+			door.set("kind", gap[2])
+			door.set("open", true)
+			door.scale.x = float(gap[1]) / (1.0 if gap[2] == "pietonne" else CELL)
+			_put_on_line(door, fixed, float(gap[0]), along_x)
+			add_child(door)
+			_doors.append(door)
+			var door_height := 2.1 if gap[2] == "pietonne" else 4.0
+			var lintel := Vector3(float(gap[1]), height - door_height, 0.25) if along_x else Vector3(0.25, height - door_height, float(gap[1]))
+			Mesher.box(self, lintel, _line_point(fixed, float(gap[0]), along_x) + Vector3(0, (height + door_height) / 2.0, 0), Palette.material(Palette.WALL, "concrete"))
+	pieces.append(Vector2(cursor, to))
+	for piece in pieces:
+		var length := piece.y - piece.x
+		if length < 0.3:
+			continue
+		var count := maxi(1, roundi(length / CELL))
+		for i in count:
+			var module := _instance(str(building["walls"]))
+			module.set("style", building["style"])
+			module.set("height", height)
+			module.scale.x = length / count / CELL
+			var at := piece.x + (i + 0.5) * length / count
+			_put_on_line(module, fixed, at, along_x)
+			add_child(module)
+			var bodies := module.find_children("*", "StaticBody3D", true, false)
+			if not bodies.is_empty():
+				_walls.append({"node": module, "body": (bodies[0] as StaticBody3D).get_rid(), "normal": outward, "center": _line_point(fixed, at, along_x)})
+
+
+func _line_point(fixed: float, along: float, along_x: bool) -> Vector3:
+	return Vector3(along, 0.0, fixed) if along_x else Vector3(fixed, 0.0, along)
+
+
+func _put_on_line(node: Node3D, fixed: float, along: float, along_x: bool) -> void:
+	node.position = _line_point(fixed, along, along_x)
+	node.rotation_degrees.y = 0.0 if along_x else 90.0
 
 
 ## Hall de l'usine, de la taille de `spec.world.size` : dalle, plinthe, murs isolés fermés sur les quatre côtés avec une

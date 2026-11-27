@@ -212,6 +212,91 @@ placement_rules:
       exige une barrière (PROTECT_M du moteur) ; crossings_max 0 = aucune route de camion ne coupe ce chemin
       intérieur (transposition des flux dissociés du § 4.1, p. 10, la source ne chiffre rien pour les chariots).
 
+# --- Campus : plusieurs bâtiments et pièces (ADR 0013, tranche T5 ; annexe 0013 §2 et §2 bis) ------------------------
+# Lu par layout.place_campus quand le plan compte 2 bâtiments ou plus. buildings absent ou 1 : place_world actuel (hall
+# en U de 48 x 30 m, template usine), sans vitesse de trajet : le jeu de référence ne change pas.
+# Un bâtiment séparé n'est permis que si le moteur chronomètre ce qui le relie au reste (ADR 0013 §2 et §6.7). Liaisons
+# chronométrées (layout.TIMED_LINKS, fixées par le code, annexe §2 bis décision 3) : kit (stock_mp -> production,
+# chariot), technicien (maintenance -> production, à pied) et palette filmée (emballage -> entrepot_pf, chariot,
+# décision 2) ; tout autre passage est instantané (quai <-> réception, réception -> racks MP, ligne -> contrôle ->
+# emballage). D'où trois archétypes : le hall, l'entrepôt (logistique) et l'atelier de maintenance.
+# Non déclarés, faute de trajet calculé : bureaux séparés (le pilotage n'a aucun flux simulé) et laboratoire qualité
+# (contrôle produit par produit, sans trajet) ; ils restent des pièces du hall.
+# `rooms.<kind>.blocks` = ids de départements (annexe 0013 §2), pas les `block_types` ci-dessus.
+# Tailles en cellules de campus.cell_m : provenance values campus.tailles_batiments. Bâtiments en rangée, quais
+# alignés côté camions (bord z max) ; entrée au milieu du bord opposé aux camions (z min), spawn 2 m devant celle de b1.
+# `walls` et `door` : ids d'assets du catalogue (ai/assets.yaml, préfixe prop_ imposé), recopiés dans Building.walls et
+# Building.door. prop_wall_panel : module de 4 m, variantes style (bardage | brique) et hauteur (6 : façade, 3 :
+# cloison). prop_door_industrial : variante type (sectionnelle 4 x 4 m, engins et camions ; pietonne : cadre de 1 x
+# 2,1 m posé dans une ouverture de mur) et ouverte. Building.style = matériau du mur, tiré dans
+# ambiances[world.ambiance].styles (un style n'est pas un asset). Sol des pièces : prop_floor_slab (beton | resine),
+# hors contrat Building (choix de Godot).
+campus:
+  cell_m: 4                 # values campus.cellule_m
+building_archetypes:
+  hall_production:
+    label: Hall de production
+    size_cells: [[10, 6], [15, 11]]  # 40 x 24 m sans la logistique (entrée hors du bureau) ; 48 x 32 m s'il la loge
+    rooms:
+      atelier: {label: Atelier de fabrication, blocks: [production, qualite, emballage]}
+      logistique: {label: Zone logistique, blocks: [reception, quai, stock_mp, entrepot_pf]}
+      maintenance: {label: Maintenance, blocks: [maintenance]}
+      bureau: {label: Bureaux du pilotage, blocks: [pilotage]}
+    walls: prop_wall_panel
+    door: prop_door_industrial
+  entrepot:
+    label: Entrepôt logistique
+    size_cells: [[9, 6], [12, 8]]    # 36 x 24 m : réception, quai, 24 places MP et 20 places PF ; 48 x 32 m au plus
+    rooms:
+      logistique: {label: Réception, stocks et expédition, blocks: [reception, quai, stock_mp, entrepot_pf]}
+    walls: prop_wall_panel
+    door: prop_door_industrial
+  atelier_maintenance:
+    label: Atelier de maintenance
+    size_cells: [[3, 2], [5, 4]]     # 12 x 8 m (établi, tableau, rechanges) à 20 x 16 m
+    rooms:
+      maintenance: {label: Atelier de maintenance, blocks: [maintenance]}
+    walls: prop_wall_panel
+    door: prop_door_industrial
+
+# Règles de zonage (types de spec.ZONING_KINDS), contrôlées par layout.check_placement. Deux départements dans la même
+# pièce satisfont `together`. Les `together` suivent les passages que le moteur ne chronomètre pas (voir campus).
+zoning_rules:
+  - type: together
+    departments: [reception, quai]
+    provenance: {status: calibre, note: "Déchargement compté au quai (reception.dechargement_min_palette), sans trajet vers la réception : les séparer montrerait un trajet que le moteur ne calcule pas (ADR 0013 §6.7). Même contiguïté que placement_rules.quai_reception (exemple, cahier)."}
+  - type: together
+    departments: [entrepot_pf, quai]
+    provenance: {status: calibre, note: "Chargement du camion client compté au quai (entrepot_pf.chargement_min_palette), sans trajet depuis les racks PF. Même contiguïté que placement_rules.quai_entrepot_pf (exemple, cahier)."}
+  - type: together
+    departments: [reception, stock_mp]
+    provenance: {status: calibre, note: "Rangement des palettes reçues instantané dans le moteur (pas de trajet du chariot réception -> racks) : réception et stock MP restent voisins."}
+  - type: together
+    departments: [production, qualite]
+    provenance: {status: calibre, note: "Chaque produit passe de la dernière machine au contrôle sans trajet (machine.transfer_min = 0 au dernier rang) : contrôle collé aux lignes."}
+  - type: together
+    departments: [qualite, emballage]
+    provenance: {status: calibre, note: "Produit conforme passé à l'emballage sans trajet : emballage voisin du contrôle. Ordre du flux : placement_rules.marche_en_avant (exemple)."}
+  - type: apart
+    departments: [pilotage, quai]
+    provenance:
+      status: calibre
+      note: >-
+        Transposition, non une citation : INRS ED 6350 (oct. 2019, fiche inrs-implantation-plateformes-logistiques)
+        place les parkings VL près des bureaux, isolés des flux PL (§ 4.1, p. 10), et des locaux sociaux sur une zone
+        isolée de toute circulation de chariots (§ 4.4, p. 15) ; ces bureaux ne sont pas nommés. Le jeu en tire :
+        bureaux du pilotage loin du quai des camions (2 cellules, 8 m, au moins). Hall en U : 19,5 m, déjà tenu.
+  - type: max_walk_m
+    departments: [maintenance, production]
+    value: zonage.marche_max_maintenance_m
+    provenance: {status: calibre, note: "Voir values zonage.marche_max_maintenance_m."}
+
+# Ambiances (clé du contrat depuis T2 : annexe 0013 §1 GameParams.ambiance, §2 et §2 bis décision 1) : décor seul,
+# aucun calcul. styles = matériaux de façade permis (variante style de prop_wall_panel). palette, season et vegetation
+# limitées à reference, ete et normale (aspect actuel) tant que Godot n'en rend pas d'autre.
+ambiances:
+  zone_industrielle: {label: Zone industrielle, palette: reference, season: ete, vegetation: normale, styles: [bardage, brique]}
+
 clock:
   days_per_turn: 5
   minutes_per_day: 480
@@ -224,6 +309,7 @@ limits:                  # [min, max, défaut], format de `ranges` (annexe §1, 
   products: [1, 1, 1]    # bloqué à 1 jusqu'à T4b (moteur mono-produit) ; cible [1, 3, 1], values limites.produits
   suppliers: [3, 8, 3]   # values limites.fournisseurs
   clients: [1, 1, 1]     # bloqué à 1 jusqu'à T4b (moteur mono-client) ; cible [1, 4, 1], values limites.clients
+  buildings: [1, 3, 1]   # values limites.batiments ; 1 = hall en U du jeu de référence, 2 ou 3 = campus
 
 params:
   - {id: lines, label: Lignes de production, type: int, min: 1, max: 3, default: 2}
@@ -793,6 +879,92 @@ values:
       Règle de jeu, non sourcée (placeur à graine, layout.HALL_GROWTH_M) : le hall de 48 x 30 m grandit d'une de ces
       valeurs par côté, départements en place ; seules les allées s'élargissent (règles aisle_min respectées, ce sont
       des minimums). Aucun calcul du moteur ne dépend de la taille du hall avant les trajets calculés (T5).
+
+  # --- Campus et trajets (ADR 0013, T5 ; annexe 0013 §2 et §3). Lus seulement quand le plan compte 2 bâtiments ou
+  # plus ; à 1 bâtiment, kit_min et maintenance.trajet_min restent fixes (jeu de référence). ---------------------------
+  limites.batiments:
+    status: calibre
+    note: >-
+      limits.buildings [1, 3, 1], règle de jeu, non sourcée (annexe 0013 §1). 1 = hall en U du jeu de référence
+      (place_world, template usine). 2 ou 3 = hall_production plus entrepot et/ou atelier_maintenance (campus) ; 3 =
+      nombre d'archétypes dont le moteur chronomètre la liaison (kit, transfert PF, technicien), voir campus.
+      Ouvert aux formateurs le 27/11/2026 (étape 9 du plan T5, annexe 0013 §2 bis), après place_campus et le compte
+      de walls et door par required_assets.
+  campus.cellule_m:
+    value: 4
+    unit: m
+    status: calibre
+    note: >-
+      Règle de jeu : pas de la grille du campus, multiple de grid.site_cell_m (0,5). L'allée d'une cellule entre deux
+      bâtiments (layout.check_placement) fait 4 m, au-dessus des 3,70 m d'une allée à double sens pour deux chariots
+      veh_forklift (2 x 1,15 m + 1,40 m : INRS ED 949, § 2.2.2, et ED 6350, annexe 3, fiche
+      inrs-allees-chariots-et-pietons) ; le passage piéton séparé (0,80 m) n'y est pas garanti, à vérifier avant d'y
+      voir un plan réel.
+  campus.tailles_batiments:
+    status: calibre
+    note: >-
+      building_archetypes.*.size_cells, règle de jeu, indicatif. Hall : 9 x 6 cellules (36 x 24 m) logent la production
+      à 3 lignes (22 x 11,5 m), contrôle et emballage (10 m de large) et les allées de 2,5 m ; le minimum est porté à
+      10 x 6 (40 x 24 m) le 27/11/2026 : à 36 m, l'entrée (milieu de façade) tombe devant le bureau du pilotage, et le
+      chemin des chariots production -> entrepot_pf passe à 1,3 m du poste (règle postes_proteges_chariots, INRS
+      ED 6350, § 4.4) ; à 40 m, il passe à plus de 1,5 m dans la disposition de référence ; s'il loge aussi la
+      logistique, 12 x 8 (48 x 32 m) au moins, l'emprise du hall en U ; 15 x 11 couvre son agrandissement maximal
+      (60 x 42 m, monde.agrandissement_hall_m). Entrepôt : 9 x 6 cellules pour réception (15,5 x 9 m), quai
+      (12 x 6,5 m), racks MP (10 x 18 m) et PF (15,5 x 9,5 m) du hall en U, soit 545 m² hors allées. Maintenance :
+      3 x 2 cellules (12 x 8 m) pour l'établi et le tableau (10 x 3,5 m dans le hall en U).
+  trajet.marche_m_min:
+    value: 75
+    unit: m par minute (1,25 m/s)
+    status: calibre
+    note: >-
+      Logistics.walk_m_per_min : technicien à pied (maintenance -> production). Fiche bohannon-vitesse-de-marche
+      (Bohannon R. W., Age and Ageing 26(1), 1997, p. 15-19, résumé seul lu) : vitesse confortable moyenne de
+      1,27 m/s (femmes de 70 ans) à 1,46 m/s (hommes de 40 ans), soit 76 à 88 m/min (conversion). 75 m/min, un peu
+      sous le bas de cette plage : choix prudent du jeu (marche d'atelier avec virages, portes et arrêts aux
+      croisements de chariots), non chiffre de la source. Indicatif.
+  trajet.chariot_m_min:
+    value: 100
+    unit: m par minute (6 km/h moyens)
+    status: calibre
+    note: >-
+      Logistics.forklift_m_per_min : chariot élévateur (kits, palettes PF), vitesse moyenne d'un trajet, démarrage et
+      freinage compris. Règle de jeu, non sourcée : aucune source lue ne chiffre une vitesse de chariot. Fiche
+      circulation-vitesse-chariots-interieur : Code du travail, art. R4323-51 (texte lu sur code.travail.gouv.fr,
+      Légifrance à vérifier), l'employeur « établit des règles de circulation adéquates » ; INRS ED 766 (4e éd.,
+      2019, p. 22, hors corpus) demande de ralentir à l'approche des piétons, sans chiffre. Indicatif, une seule
+      vitesse dedans et dehors (l'annexe 0013 §3 n'en prévoit qu'une).
+  trajet.formules:
+    status: calibre
+    note: >-
+      Règle de jeu (annexe 0013 §2 bis, décision 3 ; layout.travel_min, en campus seulement). t = travel_min(a, b,
+      mode) = path_m(a, b) ÷ vitesse du mode ; path_m part du centre de l'aire du département et passe par les portes
+      des pièces et les entrées des bâtiments. Kit (t = stock_mp -> production, chariot) : kit remis à la ligne à
+      8 + t, chariot occupé 8 + 2t (aller chargé, retour à vide) ; stock_mp.kit_min (8 min) ne compte plus que la
+      préparation. Technicien (t = maintenance -> production, à pied) : aller seul, remplace maintenance.trajet_min.
+      Exemple : racks à 40 m de la production, t = 0,4 min, kit remis à 8,4 min, chariot libre à 8,8 min ; atelier
+      de maintenance à 60 m, 60 / 75 = 0,8 min (3 min fixes dans le hall en U).
+  trajet.manutention_palette_min:
+    value: 1
+    unit: min par palette (prise et dépose)
+    status: calibre
+    note: >-
+      Logistics.pallet_handling_min (annexe 0013 §2 bis, décision 2 ; condition de l'archétype entrepot), en campus
+      seulement : chaque palette filmée va de l'emballage à l'entrepôt PF par le chariot (partagé avec les kits, une
+      palette en attente servie avant les kits). Avec t = travel_min(emballage, entrepot_pf, chariot) : palette
+      livrée au PF à 1 + t, chariot libre à 1 + 2t après la prise (1 min de prise et dépose, indicatif, non sourcé).
+      Prise seulement si une place PF est libre en comptant les palettes en route (place réservée à la prise) ;
+      l'emballage attend la prise, le stock PF augmente à l'arrivée. Exemple : 35 m, t = 0,35 min, palette livrée à
+      1,35 min, chariot libre à 1,7 min ; à 3 lignes, jusqu'à 17 palettes par jour, soit 29 min de chariot en plus
+      des 18 kits (environ 160 min) : le chariot reste sous les 480 min de la journée.
+  zonage.marche_max_maintenance_m:
+    value: 150
+    unit: m de marche
+    status: calibre
+    note: >-
+      Règle de jeu, non sourcée (zoning_rules max_walk_m, layout.path_m) : chemin à pied du centre de la maintenance
+      au centre de la production (pas à chaque machine) d'au plus 150 m, soit 2 min à trajet.marche_m_min (75 m/min), sous les 3 min du cahier (maintenance.trajet_min) :
+      un campus n'allonge pas l'arrêt d'une panne au-delà du jeu de référence. Le trajet reste petit devant le MTTR
+      (30 à 60 min) : la leçon vraie est que la distance pèse surtout sur les kits du chariot, peu sur les pannes.
 
 # Archétypes de machine : les 4 machines de l'exemple du cahier (§5.2). L'opération affichée vient du produit.
 # Pas d'asset ici : le modèle 3D est celui de l'élément `role: machine` du département production (6c).

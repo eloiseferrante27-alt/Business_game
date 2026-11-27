@@ -12,7 +12,7 @@ commande de test n'a été relancée pour ce document.
 
 G-mix génère des business games en mini open world 3D, dans la direction artistique des Sims. Le formateur décrit
 ce qu'il veut (paramètres, brief, documents) ; une IA locale conçoit le jeu ; un moteur déterministe calcule la
-partie. Les joueurs jouent en équipe dans le monde du jeu (aujourd'hui une usine en hall unique ; cible ADR 0013, T5 : un à trois bâtiments, hall, entrepôt, bureaux…), avec des personnages (PNJ) qui disent les faits calculés.
+partie. Les joueurs jouent en équipe dans le monde du jeu (une usine de 1 à 3 bâtiments depuis T5, 27/11 : hall, entrepôt, atelier de maintenance ; bureaux : à venir), avec des personnages (PNJ) qui disent les faits calculés.
 
 **Exigence n° 1 : les connaissances transmises sont vraies et sourcées.** Conséquences : chaque valeur du jeu porte une
 provenance (`source`, `calibre` ou `exemple`) ; aucune source n'est inventée ; ce qui n'est pas sourcé est affiché au
@@ -85,14 +85,14 @@ débrief. Les pages des autres départements sont en lecture seule.
 ## 5. Génération des mondes
 
 Cible ADR 0013 (§2) : deux demandes différentes donnent deux mondes et deux jeux différents. État livré au 21/11 : la
-demande règle des chiffres d'une usine unique ; le plan en U, les 3 fournisseurs et les textes ne changent pas.
+demande règle des chiffres d'une usine unique ; le plan en U et les textes ne changent pas. Depuis T4 (26/11) : 3 à 8 fournisseurs (`params.suppliers`) et types de machine m1 à m4 par rang ; produits et clients restent à 1 jusqu'à T4b.
 
 | Qui décide | Quoi | État |
 |---|---|---|
-| Données sourcées du pack | faits et chiffres (catalogue fermé, provenance par valeur), archétypes de bâtiment, zonage | pack usine livré ; archétypes et second domaine : cible (T4, T5, D2) |
-| Procédural à graine | dispositions : tailles dans des bornes, positions, variantes d'assets, décor ; mêmes paramètres, même graine, mêmes retouches = même monde | partiel : taille du hall et décor à graine livrés (T4, 26/11) ; positions, variantes d'assets et plusieurs bâtiments : T5 |
+| Données sourcées du pack | faits et chiffres (catalogue fermé, provenance par valeur), archétypes de bâtiment, zonage | pack usine livré ; archétypes livrés (T5, 27/11) ; second domaine : cible (D2) |
+| Procédural à graine | dispositions : tailles dans des bornes, positions, variantes d'assets, décor ; mêmes paramètres, même graine, mêmes retouches = même monde | partiel : taille du hall et décor à graine livrés (T4, 26/11) ; plusieurs bâtiments à graine livrés (T5, 27/11) ; variantes d'assets : à venir |
 | Agents IA (schéma fermé) | choix du domaine, des mécaniques, du programme de bâtiments, des rôles et PNJ, textes sans chiffre | cible T9 : cinq tâches en série ; aujourd'hui un appel `factory.design` et aucun texte conçu |
-| Moteur seul | effets, durées, coûts, délais, trajets, indicateurs, verdict, faits dits par un PNJ | livré (trajets entre bâtiments : cible T5) |
+| Moteur seul | effets, durées, coûts, délais, trajets, indicateurs, verdict, faits dits par un PNJ | livré (trajets entre bâtiments : T5, 27/11) |
 | Documents du formateur | passages validés par le formateur, provenance `formateur` ; aucun chiffre dans le moteur | cible T8 |
 
 | Élément | Règle |
@@ -102,7 +102,7 @@ demande règle des chiffres d'une usine unique ; le plan en U, les 3 fournisseur
 | Conception par l'IA | Aujourd'hui un appel ; cible T9 : domaine, mécaniques, monde, personnages, parcours + contrôle ; l'IA **choisit** dans les catalogues du pack, n'écrit ni chiffre, ni coordonnée, ni lien (ADR 0008, 0013) |
 | Documents du formateur | Cible T8 : interrogés par le RAG pour nourrir le choix et les textes, chaque passage validé par le formateur ; une notion hors pack ou hors document cité est interdite |
 | Assets | Prédéfinis (`ai/assets.yaml`, `godot/assets/`) ; un pack n'est proposé que si tous ses assets sont importés |
-| Placement | Placeur déterministe (`backend/gmix/game/layout.py`) sur grilles carte, site, bloc ; règles d'implantation avec provenance ; à graine depuis T4 (taille du hall, décor) ; plusieurs bâtiments : T5 |
+| Placement | Placeur déterministe (`backend/gmix/game/layout.py`) sur grilles carte, site, bloc ; règles d'implantation avec provenance ; à graine depuis T4 (taille du hall, décor) ; plusieurs bâtiments : `place_campus` depuis T5 (27/11) |
 | Chiffres | Ceux du pack, chacun avec `source`, `calibre` ou `exemple` ; les non sourcés sont listés |
 | Justesse | Validation `SimSpec` -> `check_design` -> essai en pilote automatique ; 2 réparations au plus, puis repli déterministe |
 | Parties de code simples | Connexions déclaratives choisies dans les énumérations du pack (P1 A, ADR 0011 §3) |
@@ -179,14 +179,14 @@ Détail : docs/architecture.md, docs/kafka.md.
 | EX-30 | Pages des départements dans la tablette | Une page par département, lecture seule hors du sien | fait (B3 puis B4a, 06/11) : une page par département dans la tablette, lecture seule hors du sien, alertes par département ; clic au sol dans une zone `dept:<id>` d'un autre département = ouverture de sa page (dans sa zone : marche seulement) ; `-Tour` pas rejoué après le dernier correctif de `world.gd` | ADR 0010 §6 ; ADR 0012 |
 | EX-31 | Débrief joueur et formateur | `GET /lobbies/{id}/debrief`, écran J3 avec courbes et causes | fait (B4a, 06/11) : écran J3 `GmixDebrief` avec une courbe par critère (`criteria[].series`, cible et seuil en pointillés, aléas en filets), causes, leçons reliées aux fiches, notions, valeurs non sourcées | ADR 0010 §4 J3 ; ADR 0012 |
 | EX-32 | Comparaison entre équipes ou sessions d'un jeu | Débrief comparatif | fait (B2 puis B4a, 06/11) : « Débrief comparé » affiche les équipes côte à côte (1 à 3 colonnes) avec une série par équipe dans les courbes ; joueur : seulement quand toutes les équipes ont fini (409), formateur et admin à tout moment | ADR 0011 §2 |
-| EX-33 | PNJ qui disent les faits calculés et se souviennent | Dialogue sur `briefings`, 6 derniers échanges | partiel : dialogue et mémoire faits ; garde-fou des nombres de `npc.py` décidé le 06/11, à implémenter avant la démo (réplique avec un nombre absent des faits remplacée par la réponse de secours, clé `guard`) | ADR 0006 ; ADR 0007 |
+| EX-33 | PNJ qui disent les faits calculés et se souviennent | Dialogue sur `briefings`, 6 derniers échanges | fait (T6, 27/11) : dialogue et mémoire ; garde-fou des nombres de `npc.py` (réplique avec un nombre absent des faits remplacée par la réponse de secours ; tolérances : arrondi, semaine, nombres de la question) ; mesure sur le vrai modèle : 9 répliques remplacées sur 152, 0 faux positif ; la clé `guard` n'est pas exposée au client | ADR 0006 ; ADR 0007 |
 | EX-34 | Interfaces ergonomiques, chaleureuses, au vouvoiement | `-Tour` vert aux 4 tailles, police 15 px au moins | partiel : textes de l'étape 1 livrés, 3 palettes claires disponibles (choix en attente), `-Tour` 236 écrans 0 défaut le 06/11, passe finale `-Tour` à rejouer (ordre 6, ADR 0012 c2) | `.\scripts\godot.ps1 -Tour` ; ADR 0010 §6 |
 | EX-35 | Tenable sur le poste (RTX 3060 6 Go) | Conception 3 min en médiane, 10 au plus | fait : conception mesurée, médiane 10,4 s le 05/11 et 4,7 s le 06/11 sans Godot (ai/evals/results/factory.design-2026-11-06.md), 4 à 7 s avec le prompt v4 le 19/11 (qwen2.5:3b ; le 7b : 27 s), sous le budget de 3 min | ADR 0008 d.4 ; `.\scripts\check-env.ps1` |
 | EX-36 | Capacité d'une séance réelle (une vingtaine de joueurs) | Dialogues simultanés tenus | à trancher, après la Première version : GPU insuffisant pour une vingtaine ; la démo vise 3 à 6 joueurs | docs/blocages.md 4 |
 | EX-37 | Licence du jeu de référence | Reprise sans crédit décidée (autrice dans l'équipe) | fait : décision prise ; blocages.md et prompt-projet.md alignés le 06/11 | ADR 0010 §7.5 |
 | EX-38 | Docs et QA du chantier 0010 | Étapes 8 (docs) et 9 (QA) faites | à faire | ADR 0010 §6 |
 | EX-39 | Variété mesurée | Série V : 12 briefs supply chain -> 8 structures distinctes au moins | à faire (ADR 0013, T9) : aujourd'hui le monde reste le même hall en U | ADR 0013 §3.3 |
-| EX-40 | Bâtiments et pièces, trajets calculés | 1 à 3 bâtiments, `travel_min` calculé entre pièces, `pack_coverage` 100 %, 45 images/s | à faire (ADR 0013, T5) | ADR 0013 §2, §6.7 |
+| EX-40 | Bâtiments et pièces, trajets calculés | 1 à 3 bâtiments, `travel_min` calculé entre pièces, `pack_coverage` 100 %, 45 images/s | fait (T5, 27/11) : `-Flow -NoLlm -Pack usine -Buildings 3` 530 vérifications ; rendu Godot 164 images/s au pire cas (3 bâtiments, vue d'ensemble) ; `pack_coverage` non rejoué à part | ADR 0013 §2, §6.7 |
 | EX-41 | Équipe d'agents de conception | Cinq tâches IA en série et un contrôle ; 3 min en médiane, 10 au plus | à faire (ADR 0013, T9) | ADR 0013 §3.2 |
 | EX-42 | Second domaine jouable et audité | Pack du second domaine (finance d'entreprise), `-Flow -Pack <slug>` vert, liste à signer signée | à faire (ADR 0013, D1 à D3) | ADR 0013 §6.2 |
 

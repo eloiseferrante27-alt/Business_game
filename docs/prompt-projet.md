@@ -156,7 +156,7 @@ décision 8 (`layout_edits`, `apply_edits`, critère 0009-10), y renvoyer plutô
 | Notions | Chaque notion du pack porte une citation ; une notion hors du pack est interdite à l'IA (ADR 0008 d.1) |
 | Agents | Un agent parlant par module ou département ; le moteur calcule ses faits ; le modèle les dit en une ou deux phrases avec le caractère de l'agent (docs/game-design.md) |
 | Mémoire | Les six derniers échanges du lobby avec l'agent ; mémoire partagée entre joueurs, risque d'injection persistante accepté (ADR 0007 d.12) |
-| Garde-fous | Pré-filtre lexical, tours douteux jamais mémorisés ; garde-fou des nombres de `npc.py` décidé le 06/11, à implémenter (ADR 0007) : réplique avec un nombre absent des faits remplacée par la réponse de secours, clé `guard` |
+| Garde-fous | Pré-filtre lexical, tours douteux jamais mémorisés ; garde-fou des nombres de `npc.py` livré le 27/11 (T6, ADR 0007) : réplique avec un nombre absent des faits remplacée par la réponse de secours |
 | Débrief | Indicateurs calculés, aléas survenus, notions et sources, valeurs et règles non sourcées |
 
 ## 8. Contraintes techniques et budgets

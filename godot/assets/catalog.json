@@ -1872,6 +1872,90 @@
       "source_path": null,
       "sign": false,
       "license": "propriété du projet"
+    },
+    {
+      "id": "prop_wall_panel",
+      "name": "Panneau de mur",
+      "category": "industrial",
+      "tags": [
+        "mur",
+        "facade",
+        "cloison",
+        "bardage",
+        "brique",
+        "batiment",
+        "campus",
+        "segment"
+      ],
+      "footprint": {
+        "w": 4.0,
+        "d": 0.25,
+        "h": 6.0
+      },
+      "fit": "w",
+      "variants": [
+        "style",
+        "hauteur"
+      ],
+      "scene": "res://assets/industrial/prop_wall_panel/prop_wall_panel.tscn",
+      "source_path": null,
+      "sign": false,
+      "license": "propriété du projet"
+    },
+    {
+      "id": "prop_door_industrial",
+      "name": "Porte industrielle",
+      "category": "industrial",
+      "tags": [
+        "porte",
+        "porte_sectionnelle",
+        "porte_pietonne",
+        "acces",
+        "batiment",
+        "campus",
+        "ouverture"
+      ],
+      "footprint": {
+        "w": 4.0,
+        "d": 0.25,
+        "h": 4.0
+      },
+      "fit": "w",
+      "variants": [
+        "type",
+        "ouverte"
+      ],
+      "scene": "res://assets/industrial/prop_door_industrial/prop_door_industrial.tscn",
+      "source_path": null,
+      "sign": false,
+      "license": "propriété du projet"
+    },
+    {
+      "id": "prop_floor_slab",
+      "name": "Dalle de sol",
+      "category": "industrial",
+      "tags": [
+        "sol",
+        "dalle",
+        "beton",
+        "resine",
+        "batiment",
+        "campus",
+        "cellule"
+      ],
+      "footprint": {
+        "w": 4.0,
+        "d": 4.0,
+        "h": 0.05
+      },
+      "fit": "w",
+      "variants": [
+        "style"
+      ],
+      "scene": "res://assets/industrial/prop_floor_slab/prop_floor_slab.tscn",
+      "source_path": null,
+      "sign": false,
+      "license": "propriété du projet"
     }
   ]
 }

@@ -28,7 +28,7 @@ const ZONE_EXTERNAL := Color(0.55, 0.6, 0.68)
 
 
 static func is_factory(spec: Dictionary) -> bool:
-	return _as_dict(spec.get("world")).get("template", "atelier") == "usine"
+	return _as_dict(spec.get("world")).get("template", "atelier") in ["usine", "campus"]  # campus : usine à plusieurs bâtiments (ADR 0013)
 
 
 ## `value` si c'est un dictionnaire, sinon {} : la spec et l'état d'un atelier portent `factory: null`, pas une clé absente.

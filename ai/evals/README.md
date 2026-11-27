@@ -12,7 +12,7 @@ Un jeu par tâche (`<tâche>.jsonl`), des cas étiquetés à la main :
 | `player.intent.control.jsonl` | 24 : série C, **jeu de contrôle** du filtre (9 injections, 6 hors-sujet, 9 légitimes) | `gmix.tools.eval_dialogue --series C --no-corpus` |
 | `game.design.jsonl` | 27 briefs : séries R (réglage, 12), C (contrôle, 12) et N (réseau, 3) ; 18 atelier, 9 usine | `gmix.tools.eval_design` (étape 11 de l'ADR 0008, à écrire) |
 | `design.consignes.jsonl` | 10 briefs du protocole des jeux IA, avec attentes (5 points par jeu) | `gmix.tools.eval_design_consignes --label <nom> [--model main] [--no-guard]` (`GMIX_AI_DIR` : copie de ai/ pour un prompt à l'essai) |
-| `supply-chain.rag.jsonl` | 14 questions | `gmix.tools.eval_rag supply-chain [--k 4]` |
+| `supply-chain.rag.jsonl` | 38 questions ; 27/11 : Rappel@4 35/38 (les 3 KO : trs_oee, little, kingman) | `gmix.tools.eval_rag supply-chain [--k 4]` |
 | `finance-entreprise.rag.jsonl` | 14 questions (termes attendus et `expected_docs`) ; 24/11 : Rappel@4 13/14, document 14/14 | `gmix.tools.eval_rag finance-entreprise [--k 4]` |
 | `assets.retrieval.jsonl` | 12 besoins | `gmix.tools.assets evaluate` |
 
@@ -93,6 +93,14 @@ tev1:4b, à titre d'information : 4,6 Go de VRAM, hors temps réel ; latences no
 | Filtre en trois couches | Tableau du résumé (séries F et C), pour injections, hors-sujet et légitimes : (a) pré-filtre lexical `looks_like_injection` seul, (b) tev1 seul (`player.intent` lu comme `agent_reply`, sans pré-filtre), (c) chaîne complète `agent_reply`. Avec l'intervalle de confiance à 95 % de Wilson (très large pour 5 à 9 cas). « Écarts chaîne / tev1 seul » (0 attendu) décèle une dérive entre l'outil et `agent_reply`. |
 | Réponses de secours | Le modèle a manqué (muet, indisponible, plus de 60 s) : 0 attendu. |
 | Latence à chaud | Médiane, p90 et max d'une réplique complète (intention, RAG, génération) ; rechargements = répliques avec plus de 1 s de chargement du modèle. |
+
+| Remplacées par le garde-fou des nombres | Tours où `agent_reply` a remplacé la réplique (`guard` non nul : nombre absent des faits, `npc.unsupported_numbers`). La sortie brute reste jugée ; ce n'est pas une « réponse de secours ». Le résumé compte aussi les faux positifs probables (aucun nombre de la sortie hors du prompt entier) ; le rapport note « vrai » ou « FAUX POSITIF ? » par cas : à relire (un nombre présent ailleurs dans le prompt mais pas dans les faits reste un vrai nombre inventé). L'éval lit les nombres avec `npc.numbers` (une seule copie). |
+
+Mesure du garde-fou, 2026-11-27 (qwen2.5:3b, prompt v3, `garde-A-2026-11-27`, `garde-B-2026-11-27`) : 9 répliques
+remplacées sur 152 (6 %), A 4/76 et B 5/76. Relecture : **0 faux positif**. 9 sur 9 sont de vrais nombres non fondés
+(60 % de capacité, 1200 unités, 120 unités décidées, « contrôle à 100 % » pour 50 %, 5 commandes, 8,9 % de rotation, TRS
+à 82 %, trésorerie 16 022 € pour 16 002 €). Latence à chaud inchangée : médiane 0,53 s (A) et 0,58 s (B). Avant le
+garde-fou, 5 à 8 % des répliques portaient un nombre inventé (« Aucun nombre inventé » : 58/60 en A, 55/60 en B). Un tirage par cas.
 
 Le ton, le naturel et l'utilité ne sont pas mesurés : relire le rapport.
 

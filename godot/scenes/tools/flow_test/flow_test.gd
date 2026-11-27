@@ -79,7 +79,8 @@ class ErrorCatcher:
 
 var _only: PackedStringArray = []
 var _pack := "atelier"  # --pack=usine : parcours du pack usine
-var _catcher := ErrorCatcher.new()
+var _buildings := 0  # --buildings=2|3 (avec --pack=usine) : jeu créé en campus, contrôlé par _check_campus
+var _catcher :=ErrorCatcher.new()
 var _checks := 0
 var _failures: Array[String] = []
 var _step := ""
@@ -110,6 +111,7 @@ func _run() -> void:
 	var args := _arguments()
 	_only = str(args.get("only", "A,B,V")).split(",")
 	_pack = str(args.get("pack", "atelier"))
+	_buildings = int(args.get("buildings", "0"))
 	OS.add_logger(_catcher)
 	get_window().size = Vector2i(1280, 720)  # sans fenêtre, la taille serait 64 x 64 : la zone visible et les rayons du curseur divergeraient
 	_stub_presence()
@@ -178,6 +180,8 @@ func _fixture_world(pack: String) -> void:
 		_check(not volume.is_empty() and (volume[0] as MeshInstance3D).mesh is BoxMesh, "asset sans scène : un volume plein à la place")
 	_check(await _until(func() -> bool: return world.is_navigation_ready(), 60.0) != null, "le maillage de navigation est cuit")
 	await _check_world(world)
+	if loaded["spec"]["world"]["template"] == "campus":
+		_check_campus(world)
 	var fixture_decor: Variant = (loaded["spec"]["world"] as Dictionary).get("decor")
 	var decor: Array = (fixture_decor as Dictionary).get("items", []) if fixture_decor is Dictionary else []
 	if not decor.is_empty():
@@ -192,7 +196,7 @@ func _fixture_world(pack: String) -> void:
 			var snapped := NavigationServer3D.map_get_closest_point(map, npc.position)
 			_check(Vector2(snapped.x - npc.position.x, snapped.z - npc.position.z).length() < 0.4, "%s : sur le maillage de navigation (%.2f m d'écart)" % [npc.data["id"], Vector2(snapped.x - npc.position.x, snapped.z - npc.position.z).length()])
 			checked += 1
-	_check(checked > 0, "au moins un agent en déplacement dans l'état d'exemple")
+	_check(checked > 0 or loaded["spec"]["world"]["template"] == "campus", "au moins un agent en déplacement dans l'état d'exemple")
 	var absent: Array = (world.get("_agents") as Array).filter(func(npc: GmixNpc) -> bool: return npc.activity == "absent")
 	for npc: GmixNpc in absent:
 		_check(not (npc.get_child(0) as Node3D).visible, "%s absent : son modèle est masqué" % npc.data["id"])
@@ -220,7 +224,7 @@ func _trainer_journey() -> void:
 
 	var params: Dictionary = USINE_PARAMS if _pack == "usine" else MAIN_PARAMS
 	_begin("A.2","Génération par paramètres non par défaut (pack %s)" % _pack)
-	var game := await _generate(home, params)
+	var game: Dictionary = await _generate_campus(home, params) if _buildings > 0 else await _generate(home, params)
 	if game.is_empty():
 		return
 
@@ -279,6 +283,9 @@ func _trainer_journey() -> void:
 	if _pack == "usine":
 		_check(served.size() > 0, "pack usine : décor non vide (%d éléments)" % served.size())
 	await _check_zone_click(world)
+	if _buildings > 0:
+		_check(Session.spec()["world"]["template"] == "campus" and (Session.spec()["world"]["buildings"] as Array).size() == _buildings, "campus de %d bâtiment(s) servi par l'API" % _buildings)
+		_check_campus(world as GmixWorld)
 	if _pack == "usine":
 		_begin("A.12u", "Pack usine : semaines simulées jusqu'à la fin, débrief (goulots exigés)")
 		var factory_back := await _leave_world()
@@ -871,6 +878,31 @@ func _select_pack(home: Control, pack_id: String) -> void:
 		await _frames(3)
 
 
+## `--buildings=n` : le formulaire n'a pas de champ « bâtiments », le jeu est donc créé par POST /games (mêmes clés que le
+## formulaire, plus `buildings`) ; un refus de l'API (borne du pack, 422) est un échec explicite.
+func _generate_campus(home: Control, params: Dictionary) -> Dictionary:
+	if not _check(_pack == "usine" and _buildings >= 2 and _buildings <= 3, "--buildings=%d : exige --pack=usine et 2 ou 3" % _buildings):
+		return {}
+	var body := {
+		"pack": params["pack"], "theme": params["theme"], "modules": params["modules"], "extra_agents": params["agents"],
+		"agent_tone": params["tone"], "difficulty": params["difficulty"], "events": params["events"], "weeks": params["weeks"],
+		"products": params["products"], "options": params["options"], "company_name": params["company"],
+		"players_min": params["players"][0], "players_max": params["players"][1], "buildings": _buildings,
+	}
+	var res := await _raw(_trainer, HTTPClient.METHOD_POST, "/api/v1/games", body, 120.0)
+	if not _check(res["ok"], "création du jeu usine avec %d bâtiments" % _buildings, "refusée par l'API (%s) : limits.buildings du pack usine ?" % res["error"]):
+		return {}
+	var title := str(res["data"]["title"])
+	var detail := await _find_game(_trainer, title)
+	if not _check(not detail.is_empty(), "le jeu est dans GET /games", title):
+		return {}
+	_check(int(detail["spec"]["params"]["buildings"]) == _buildings, "paramètre buildings conservé dans la spec")
+	_check_generated(detail, params)
+	await home.call("_load_games")
+	await _frames(2)
+	return detail
+
+
 ## Remplit le formulaire (cases, listes, nombres, nom) puis clique « Générer » ; renvoie le détail API du jeu créé.
 func _generate(home: Control, params: Dictionary) -> Dictionary:
 	await _select_pack(home, str(params.get("pack", "atelier")))
@@ -938,7 +970,7 @@ func _check_generated(detail: Dictionary, params: Dictionary) -> void:
 			_check(applied["options"].get(key) == params["options"][key], "option du pack « %s » : %s" % [key, params["options"][key]])
 	if params.get("pack", "atelier") == "usine":  # un agent parlant par département (10) + les agents en plus, plus des figurants
 		_check((spec["agents"] as Array).size() == 10 + agents.size(), "%d agents dans la spec (10 départements + en plus)" % (10 + agents.size()))
-		_check((spec["factory"]["crew"] as Array).size() > 0 and spec["world"]["template"] == "usine", "spec usine : figurants et gabarit du monde")
+		_check((spec["factory"]["crew"] as Array).size() > 0 and spec["world"]["template"] == ("campus" if _buildings > 0 else "usine"), "spec usine : figurants et gabarit du monde")
 		_check(int(spec["params"]["options"]["lines"]) == (spec["lines"] as Array).size(), "une ligne de la spec par ligne demandée")
 	else:
 		_check((spec["agents"] as Array).size() == modules.size() + agents.size(), "%d agents dans la spec (modules + en plus)" % (modules.size() + agents.size()))
@@ -1318,6 +1350,28 @@ func _check_factory_world(world: GmixWorld) -> void:
 		var entry := GmixFactoryState.agent(state, str(npc.data["id"]))
 		if not entry.is_empty():
 			_check(npc.activity == str(entry["state"]), "%s : état « %s »" % [npc.data["id"], entry["state"]])
+
+
+## Campus (spec.world.template == "campus") : autant de bâtiments, de pièces et de portes instanciés que la spec en déclare,
+## murs de façade posés, caméra qui cadre `bounds`, un clic de zone par département logé dans une pièce.
+func _check_campus(world: GmixWorld) -> void:
+	var spec := Session.spec()
+	var buildings: Array = spec["world"]["buildings"]
+	var rooms: Array = spec["world"]["rooms"]
+	var doors := buildings.size()
+	for room: Dictionary in rooms:
+		doors += (room["doors"] as Array).size()
+	_check((world.get("_buildings") as Array).size() == buildings.size(), "campus : %d bâtiment(s) construit(s)" % buildings.size())
+	_check((world.get("_rooms_built") as Dictionary).size() == rooms.size(), "campus : %d pièce(s) construite(s)" % rooms.size())
+	_check((world.get("_doors") as Array).size() == doors, "campus : %d porte(s) posée(s) (entrées et portes de pièces)" % doors, str((world.get("_doors") as Array).size()))
+	_check((world.get("_walls") as Array).size() >= 4 * buildings.size(), "campus : murs en modules (%d)" % (world.get("_walls") as Array).size())
+	var bounds := GmixFactoryState.area_rect(spec["world"]["bounds"])
+	_check(world.sims_view().bounds == bounds, "campus : la caméra Sims est bornée par world.bounds")
+	_check(world.sims_view().distance_max * 1.15 >= (world.call("_campus_rect") as Rect2).size.x, "campus : la caméra peut s'éloigner assez pour cadrer la rangée")
+	for room: Dictionary in rooms:
+		var area := GmixFactoryState.area_rect(room["area"])
+		var inside: String = world.call("_zone_at", Vector3(area.get_center().x + 0.3, 0.0, area.get_center().y + 0.3))
+		_check((room["department_ids"] as Array).has(inside), "campus : un clic dans la pièce %s ouvre son département (%s)" % [room["id"], inside])
 
 
 ## Ouvre chaque poste de la spec ; avec `forms`, valide chaque formulaire d'action avec ses valeurs par défaut.

@@ -54,6 +54,41 @@ def short_reply(text: str, name: str) -> str:
     return reply if len(reply) <= MAX_CHARS else reply[: MAX_CHARS - 1].rsplit(" ", 1)[0] + "…"
 
 
+SPACES = r" \N{NO-BREAK SPACE}\N{NARROW NO-BREAK SPACE}"
+# Un groupe de milliers (« 1 406 », « 20.000 ») ne doit pas être suivi d'un chiffre : « 62.7054 » est une décimale.
+NUMBER = re.compile(rf"\d{{1,3}}(?:[{SPACES}.]\d{{3}})+(?!\d)(?:,\d+)?|\d+(?:[.,]\d+)?")
+
+
+def numbers(text: str) -> set[str]:
+    """Nombres d'un texte sous forme normalisée : « 1 406,5 » et « 1406.5 » sont le même, « 62.7054 » reste 62.7054."""
+    found = set()
+    for raw in NUMBER.findall(re.sub(r"\[S\d+\]", " ", text)):
+        value = re.sub(f"[{SPACES}]", "", raw)
+        if re.fullmatch(r"\d{1,3}(?:\.\d{3})+(?:,\d+)?", value):
+            value = value.replace(".", "")
+        value = value.replace(",", ".")
+        found.add(value.rstrip("0").rstrip(".") if "." in value else value)
+    return found
+
+
+def _fmt(x: float) -> str:
+    return f"{x:.6f}".rstrip("0").rstrip(".")
+
+
+def unsupported_numbers(reply: str, grounds: str, message: str, week: int, weeks: int) -> list[str]:
+    """Nombres de la réplique qui ne viennent ni des faits (`grounds` : faits, notions, corpus), ni de la question du
+    joueur. Tolérances : arrondi d'un fait à l'entier ou à une décimale (« environ 63 »
+    pour 62,7) ; numéros de semaine et leurs dérivés évidents (semaine, durée, semaines restantes, semaine précédente).
+    Limite : un nombre rond de milliers (« environ 1 400 » pour 1 406) est refusé, le secours est sans risque."""
+    ok = numbers(grounds) | numbers(message) | {str(n) for n in (week, weeks, weeks - week, week - 1, week + 1)}
+    rounded = set()
+    for n in ok:
+        x = float(n)
+        for d in (0, 1):
+            rounded |= {_fmt(round(x, d)), _fmt(int(x * 10**d) / 10**d), _fmt(-(-x * 10**d // 1) / 10**d)}
+    return sorted(n for n in numbers(reply) if n not in ok | rounded)
+
+
 def fallback_reply(agent: dict[str, Any], view: dict[str, Any]) -> str:
     """Réplique sans modèle : le préfixe du caractère et le fait le plus important (le premier urgent, sinon le
     premier fait) ; sans aucun fait, une phrase neutre qui nomme la mission. Déterministe, deux phrases au plus."""
@@ -190,9 +225,10 @@ async def agent_reply(
 
     intent, injection, reason = None, None, "réponse vide"  # injection : probabilité de tev1, None si absente
 
-    def turn(reply: str, sources: list[dict[str, Any]], fallback: bool) -> dict[str, Any]:
+    def turn(reply: str, sources: list[dict[str, Any]], fallback: bool, guard: str | None = None) -> dict[str, Any]:
         remember = should_remember(message, intent=intent, injection=injection)
-        return {"reply": reply, "intent": intent, "sources": sources, "fallback": fallback, "remember": remember}
+        return {"reply": reply, "intent": intent, "sources": sources, "fallback": fallback, "remember": remember,
+                "guard": guard}  # fmt: skip
 
     try:
         verdict = await within(
@@ -238,6 +274,13 @@ async def agent_reply(
             ]
         result = await within(llm.text("npc.dialogue", messages[:1] + history + messages[1:]))
         if reply := short_reply(result.content, agent["name"]):
+            brief = view["briefings"][agent["id"]]
+            facts = [*brief["facts"], brief["line"] or "", *(f"{n['title']} {n['text']}" for n in notions), context]
+            grounds = "\n".join(facts)
+            if invented := unsupported_numbers(reply, grounds, message, view["week"], view["weeks"]):
+                guard = "nombres absents des faits : " + ", ".join(invented)
+                log.warning("agent %s : réplique remplacée (%s)", agent["id"], guard)
+                return turn(fallback_reply(agent, view), [], True, guard)
             sources = [{"ref": s["ref"], "title": s["title"], "page": s["page"]} for s in sources]
             return turn(reply, sources, False)
     except MODEL_ERRORS as exc:

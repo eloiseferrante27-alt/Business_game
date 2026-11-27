@@ -162,6 +162,7 @@ async def test_pack_options_and_validation() -> None:
         for bad in (
             USINE | {"pack": "inconnu"}, USINE | {"options": {"lines": 9}}, USINE | {"options": {"voies": 1}},
             USINE | {"products": 2}, USINE | {"clients": 2},  # hors limites (T4b)
+            USINE | {"buildings": 4}, USINE | {"buildings": 0},  # T5 : bornes appliquées côté serveur
             USINE | {"modules": ["approvisionnement"]},  # hors pack
             atelier_params | {"options": {"lines": 2}},  # l'atelier n'a pas d'option
         ):  # fmt: skip
@@ -177,13 +178,20 @@ async def test_factory_game_within_budget() -> None:
     pytest.importorskip("gmix.game.factory")
     async with _trainer_client() as (client, headers):
         params = USINE | {"weeks": 12, "difficulty": "expert", "events": "frequents"}
-        started = time.perf_counter()
+
+        def reference() -> float:  # boucle de référence : la charge du poste ralentit les deux de la même façon
+            start = time.process_time()
+            sum(i % 7 for i in range(1_000_000))
+            return time.process_time() - start
+
+        ref = min(reference() for _ in range(3))
+        started = time.process_time()
         created = await client.post("/api/v1/games", json=params, headers=headers)
-        elapsed = time.perf_counter() - started
+        elapsed = time.process_time() - started
         assert created.status_code == 201, created.text[:300]
         # pire cas (3 lignes, 12 semaines, expert) : la partie de référence jouée par `generate` coûte 0,8 à 1,05 s au
-        # repos (noyau de simulation, voir test_factory_game) ; l'API ne la rejoue plus (cache d'`autopilot_check`).
-        assert elapsed < 2.0, f"POST /games : {elapsed:.2f} s"
+        # repos (boucle ~0,06 s, soit 13 à 18 fois la boucle) ; seuil 30x = environ 2x ce coût (test_factory_game).
+        assert elapsed / ref < 30, f"POST /games : {elapsed:.2f} s CPU, {elapsed / ref:.0f}x la boucle ({ref:.3f} s)"
         game = created.json()
         assert game["domain_slug"] == "supply-chain" and game["spec"]["meta"]["pack"] == "usine"
         assert game["spec"]["factory"] and game["review"]["autopilot"]

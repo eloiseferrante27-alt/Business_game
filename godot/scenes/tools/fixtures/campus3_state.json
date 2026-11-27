@@ -1,0 +1,557 @@
+{
+ "status": "running",
+ "week": 1,
+ "weeks": 4,
+ "cash": 46400,
+ "overdraft": null,
+ "kpis": {
+  "otif": null,
+  "trs": null,
+  "cash": 46400,
+  "good_share": null,
+  "stockouts": 0
+ },
+ "targets": {
+  "otif": 95.0,
+  "trs": 80.0,
+  "stockouts": 0,
+  "cash_final": 86800.0
+ },
+ "history": [],
+ "stocks": [],
+ "components": [],
+ "lines": [],
+ "pending": [],
+ "settings": {
+  "preventive": {
+   "l1": "aucune",
+   "l2": "aucune"
+  },
+  "priority": "arrivee",
+  "protect": {
+   "l1": "aucune",
+   "l2": "aucune"
+  }
+ },
+ "event": null,
+ "last": null,
+ "log": [],
+ "factory": {
+  "day": 0,
+  "machines": [
+   {
+    "id": "l1-m1",
+    "line_id": "l1",
+    "rank": 1,
+    "name": "M1 · Poinçonnage",
+    "bottleneck": false,
+    "rate_h": 30.0,
+    "buffer_max": 10,
+    "tool_left": null,
+    "state": "arret",
+    "buffer": 0,
+    "availability": null,
+    "downtime_min": 0,
+    "produced": 0,
+    "defects": 0,
+    "failures": 0,
+    "age_h": 0.0
+   },
+   {
+    "id": "l1-m2",
+    "line_id": "l1",
+    "rank": 2,
+    "name": "M2 · Pliage",
+    "bottleneck": false,
+    "rate_h": 40.0,
+    "buffer_max": 10,
+    "tool_left": null,
+    "state": "arret",
+    "buffer": 0,
+    "availability": null,
+    "downtime_min": 0,
+    "produced": 0,
+    "defects": 0,
+    "failures": 0,
+    "age_h": 0.0
+   },
+   {
+    "id": "l1-m3",
+    "line_id": "l1",
+    "rank": 3,
+    "name": "M3 · Soudage des renforts",
+    "bottleneck": true,
+    "rate_h": 20.0,
+    "buffer_max": 10,
+    "tool_left": null,
+    "state": "arret",
+    "buffer": 0,
+    "availability": null,
+    "downtime_min": 0,
+    "produced": 0,
+    "defects": 0,
+    "failures": 0,
+    "age_h": 0.0
+   },
+   {
+    "id": "l1-m4",
+    "line_id": "l1",
+    "rank": 4,
+    "name": "M4 · Montage des crochets",
+    "bottleneck": false,
+    "rate_h": 60.0,
+    "buffer_max": 10,
+    "tool_left": null,
+    "state": "arret",
+    "buffer": 0,
+    "availability": null,
+    "downtime_min": 0,
+    "produced": 0,
+    "defects": 0,
+    "failures": 0,
+    "age_h": 0.0
+   },
+   {
+    "id": "l2-m1",
+    "line_id": "l2",
+    "rank": 1,
+    "name": "M1 · Poinçonnage",
+    "bottleneck": false,
+    "rate_h": 30.0,
+    "buffer_max": 10,
+    "tool_left": null,
+    "state": "arret",
+    "buffer": 0,
+    "availability": null,
+    "downtime_min": 0,
+    "produced": 0,
+    "defects": 0,
+    "failures": 0,
+    "age_h": 0.0
+   },
+   {
+    "id": "l2-m2",
+    "line_id": "l2",
+    "rank": 2,
+    "name": "M2 · Pliage",
+    "bottleneck": false,
+    "rate_h": 40.0,
+    "buffer_max": 10,
+    "tool_left": null,
+    "state": "arret",
+    "buffer": 0,
+    "availability": null,
+    "downtime_min": 0,
+    "produced": 0,
+    "defects": 0,
+    "failures": 0,
+    "age_h": 0.0
+   },
+   {
+    "id": "l2-m3",
+    "line_id": "l2",
+    "rank": 3,
+    "name": "M3 · Soudage des renforts",
+    "bottleneck": true,
+    "rate_h": 20.0,
+    "buffer_max": 10,
+    "tool_left": null,
+    "state": "arret",
+    "buffer": 0,
+    "availability": null,
+    "downtime_min": 0,
+    "produced": 0,
+    "defects": 0,
+    "failures": 0,
+    "age_h": 0.0
+   },
+   {
+    "id": "l2-m4",
+    "line_id": "l2",
+    "rank": 4,
+    "name": "M4 · Montage des crochets",
+    "bottleneck": false,
+    "rate_h": 60.0,
+    "buffer_max": 10,
+    "tool_left": null,
+    "state": "arret",
+    "buffer": 0,
+    "availability": null,
+    "downtime_min": 0,
+    "produced": 0,
+    "defects": 0,
+    "failures": 0,
+    "age_h": 0.0
+   }
+  ],
+  "lines": [
+   {
+    "id": "l1",
+    "name": "Ligne 1",
+    "bottleneck_id": "l1-m3",
+    "theoretical_h": 20.0,
+    "expected_h": 16.6,
+    "real_h": null,
+    "production_rate": null,
+    "wip": 0,
+    "capacity": 800,
+    "trs": null
+   },
+   {
+    "id": "l2",
+    "name": "Ligne 2",
+    "bottleneck_id": "l2-m3",
+    "theoretical_h": 20.0,
+    "expected_h": 16.6,
+    "real_h": null,
+    "production_rate": null,
+    "wip": 0,
+    "capacity": 800,
+    "trs": null
+   }
+  ],
+  "stocks": {
+   "mp": [
+    {
+     "component_id": "c1",
+     "name": "Tôle perforée et renforts",
+     "quantity": 976,
+     "pallets": 9,
+     "capacity_pallets": 24,
+     "reorder_point": 13,
+     "pending": 0
+    }
+   ],
+   "pf": {
+    "quantity": 225,
+    "pallets": 10,
+    "capacity_pallets": 20,
+    "min": 225
+   },
+   "quarantine": 0
+  },
+  "orders": {
+   "production": [],
+   "customer": []
+  },
+  "agents": {
+   "agent_fournisseur": {
+    "state": "disponible",
+    "at": "fournisseur"
+   },
+   "agent_reception": {
+    "state": "disponible",
+    "at": "reception"
+   },
+   "agent_stock_mp": {
+    "state": "disponible",
+    "at": "stock_mp"
+   },
+   "agent_production": {
+    "state": "disponible",
+    "at": "production"
+   },
+   "agent_qualite": {
+    "state": "disponible",
+    "at": "qualite"
+   },
+   "agent_emballage": {
+    "state": "disponible",
+    "at": "emballage"
+   },
+   "agent_maintenance": {
+    "state": "disponible",
+    "at": "maintenance"
+   },
+   "agent_pilotage": {
+    "state": "disponible",
+    "at": "pilotage"
+   },
+   "agent_entrepot_pf": {
+    "state": "disponible",
+    "at": "entrepot_pf"
+   },
+   "agent_client": {
+    "state": "disponible",
+    "at": "client"
+   },
+   "op_l1-m1": {
+    "state": "disponible",
+    "at": "l1-m1"
+   },
+   "op_l1-m2": {
+    "state": "disponible",
+    "at": "l1-m2"
+   },
+   "op_l1-m3": {
+    "state": "disponible",
+    "at": "l1-m3"
+   },
+   "op_l1-m4": {
+    "state": "disponible",
+    "at": "l1-m4"
+   },
+   "op_l2-m1": {
+    "state": "disponible",
+    "at": "l2-m1"
+   },
+   "op_l2-m2": {
+    "state": "disponible",
+    "at": "l2-m2"
+   },
+   "op_l2-m3": {
+    "state": "disponible",
+    "at": "l2-m3"
+   },
+   "op_l2-m4": {
+    "state": "disponible",
+    "at": "l2-m4"
+   },
+   "chauffeur_fournisseur": {
+    "state": "disponible",
+    "at": "fournisseur"
+   },
+   "chauffeur_client": {
+    "state": "disponible",
+    "at": "client"
+   }
+  },
+  "products": {
+   "en_cours": 0,
+   "a_controler": 0,
+   "conforme": 0,
+   "a_retoucher": 0,
+   "rebut": 0,
+   "emballe": 0,
+   "stock_pf": 0,
+   "expedie": 225
+  },
+  "flow": {
+   "nodes": [
+    {
+     "id": "reception",
+     "label": "Réception",
+     "kind": "departement",
+     "state": null,
+     "count": 0
+    },
+    {
+     "id": "stock_mp",
+     "label": "Stock de matière première",
+     "kind": "departement",
+     "state": null,
+     "count": 0
+    },
+    {
+     "id": "qualite",
+     "label": "Contrôle qualité",
+     "kind": "departement",
+     "state": null,
+     "count": 0
+    },
+    {
+     "id": "emballage",
+     "label": "Emballage",
+     "kind": "departement",
+     "state": null,
+     "count": 0
+    },
+    {
+     "id": "entrepot_pf",
+     "label": "Entrepôt de produits finis",
+     "kind": "departement",
+     "state": null,
+     "count": 0
+    },
+    {
+     "id": "fournisseur",
+     "label": "Fournisseur de matière première",
+     "kind": "departement",
+     "state": null,
+     "count": 0
+    },
+    {
+     "id": "client",
+     "label": "Client",
+     "kind": "departement",
+     "state": null,
+     "count": 0
+    },
+    {
+     "id": "l1-m1",
+     "label": "M1 · Poinçonnage",
+     "kind": "machine",
+     "state": "arret",
+     "count": 0
+    },
+    {
+     "id": "l1-m2",
+     "label": "M2 · Pliage",
+     "kind": "machine",
+     "state": "arret",
+     "count": 0
+    },
+    {
+     "id": "l1-m3",
+     "label": "M3 · Soudage des renforts",
+     "kind": "machine",
+     "state": "arret",
+     "count": 0
+    },
+    {
+     "id": "l1-m4",
+     "label": "M4 · Montage des crochets",
+     "kind": "machine",
+     "state": "arret",
+     "count": 0
+    },
+    {
+     "id": "l2-m1",
+     "label": "M1 · Poinçonnage",
+     "kind": "machine",
+     "state": "arret",
+     "count": 0
+    },
+    {
+     "id": "l2-m2",
+     "label": "M2 · Pliage",
+     "kind": "machine",
+     "state": "arret",
+     "count": 0
+    },
+    {
+     "id": "l2-m3",
+     "label": "M3 · Soudage des renforts",
+     "kind": "machine",
+     "state": "arret",
+     "count": 0
+    },
+    {
+     "id": "l2-m4",
+     "label": "M4 · Montage des crochets",
+     "kind": "machine",
+     "state": "arret",
+     "count": 0
+    }
+   ],
+   "edges": []
+  },
+  "formulas": [
+   {
+    "id": "capacite_et_trs",
+    "expected": 83.1,
+    "measured": null,
+    "unit": "%"
+   },
+   {
+    "id": "capacite_et_trs.disponibilite",
+    "expected": 90.1,
+    "measured": null,
+    "unit": "%"
+   },
+   {
+    "id": "capacite_et_trs.performance",
+    "expected": 100.0,
+    "measured": null,
+    "unit": "%"
+   },
+   {
+    "id": "capacite_et_trs.qualite",
+    "expected": 92.2,
+    "measured": null,
+    "unit": "%"
+   }
+  ]
+ },
+ "briefings": {
+  "agent_fournisseur": {
+   "facts": [
+    "0 commande(s) de matière en route, soit 0 palettes."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_reception": {
+   "facts": [
+    "Aucun camion attendu pour l'instant."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_stock_mp": {
+   "facts": [
+    "9 palettes en stock et 0 en commande, sous le point de commande de 13 : il faut commander.",
+    "Magasin : 9 palettes sur 24 places, 15 libres une fois comptées les 0 en commande."
+   ],
+   "urgent": true,
+   "line": "Vite : 9 palettes en stock et 0 en commande, sous le point de commande de 13 : il faut commander."
+  },
+  "agent_production": {
+   "facts": [
+    "0 ordre(s) de fabrication ouvert(s)."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_qualite": {
+   "facts": [
+    "Aucun produit contrôlé pour l'instant."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_emballage": {
+   "facts": [
+    "Entrepôt PF : 10 palettes sur 20."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_maintenance": {
+   "facts": [
+    "Aucune panne depuis le début de la partie."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_pilotage": {
+   "facts": [
+    "0 commande(s) ouverte(s), dont 0 en retard."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_entrepot_pf": {
+   "facts": [
+    "10 palettes en stock sur 20 places."
+   ],
+   "urgent": false,
+   "line": null
+  },
+  "agent_client": {
+   "facts": [
+    "0 commande(s) attendue(s) chez nous."
+   ],
+   "urgent": false,
+   "line": null
+  }
+ },
+ "alerts": [
+  {
+   "id": "reorder:c1",
+   "level": "warning",
+   "department_id": "stock_mp",
+   "module_id": "pilotage",
+   "text": "Matière : 9 palettes en stock, 0 en commande, point de commande 13.",
+   "ref": "mp:c1",
+   "action": {
+    "module_id": "pilotage",
+    "action_id": "commander_mp",
+    "values": {
+     "offer": "o2",
+     "pallets": 6
+    }
+   }
+  }
+ ]
+}

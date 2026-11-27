@@ -1,4 +1,4 @@
-# Reprise de session (après /clear) - état au 24/11/2026 (le détail des tranches B date du 06/11)
+# Reprise de session (après /clear) - état au 27/11/2026 (le détail des tranches B date du 06/11)
 
 VS Code s'ouvre sur le dossier parent `G_mix-Generateur-Business_Games` (choix de l'utilisateur, 05/11). L'équipe y vit,
 hors git : `../CLAUDE.md` et `../.claude/` (agents, réglages, `ownership.json`), retirés du dépôt le 05/11 (ils restent
@@ -77,7 +77,21 @@ Reporté : D17 (critère « pannes évitées au goulot », refus si le passif ga
 
 Mesures qa-reviewer, 24/11 : `test.ps1 -Integration` ruff OK, pytest 903 passés, Godot 148 fichiers OK ; `-Flow -NoLlm` 686 vérifications, 0 échec ; `-Flow -NoLlm -Pack usine` 514, 0 échec (nouvelle référence, c'était 428) ; `-Tour` 236 écrans, 0 défaut. Verdict : bon pour commit. Le hash du commit sera noté ensuite.
 
-**Session du 24-26/11 : T3, T4 (sauf T4b), D1 — à commiter**
+**Session du 27/11 : corrections, T5, T6 — à commiter**
+
+| Livré | Détail |
+|---|---|
+| T5 campus | 1 à 3 bâtiments (`params.buildings`, `limits.buildings` `[1, 3, 1]`) ; archétypes `hall_production` (40 m de large au minimum), `entrepot`, `atelier_maintenance`, une pièce par département, zonage (`together`, `apart`, `max_walk_m` 150 m) ; `layout.place_campus` (20 tirages à graine, puis disposition de référence, sinon `LayoutError`) et `travel_min` ; chemins qui ne traversent pas les autres pièces, `protected_path` sur tout le chemin (INRS ED 6350) ; moteur : kit 8 + t (chariot occupé 8 + 2t), technicien qui marche, palette vers l'entrepôt ; vitesses sourcées dans 2 fiches de `knowledge/supply-chain/` (marche 75 m/min, Bohannon 1997 ; chariot 100 m/min, règle de jeu, R4323-51) ; assets `prop_wall_panel`, `prop_door_industrial`, `prop_floor_slab` ; Godot `_build_campus`, 164 images/s au pire cas ; 1 bâtiment : jeu de référence inchangé |
+| Commande | `.\scripts\godot.ps1 -Flow -NoLlm -Pack usine -Buildings <2\|3>` (campus de bout en bout) ; `flow_test --fixture=campus2\|campus3` sans API |
+| T6 garde-fou | `npc.py` remplace par la réponse de secours une réplique qui cite un nombre absent des faits (tolérances : arrondi, semaine, nombres de la question) ; `numbers()` lit « 62.7054 » ; vrai modèle : 9 répliques remplacées sur 152, 0 faux positif ; `eval_dialogue` utilise `npc.numbers` ; EX-33 fait ; clé `guard` non exposée au client (correctif backend-api) |
+
+Mesures qa-reviewer, 27/11 : `test.ps1 -Integration` 1005 passés, 1 échec corrigé depuis (clé `guard`) ; `-Flow -NoLlm` 687 ; `-Pack usine` 522 ; `-Buildings 3` 530 ; `-Flow -Design` 72 ; `-Tour` 236 écrans, 0 défaut ; `smoke.ps1` OK.
+
+Restes : durées de trajet (kit, palette) sans les pauses (game-designer) ; T4b après T7 ; réserves de D1 ouvertes (R314-2 en traduction, base 365 jours) ; le chariot ne limite pas encore la partie à 4 semaines (recalibrage possible).
+
+**Prochaine session : T7 (rôles répartis), puis T4b, puis T8 et D2**, selon l'ordre de l'ADR 0013.
+
+**Session du 24-26/11 : T3, T4 (sauf T4b), D1 — commité et poussé le 26/11 (8f36f11, push b11aa8f..8f36f11)**
 
 T2 commité et poussé (b11aa8f). T3 fait le 24/11. Validé par qa-reviewer le 26/11, avant commit.
 
@@ -90,7 +104,7 @@ Mesures qa-reviewer, 26/11 : `test.ps1 -Integration` 935 passés, 0 échec, Godo
 
 Défauts mineurs ouverts : `test_game_flow.py:174` (test de budget sensible à la charge du poste, moteur-jeu) ; `spec.py:137` `GameParams.products` vaut 3 par défaut alors que le pack usine borne à 1 (à confirmer par l'architecte) ; contrôle `clients >= products` à écrire dans `GameParams` en T4b.
 
-**Prochaine session : T5 (avec T6)**, selon l'ordre de l'ADR 0013 (l.265). **T4b (multi-produits et clients, variantes `batiment` et `machine`) vient après T5 et avant D2** (annexe 0013 § 3 bis). Machines de ligne à 7 états (assets-3d) en T5.
+T5 et T6 : faits le 27/11 (bloc ci-dessous). **T4b (multi-produits et clients) vient après T7 et avant D2** (annexe 0013 § 3 bis).
 
 Écarts pour la rétro : le 24/11, moteur-jeu a fait `git stash` puis `stash pop` (git est à devops) ; rag-knowledge a tenté d'écrire dans `ai/evals/` ; l'ajout d'un contrôle dans `GameParams` a été refusé à l'architecte par les permissions ; le brief de 4a supposait le champ `decor` déjà dans le contrat.
 
@@ -108,7 +122,7 @@ Cadre de la démo : LAN, 3 à 6 joueurs ; le jeu à distance vient après la Pre
 | 2 | **Préparée le 18/11, commitée et poussée (c218212, push 7c99529..c218212 ; `backend/p.out` supprimé, dépôt propre ; rétro du 18/11 faite, `retro-2026-11-18.md`)** : parcours B de flow_test (`-Flow -NoLlm` 686 vérifications, `-Flow` 813), `test_lobbies_absent_vote.py` (`test.ps1 -Integration` : 829 passés), export `godot.ps1 -Export` (`build/windows/G-mix.exe`, connexion depuis l'exe non essayée à la main). **Reste la répétition réelle** : pare-feu à ouvrir le jour même (TCP 8000, UDP 7000-7049, profil Privé), 3 postes, souris et clavier AZERTY réels, fermer les applications lourdes sur l'hôte (le poste était à 100 % CPU à cause du client Riot) ; le test de budget mesure désormais un rapport à une boucle de référence, robuste à la charge, et ne détecte plus qu'une régression d'environ 2x ; date à fixer par l'utilisateur ([fiche pas à pas](../repetition-lan.md)) | EX-05 (LAN), 22, 23, 25 |
 | 3 | **Clos le 21/11, = T0 de l'ADR 0013** : exigence n° 1 : troisième tour sans échec, 3 jeux signés (J05, J08, J09), 7 repris en T9 ; reste D17, D8, `trs_oee`, notion `rupture_de_stock` | ADR 0010 ; EX-01, EX-16 ; docs/audits/ |
 | 3b | **ADR 0013 accepté le 21/11** (mondes et jeux variés, second domaine, documents du formateur) : l'ordre des chantiers après T0 est celui de la § 5 de l'ADR (T2 à T11, environ 25 sessions) ; le garde-fou des nombres (ligne 4) devient T6, la dette de l'annexe 0010 (ligne 5), la passe `-Tour` (ligne 6) et la Première version (ligne 7) deviennent T10 et T11 | docs/decisions/0013 ; docs/blocages.md |
-| 4 | Garde-fou des nombres de `npc.py` : décision OUI (T6 de l'ADR 0013, inclut `numbers()` : « 62.7054 » lu 62705) | EX-33 |
+| 4 | Garde-fou des nombres de `npc.py` : **fait le 27/11 (T6)** | EX-33 |
 | 5 | Dette « À corriger » de l'annexe 0010 (T10) | ADR 0010 annexe |
 | 6 | Passe finale `-Tour` (T10) | EX-34 ; ADR 0012 c2 |
 | 7 | Docs, puis **Première version** (T11) : commit et push de chaque tranche (`git push`), LICENSE.md non commercial inclus | décision du 06/11 |

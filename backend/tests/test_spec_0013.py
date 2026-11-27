@@ -23,6 +23,17 @@ from gmix.game.spec import (
 
 from .test_spec_contract import PACK, designed_spec, factory_spec, machine, params, usine_pack  # noqa: F401
 
+INTERIOR = [
+    "reception",
+    "stock_mp",
+    "production",
+    "qualite",
+    "emballage",
+    "maintenance",
+    "pilotage",
+    "quai",
+    "entrepot_pf",
+]
 DOC = uuid.UUID("12345678-1234-5678-1234-567812345678")
 
 
@@ -33,7 +44,9 @@ def campus_pack(usine_pack, monkeypatch):  # noqa: F811  # pack local + archéty
     def patched(pack_id: str) -> dict[str, Any]:
         pack = copy.deepcopy(real(pack_id))
         pack["limits"] |= {"suppliers": [3, 8, 3], "buildings": [1, 3, 1]}
-        pack["building_archetypes"] = {"hall": {"label": "Hall", "rooms": {"atelier": {"label": "Atelier"}}}}
+        pack["building_archetypes"] = {
+            "hall": {"label": "Hall", "rooms": {"atelier": {"label": "Atelier", "blocks": INTERIOR}}}
+        }
         pack["ambiances"] = {"hiver": {"label": "Hiver", "styles": ["brique"]}}
         return pack
 
@@ -89,7 +102,7 @@ def test_game_params_check_the_pack_bounds_and_the_plan(campus_pack) -> None:
     assert GameParams(**params(suppliers=5, buildings=2, ambiance="hiver")).suppliers == 5
     with pytest.raises(ValidationError, match="entre 3 et 8"):
         GameParams(**params(suppliers=2))
-    plan = [{"archetype": "hall", "department_ids": ["ligne"]}]
+    plan = [{"archetype": "hall", "department_ids": INTERIOR}]
     assert len(GameParams(**params(world_plan=plan, buildings=1)).world_plan) == 1
     with pytest.raises(ValidationError, match="1 bâtiments pour 2 imposés"):
         GameParams(**params(world_plan=plan, buildings=2))
@@ -324,7 +337,8 @@ def test_clients_and_speeds(usine_pack) -> None:  # noqa: F811
     raw["factory"]["logistics"]["walk_m_per_min"] = 70
     refused(raw, "se renseignent ensemble")
     raw["factory"]["logistics"]["forklift_m_per_min"] = 120
-    SimSpec.model_validate(raw)
+    refused(raw, "si et seulement si")
+    raw = factory_spec()
     raw["factory"]["machines"][0] = machine(1, 1, type="m3")  # Machine.type : clé du pack, facultative
     SimSpec.model_validate(raw)
     raw["factory"]["machines"][0] = machine(1, 1, type="zz")

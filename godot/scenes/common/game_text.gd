@@ -285,7 +285,7 @@ static func factory_dashboard_bbcode(spec: Dictionary, state: Dictionary) -> Str
 
 ## Nom de l'endroit où se joue la partie, pour les libellés (« Observer l'atelier 3D », « Entrer dans l'usine 3D »).
 static func world_noun(spec: Dictionary) -> String:
-	return "l'usine" if spec.get("world", {}).get("template", "atelier") == "usine" else "l'atelier"
+	return "l'usine" if spec.get("world", {}).get("template", "atelier") in ["usine", "campus"] else "l'atelier"
 
 
 static func dashboard_bbcode(spec: Dictionary, state: Dictionary) -> String:

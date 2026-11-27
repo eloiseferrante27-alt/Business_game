@@ -134,7 +134,7 @@ class GameParams(BaseModel):
     difficulty: Difficulty = "equilibre"
     weeks: int = Field(default=8, ge=4, le=12)
     events: EventsLevel = "rares"
-    products: int = Field(default=3, ge=1, le=4)  # bornes du pack vérifiées par _check
+    products: int = Field(default=3, ge=1, le=4)  # défaut remplacé par pack["limits"] (_pack_defaults), bornes : _check
     options: dict[str, int | str] = Field(default_factory=dict, description="options du pack (ActionField)")
     company_name: str | None = Field(default=None, min_length=2, max_length=40)
     players_min: int = Field(default=2, ge=1, le=60)
@@ -243,6 +243,26 @@ class GameParams(BaseModel):
             errors.append("plan du monde : un département est logé dans un seul bâtiment")
         if self.world_plan and self.buildings is not None and len(self.world_plan) != self.buildings:
             errors.append(f"plan du monde : {len(self.world_plan)} bâtiments pour {self.buildings} imposés")
+        # annexe 0013 §2 bis : un archétype par bâtiment, chaque département dans une pièce de son archétype
+        kinds = [b.archetype for b in self.world_plan]
+        if len(set(kinds)) != len(kinds):
+            errors.append("plan du monde : archétype en double")
+        building_of: dict[str, int] = {}
+        for rank, b in enumerate(self.world_plan):
+            if b.archetype not in archetypes:
+                continue
+            roomed = {d for r in archetypes[b.archetype].get("rooms", {}).values() for d in r.get("blocks", [])}
+            errors += [f"plan du monde : département {d} sans pièce dans l'archétype {b.archetype}"
+                       for d in b.department_ids if d not in roomed]  # fmt: skip
+            building_of |= dict.fromkeys(b.department_ids, rank)
+        interior = {d["id"] for d in pack.get("departments", []) if not d.get("external")}
+        if self.world_plan and interior - set(housed):
+            errors.append(f"plan du monde : départements non logés : {', '.join(sorted(interior - set(housed)))}")
+        for rule in pack.get("zoning_rules", []):
+            a, b = rule["departments"]
+            split = a in building_of and b in building_of and building_of[a] != building_of[b]
+            if split and rule["type"] in ("together", "same_building"):
+                errors.append(f"plan du monde : {a} et {b} dans deux bâtiments (règle {rule['type']})")
         return errors
 
 
@@ -485,7 +505,10 @@ class Building(BaseModel):
     label: str = Field(min_length=2, max_length=40)
     area: Rect  # repère du monde (m), aligné sur la grille du campus (pack["campus"]["cell_m"])
     entrance: Point  # porte principale, sur le bord de `area`
-    style: Code  # façade : pack["ambiances"][world.ambiance]["styles"]
+    style: Code  # façade : pack["ambiances"][world.ambiance]["styles"], variante `style` de l'asset `walls`
+    # assets de pack["building_archetypes"][archetype], recopiés par place_campus (annexe 0013 §2 bis) ; None : Godot
+    walls: Code | None = None
+    door: Code | None = None
 
 
 class Room(BaseModel):
@@ -712,6 +735,9 @@ class Logistics(BaseModel):
     # plus que la préparation ; None : kit_min et repair_travel_min fixes (comportement actuel)
     walk_m_per_min: float | None = Field(default=None, gt=0)
     forklift_m_per_min: float | None = Field(default=None, gt=0)
+    # campus (annexe 0013 §2 bis) : prise et dépose d'une palette PF portée au chariot de l'emballage à l'entrepôt PF ;
+    # lue seulement si les vitesses sont renseignées, None = 0
+    pallet_handling_min: float | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def _speeds(self) -> "Logistics":
@@ -1359,11 +1385,15 @@ class SimSpec(BaseModel):
         intérieur dans une seule pièce, aucun bâtiment sans pièce. Géométrie fine : layout.check_placement."""
         world = self.world
         room_of = {d.id: d.room_id for d in self.departments if d.room_id}
+        # annexe 0013 §2 bis, décision 3 : un seul bâtiment (hall en U) garde kit_min et repair_travel_min fixes
+        speeds = self.factory is not None and self.factory.logistics.walk_m_per_min is not None
+        timed = ["logistique : vitesses renseignées si et seulement si le monde compte 2 bâtiments ou plus"]
+        timed = timed if speeds != (self.factory is not None and len(world.buildings) >= 2) else []
         if not world.buildings:
-            errors = ["monde : world.template « campus » sans bâtiment"] if world.template == "campus" else []
+            errors = timed + ["monde : world.template « campus » sans bâtiment"] * (world.template == "campus")
             errors += ["monde : pièces sans bâtiment"] if world.rooms else []
             return errors + [f"département {d} : pièce inconnue {r}" for d, r in sorted(room_of.items())]
-        errors = [] if world.template == "campus" else ["monde : bâtiments hors d'un world.template « campus »"]
+        errors = timed + ["monde : bâtiments hors d'un world.template « campus »"] * (world.template != "campus")
         archetypes, ambiances = pack.get("building_archetypes", {}), pack.get("ambiances", {})
         if world.ambiance is not None and world.ambiance not in ambiances:
             errors.append(f"monde : ambiance inconnue du pack {self.params.pack} : {world.ambiance}")
@@ -1919,6 +1949,64 @@ def _check_world_keys(pack_id: str, pack: dict[str, Any]) -> None:
             fail(f"{where} : bloc inconnu {', '.join(map(str, unknown))}")
         if kind == "facing" and (rule["role"] not in roles or rule["toward"] not in ("front", "dock", "centre")):
             fail(f"{where} : role du pack et toward front, dock ou centre attendus")
+    _check_campus_keys(pack, fail)
+
+
+def _check_campus_keys(pack: dict[str, Any], fail: Any) -> None:
+    """Clés du campus (annexe 0013 §2 bis) : `campus`, `building_archetypes`, `zoning_rules`, `ambiances`."""
+    interior = {d["id"] for d in pack.get("departments", []) if not d.get("external")}
+    if "campus" in pack:
+        cell, site = pack["campus"].get("cell_m"), pack.get("grid", {}).get("site_cell_m")
+        if not _positive(cell) or (site and abs(cell / site - round(cell / site)) > 1e-6):
+            fail("campus.cell_m : nombre positif, multiple de grid.site_cell_m, attendu")
+    for name, arch in pack.get("building_archetypes", {}).items():
+        where = f"building_archetypes.{name}"
+        size = arch.get("size_cells")
+        pairs = isinstance(size, list) and [len(s) if isinstance(s, list) else 0 for s in size] == [2, 2]
+        flat = [n for s in size for n in s] if pairs else []
+        valid = len(flat) == 4 and all(type(n) is int and n > 0 for n in flat)
+        if not valid or flat[0] > flat[2] or flat[1] > flat[3]:
+            fail(f"{where}.size_cells : [[largeur, profondeur] min, max], entiers positifs, min <= max")
+        if not isinstance(arch.get("label"), str) or not all(isinstance(arch.get(k), str) for k in ("walls", "door")):
+            fail(f"{where} : label, walls et door (ids d'assets) attendus")
+        rooms = arch.get("rooms")
+        if not isinstance(rooms, dict) or not rooms:
+            fail(f"{where}.rooms : au moins une pièce attendue")
+        listed: list[str] = []
+        for kind, room in rooms.items():
+            blocks = room.get("blocks")
+            if not isinstance(room.get("label"), str) or not isinstance(blocks, list) or not blocks:
+                fail(f"{where}.rooms.{kind} : label et blocks (départements) attendus")
+            unknown = sorted(set(blocks) - interior)
+            if unknown:
+                fail(f"{where}.rooms.{kind} : département intérieur inconnu {', '.join(unknown)}")
+            listed += blocks
+        if len(set(listed)) != len(listed):
+            fail(f"{where}.rooms : un département dans une seule pièce")
+    for n, rule in enumerate(pack.get("zoning_rules", [])):
+        where, pair = f"zoning_rules[{n}]", rule.get("departments")
+        if rule.get("type") not in ZONING_KINDS:
+            fail(f"{where} : type vaut {', '.join(ZONING_KINDS)}")
+        if not isinstance(pair, list) or len(pair) != 2 or not set(pair) <= interior or pair[0] == pair[1]:
+            fail(f"{where}.departments : deux départements intérieurs du pack attendus")
+        value = pack.get("values", {}).get(rule.get("value"), {})
+        if rule["type"] == "max_walk_m" and not (isinstance(value, dict) and _positive(value.get("value"))):
+            fail(f"{where}.value : clé de values à valeur positive attendue")
+        origin = rule.get("provenance") or {}
+        if origin.get("status") not in get_args(ValueStatus):
+            fail(f"{where}.provenance : status vaut source, calibre ou exemple")
+        if not origin.get("citation" if origin["status"] == "source" else "note"):
+            fail(f"{where}.provenance : citation (source) ou note manquante")
+    for name, ambiance in pack.get("ambiances", {}).items():
+        styles = ambiance.get("styles")
+        if not isinstance(ambiance.get("label"), str) or not isinstance(styles, list) or not styles:
+            fail(f"ambiances.{name} : label et styles (non vide) attendus")
+        if not all(isinstance(s, str) and re.fullmatch(CODE_PATTERN, s) for s in styles):
+            fail(f"ambiances.{name}.styles : codes de façade attendus")
+        # décision 1 : l'aspect actuel seul, tant que Godot n'en rend pas d'autre
+        for key, only in (("palette", "reference"), ("season", "ete"), ("vegetation", "normale")):
+            if ambiance.get(key, only) != only:
+                fail(f"ambiances.{name}.{key} : seule la valeur {only} est rendue")
 
 
 def pack_station_kinds(pack_id: str, pack: dict[str, Any]) -> frozenset[str]:

@@ -22,6 +22,7 @@ import random
 from collections import deque
 from typing import Any, get_args
 
+from gmix.game import layout
 from gmix.game.spec import COUNTERS, MachineState, frame_times
 
 STATES = get_args(MachineState)
@@ -88,6 +89,15 @@ class Plant:
         self.offer_site = {o["id"]: by_supplier[o["supplier_id"]] for o in spec.get("offers", [])
                            if o.get("supplier_id") in by_supplier}  # fmt: skip
         self.client_site = next((s["id"] for s in sites if s.get("kind") == "client"), None)
+        # trajets du campus (annexe 0013 §2 bis) : vitesses absentes (1 bâtiment) = durées fixes du hall de référence
+        self.kit_t, self.walk_t = 0.0, self.lg["repair_travel_min"]
+        self.pal_h = self.pal_t = None
+        if self.lg.get("walk_m_per_min") is not None:
+            links = layout.TIMED_LINKS
+            self.kit_t = layout.travel_min(spec, *links["kit"])
+            self.walk_t = layout.travel_min(spec, *links["repair"])
+            if self.lg.get("pallet_handling_min") is not None:
+                self.pal_h, self.pal_t = self.lg["pallet_handling_min"], layout.travel_min(spec, *links["pallet"])
 
 
 def _rng(plant: Plant, *key: Any) -> random.Random:
@@ -324,7 +334,7 @@ class _Sim:
             pk["conf"], pk["busy"], pk["cases"], pk["units"], pk["wait"],
         )  # fmt: skip
         self.tech_busy, self.repair_q = fs["tech"]["busy"], [tuple(x) for x in fs["tech"]["queue"]]
-        self.fk_busy = fs["fk"]["busy"]
+        self.fk_busy, self.transit = fs["fk"]["busy"], fs["fk"].get("transit", 0)
         self.totals = fs["totals"]
         # compteurs du tour
         self.out = [0] * P.nl
@@ -353,7 +363,8 @@ class _Sim:
             "moresume": self._moresume, "mwake": self._mwake, "bs": self._bs, "be": self._be, "day": self._day,
             "auto": self._auto, "pick": self._pick, "truck": self._truck, "unl": self._unl, "insp": self._insp,
             "kit": self._kit, "qc": self._qc, "qcw": self._qcw, "case": self._case, "wrap": self._wrap,
-            "load": self._load, "rstart": self._rstart, "rep": self._rep, "prv": self._prv, "frame": self._frame,
+            "pdel": self._pdel, "fkfree": self._fkfree, "load": self._load, "rstart": self._rstart, "rep": self._rep,
+            "prv": self._prv, "frame": self._frame,
         }  # fmt: skip
 
     # -- mécanique ---------------------------------------------------------------------------------------------------
@@ -660,7 +671,7 @@ class _Sim:
             t0, i = self.repair_q.pop(k)
             m = self.M[i]
             self.tech_busy += 1
-            travel = P.lg["repair_travel_min"]
+            travel = P.walk_t
             self.tech_stats["wait_min"] += now - t0
             self.tech_stats["waited"] += now > t0 + 1e-9
             self._agent(now, "agent_maintenance", "deplacement", m.id, now + travel)
@@ -678,7 +689,7 @@ class _Sim:
         m.down, m.age, m.hazard, m.fail_t = 0, 0.0, _hazard(m.rng), None
         self.tech_busy -= 1
         self.tech_stats["repairs"] += 1
-        self.tech_stats["busy_min"] += m.mttr + P.lg["repair_travel_min"]
+        self.tech_stats["busy_min"] += m.mttr + P.walk_t
         self.costs["repair"] += m.mttr / 60 * P.costs["repair_per_h"] + P.costs.get("damage_per_failure", 0.0)
         self._agent(now, "agent_maintenance", "disponible", "maintenance")
         self._refresh(m, now)
@@ -719,9 +730,9 @@ class _Sim:
             self.inflight[ln] += 1
             self.fk_busy += 1
             end = self._work_end(now, P.lg["kit_min"])
-            self.fk_busy_min += end - now
+            self.fk_busy_min += end - now + 2 * P.kit_t
             self._agent(now, "agent_stock_mp", "occupe", "stock_mp", end)
-            self._push(end, "kit", ln, lot)
+            self._push(end + P.kit_t, "kit", ln, lot)  # remis à la ligne à 8 + t ; chariot libre à 8 + 2t (_fkfree)
 
     def _close_starve(self, ln: int, now: float) -> None:
         t0 = self.starve[ln]
@@ -732,7 +743,10 @@ class _Sim:
 
     def _kit(self, now: float, ln: int, lot: int) -> None:
         P = self.P
-        self.fk_busy -= 1
+        if P.kit_t:
+            self._push(now + P.kit_t, "fkfree")  # retour à vide
+        else:
+            self.fk_busy -= 1
         self.inflight[ln] -= 1
         self.mp -= P.need
         self.res -= P.need
@@ -922,17 +936,43 @@ class _Sim:
         self._store(now)
 
     def _store(self, now: float) -> None:
-        """La palette filmée entre à l'entrepôt PF s'il y a une place ; sinon l'emballage attend."""
+        """La palette filmée entre à l'entrepôt PF s'il y a une place ; sinon l'emballage attend. En campus, le chariot
+        la porte : place réservée à la prise (palettes en route comprises), livrée à 1 + t, chariot libre à 1 + 2t."""
         P = self.P
-        if not self.pk_wait or -(-(self.pf + P.pallet_pf) // P.pallet_pf) > P.lg["pf_capacity_pallets"]:
+        carried = P.pal_h is not None
+        if carried and self.fk_busy >= P.rs["forklifts"]:
+            return
+        places = -(-(self.pf + (self.transit + 1) * P.pallet_pf) // P.pallet_pf)  # place réservée, palettes en route
+        if not self.pk_wait or places > P.lg["pf_capacity_pallets"]:
             return
         self.pk_wait = False
-        self.pf += P.pallet_pf
         self.pk_units -= P.pallet_pf
         self.pk_cases = 0
-        self.packed["pallets"] += 1
-        self._ev(now, "palette", "pf", quantity=P.pallet_pf)
+        if carried:
+            self.fk_busy += 1
+            self.transit += 1
+            self.fk_busy_min += P.pal_h + 2 * P.pal_t
+            self._push(now + P.pal_h + P.pal_t, "pdel")
+            self._push(now + P.pal_h + 2 * P.pal_t, "fkfree")
+        else:
+            self._arrive(now)
         self._pack_try(now)
+
+    def _arrive(self, now: float) -> None:
+        self.pf += self.P.pallet_pf
+        self.packed["pallets"] += 1
+        self._ev(now, "palette", "pf", quantity=self.P.pallet_pf)
+
+    def _pdel(self, now: float, _a: Any, _b: Any) -> None:
+        self.transit -= 1
+        self._arrive(now)
+
+    def _fkfree(self, now: float, _a: Any, _b: Any) -> None:
+        self.fk_busy -= 1
+        if not self.fk_busy:
+            self._agent(now, "agent_stock_mp", "disponible", "stock_mp")
+        self._store(now)  # une palette en attente avant les kits
+        self._kit_try(now)
 
     # -- client ------------------------------------------------------------------------------------------------------
 
@@ -1140,7 +1180,7 @@ class _Sim:
         fs["pack"] = {"conf": self.conf, "busy": self.pk_busy, "cases": self.pk_cases, "units": self.pk_units,
                       "wait": self.pk_wait}  # fmt: skip
         fs["tech"] = {"busy": self.tech_busy, "queue": [[t - T, i] for t, i in self.repair_q]}
-        fs["fk"] = {"busy": self.fk_busy}
+        fs["fk"] = {"busy": self.fk_busy, "transit": self.transit} if P.pal_h is not None else {"busy": self.fk_busy}
         # commandes : statut du jour, puis on ne garde que les ouvertes et les dernières closes
         today = fs["day"]
         day0_ = today - P.days

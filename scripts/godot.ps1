@@ -12,6 +12,7 @@
       -Snapshot  captures PNG dans %TEMP%\gmix_imgs\ui_tour (fenêtre Godot, GPU requis ; sortie non capturée)
       -NoLlm     sans dialogues avec les agents, donc sans appel à Ollama
       -Pack usine  parcours sur un autre pack de jeu que celui par défaut (atelier) ; avec -Flow seulement
+      -Buildings 3  nombre de bâtiments du monde (--buildings=3 transmis à flow_test) ; avec -Flow seulement
       -Design    parcours D seul (--only=D) : conception par l'IA puis régénération d'une section ; avec -Flow seulement.
                  Plusieurs appels au modèle (environ 5 s chacun) : délai global du parcours 25 min (watchdog)
       -Tour et -Flow : API locale démarrée si elle ne répond pas (et arrêtée ensuite), comptes jetables créés puis
@@ -20,7 +21,7 @@
 #>
 param(
     [switch]$Run, [switch]$Check, [switch]$Smoke, [switch]$Tour, [switch]$Flow, [switch]$Snapshot, [switch]$NoLlm,
-    [switch]$Full, [switch]$Design, [switch]$Export, [string]$Api = '', [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$Pack = ''
+    [switch]$Full, [switch]$Design, [switch]$Export, [string]$Api = '', [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$Pack = '', [int]$Buildings = 0
 )
 . "$PSScriptRoot\_common.ps1"
 $console = Get-GodotExe -Console
@@ -85,6 +86,7 @@ function Invoke-UiCheck {
     if ($Flow -and $Snapshot) { throw '-Snapshot se lance avec -Tour' }
     if ($Api) { throw '-Tour et -Flow écrivent dans la base locale : pas de -Api' }
     if ($Pack -and -not $Flow) { throw '-Pack se lance avec -Flow' }
+    if ($Buildings -and -not $Flow) { throw '-Buildings se lance avec -Flow' }
     $url = Get-ApiUrl
     $label = 'Tour'
     if ($Flow) { $label = 'Flow' }
@@ -115,6 +117,7 @@ function Invoke-UiCheck {
             $godotArgs = @('--headless', '--path', $GodotDir, 'res://scenes/tools/flow_test/flow_test.tscn', '--', "--api=$url")
             if ($NoLlm) { $godotArgs += '--no-llm' }
             if ($Pack) { $godotArgs += "--pack=$Pack" }
+            if ($Buildings -gt 0) { $godotArgs += "--buildings=$Buildings" }
             if ($Design) { $godotArgs += '--only=D' }
         } elseif ($Snapshot) {
             $shots = Join-Path $env:TEMP 'gmix_imgs\ui_tour'

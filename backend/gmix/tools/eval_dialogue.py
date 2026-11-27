@@ -63,9 +63,7 @@ FIXED_REPLIES = (OFF_TOPIC_REPLY, INJECTION_REPLY)
 CONTROL_FILE = "player.intent.control.jsonl"  # série C : jeu de contrôle, jamais utilisé pour régler le filtre
 COVERAGE_MIN = 0.4  # part des mots-clés du fait le plus important à retrouver dans la réplique (voir `coverage`)
 QUOTES = '"«»“” '
-SPACES = r" \N{NO-BREAK SPACE}\N{NARROW NO-BREAK SPACE}"
 SENTENCE = re.compile(r"(?<=[.!?…])\s+")
-NUMBER = re.compile(rf"\d{{1,3}}(?:[{SPACES}.]\d{{3}})+(?:,\d+)?|\d+(?:[.,]\d+)?")
 NUMBER_WORDS = re.compile(
     r"\b(deux|trois|quatre|cinq|six|sept|huit|neuf|dix|douze|quinze|vingt|trente|quarante|cinquante|cent|mille)\b", re.I
 )
@@ -170,16 +168,7 @@ def top_fact(view: dict[str, Any], agent: dict[str, Any]) -> str:
 # --- mesures -----------------------------------------------------------------------------------------------
 
 
-def numbers(text: str) -> set[str]:
-    """Nombres d'un texte sous forme normalisée : « 20 000 » et « 20000 » sont le même, « 3,5 » devient « 3.5 »."""
-    found = set()
-    for raw in NUMBER.findall(re.sub(r"\[S\d+\]", " ", text)):
-        value = re.sub(f"[{SPACES}]", "", raw)
-        if re.fullmatch(r"\d{1,3}(?:\.\d{3})+(?:,\d+)?", value):
-            value = value.replace(".", "")
-        value = value.replace(",", ".")
-        found.add(value.rstrip("0").rstrip(".") if "." in value else value)
-    return found
+numbers = npc.numbers  # même lecture que le garde-fou du moteur
 
 
 def plain(text: str) -> str:
@@ -246,6 +235,8 @@ def measure(turn: dict[str, Any], probe: "Probe", view: dict[str, Any], agent: d
     prompt = " ".join(m["content"] for m in probe.messages or [])
     text = clean(turn["raw"], agent["name"])
     invented = sorted(numbers(text) - numbers(prompt) - numbers(turn["message"]))
+    if turn.get("guard"):  # remplacée par le garde-fou : vrai nombre inventé (absent du prompt) ou faux positif
+        notes.append(f"garde-fou : {turn['guard']} ({'vrai' if invented else 'FAUX POSITIF ?'})")
     sentences = [s for s in SENTENCE.split(text) if s]
     checks["nombres"] = not invented
     checks["longueur"] = len(sentences) <= 2 and len(text) <= MAX_CHARS
@@ -360,7 +351,8 @@ async def play(
         usage = probe.result.usage if probe.result else None
         turn = {
             "id": case["id"] + suffix, "case": case, "kind": kind, "message": message, "memory": list(memory),
-            "reply": result["reply"], "intent": result.get("intent"), "fallback": result["fallback"],
+            "reply": result["reply"], "intent": result.get("intent"),
+            "fallback": result["fallback"] and not result.get("guard"), "guard": result.get("guard"),
             "sources": [s["title"] for s in result.get("sources", [])],
             "raw": probe.result.content if probe.result else "", "error": error, "cold": cold,
             "truncated": probe.result is not None and probe.result.done_reason == "length",
@@ -544,6 +536,12 @@ def report(
             lines.append(f"| {title} | {good}/{total} | {good / total:.0%} |")
     secours = sum(t["fallback"] for t in turns)  # un échec du modèle, jamais une réponse valide
     lines.append(f"| Réponses de secours (échecs du modèle, 0 attendu) | {secours}/{len(turns)} | |")
+    guarded = [t for t in turns if t.get("guard")]
+    false_pos = sum(t["checks"].get("nombres") is True for t in guarded)  # nombres tous présents dans le prompt
+    lines.append(
+        f"| Répliques remplacées par le garde-fou des nombres | {len(guarded)}/{len(turns)} | "
+        f"faux positifs probables (aucun nombre hors prompt) : {false_pos} |"
+    )
     by_character = []
     for pid in load_sim_catalog()["personalities"]:
         mine = [t for t in generated if t["case"]["personality"] == pid]

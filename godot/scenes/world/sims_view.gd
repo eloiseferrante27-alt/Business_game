@@ -40,6 +40,7 @@ var camera := Camera3D.new()
 var follow_target: Node3D
 var follow := true
 var bounds := Rect2(-34.0, -26.0, 68.0, 56.0)  # plan XZ : où va la caméra libre
+var distance_max := DISTANCE_MAX  # m : le monde l'augmente pour qu'un campus tienne à l'écran
 var input_enabled := true  # faux sous un panneau modal : ni caméra ni clic
 var exclude: Array[RID] = []  # corps ignorés par la sélection (le joueur, les murs abaissés) : le monde les tient à jour
 
@@ -111,9 +112,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_yaw_goal -= motion.relative.x * DRAG_YAW
 		_pitch_goal = clampf(_pitch_goal + motion.relative.y * DRAG_PITCH, PITCH_MIN, PITCH_MAX)
 	elif event.is_action_pressed("camera_zoom_in", true):
-		_distance_goal = clampf(_distance_goal * ZOOM_STEP, DISTANCE_MIN, DISTANCE_MAX)
+		_distance_goal = clampf(_distance_goal * ZOOM_STEP, DISTANCE_MIN, distance_max)
 	elif event.is_action_pressed("camera_zoom_out", true):
-		_distance_goal = clampf(_distance_goal / ZOOM_STEP, DISTANCE_MIN, DISTANCE_MAX)
+		_distance_goal = clampf(_distance_goal / ZOOM_STEP, DISTANCE_MIN, distance_max)
 	elif event.is_action_pressed("camera_follow"):
 		set_follow(not follow)
 	elif event.is_action_pressed("world_click") and event is InputEventMouseButton:

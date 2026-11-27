@@ -33,7 +33,7 @@ Les routes et les droits sont dans docs/roles.md.
 
 | Élément | Valeur (`ai/packs/usine.yaml`) |
 |---|---|
-| Monde | référence : hall de 48 x 30 m en U, 11 départements dont 2 externes (fournisseur, client), reliés par des routes ; c'est le seul monde produit aujourd'hui. Cible ADR 0013 (T5) : 1 à 3 bâtiments à pièces, le hall en U devenant le programme de référence |
+| Monde | référence : hall de 48 x 30 m en U, 11 départements dont 2 externes (fournisseur, client), reliés par des routes ; monde de référence (1 bâtiment). Depuis T5 (27/11) : campus de 1 à 3 bâtiments à pièces (hall, entrepôt, atelier de maintenance), trajets calculés (kit 8 + t, technicien qui marche à 75 m/min, chariot à 100 m/min, palette vers l'entrepôt) ; les durées de trajet ignorent les pauses |
 | Lignes | 1 à 3 (défaut 2), 4 machines en série chacune |
 | Durée | 4 à 12 semaines (défaut 6) |
 | Semaine | 5 jours de 480 min, début à 8 h, pas de 5 min ; pauses de 10, 20 et 10 min ; simulée minute par minute puis rejouée en 3D |
@@ -64,12 +64,12 @@ Un module sans titulaire tourne en pilote automatique (sauf la semaine où le fo
 | Secteur et domaine | secteurs, produits, notions citées | aucun | choix du domaine, du secteur, des notions visées | moteur du pack |
 | Modules et mécaniques | modules, actions, aléas, réglages | aucun | modules joués, réglages, plan d'aléas, objectifs | effets, verdict |
 | Rôles et PNJ (T7) | rôles, caractères, clés de faits | prénoms, figurants | découpage des rôles, caractères, présentations | faits des PNJ |
-| Produits et réseau | 1 à 4 produits, 3 à 8 fournisseurs, 1 à 4 clients | choix dans les listes | nombres, classes de distance | délais, prix, OTIF |
+| Produits et réseau | 1 à 4 produits (cible T4b), 3 à 8 fournisseurs, 1 à 4 clients (cible T4b) | choix dans les listes | nombres, classes de distance | délais, prix, OTIF |
 | Bâtiments et pièces | archétypes, zonage sourcé | tailles, positions, pièces, portes | programme de bâtiments | temps de trajet |
 | Visuel | variantes d'assets importés | variante par objet, décor | ambiance | rien |
 | Sources du formateur (T8) | aucune | aucun | passages validés cités | aucun chiffre de document |
 
-Aujourd'hui (26/11, T4 livré) : 1 produit, 3 à 8 fournisseurs (`params.suppliers`), 1 client, types de machine m1 à m4 par rang, hall en U de taille et décor tirés de la graine, 3 rôles, aucun texte conçu. Multi-produits et clients : T4b (après T5, avant D2). Règle : le moteur seul calcule, une disposition vient de la graine, l'IA choisit dans un schéma fermé.
+Aujourd'hui (27/11, T4 et T5 livrés) : 1 produit, 3 à 8 fournisseurs (`params.suppliers`), 1 client, types de machine m1 à m4 par rang, 1 à 3 bâtiments (`params.buildings`) ou hall en U, taille et décor tirés de la graine, 3 rôles, aucun texte conçu. Multi-produits et clients : T4b (après T5, avant D2). Règle : le moteur seul calcule, une disposition vient de la graine, l'IA choisit dans un schéma fermé.
 
 **Second domaine** : la finance d'entreprise (trésorerie et BFR d'une PME), décidé le 21/11 (ADR 0013 §6.2) (`finance-entreprise`, moteur `factory`, D0 fait) ; pack, corpus et audit en D1 à D3, non livrés.
 

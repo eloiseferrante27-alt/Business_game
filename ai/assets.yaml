@@ -369,3 +369,21 @@ assets:
       tags: [camion, semi_remorque, transport, livraison, lien, reseau, fournisseur, client],
       description: "Semi-remorque à cabine bleue et remorque fermée, qui roule sur les liens du réseau logistique entre sites ; ses roues tournent selon la distance parcourue.",
       source: { pack: gmix } }
+  # --- Kit de construction du campus (T5, ADR 0013) : cellule de 4 m (campus.cell_m), face avant vers +Z ---------------
+  # Un maillage fusionné par instance (une dizaine de boîtes), à instancier par cellule. Ids préfixés prop_ (motif du
+  # catalogue) ; le pack usine.yaml les désigne par wall_panel / door_industrial / floor_slab.
+  # Variantes : style (bardage | brique), hauteur en m (6 façade par défaut, 3 cloison).
+  - { id: prop_wall_panel, name: Panneau de mur, category: industrial, fit: w, footprint: { w: 4, d: 0.25, h: 6 }, variants: [style, hauteur],
+      tags: [mur, facade, cloison, bardage, brique, batiment, campus, segment],
+      description: "Segment de mur de 4 m de long et 0,25 m d'épaisseur pour construire les bâtiments du campus : façade de 6 m ou cloison de 3 m, en bardage métallique ou en brique.",
+      source: { pack: gmix } }
+  # Variantes : type (sectionnelle 4 x 4 m | pietonne 1 x 2,1 m), ouverte (le passage n'a alors aucune collision).
+  - { id: prop_door_industrial, name: Porte industrielle, category: industrial, fit: w, footprint: { w: 4, d: 0.25, h: 4 }, variants: [type, ouverte],
+      tags: [porte, porte_sectionnelle, porte_pietonne, acces, batiment, campus, ouverture],
+      description: "Porte à poser dans l'ouverture d'un mur du campus : porte sectionnelle de 4 m sur 4 pour les engins et les camions, ou porte piétonne de 1 m sur 2,1, ouverte ou fermée.",
+      source: { pack: gmix } }
+  # Variante : style (beton : atelier, logistique, maintenance | resine : bureau, clair). 5 cm, avec collision (on marche dessus).
+  - { id: prop_floor_slab, name: Dalle de sol, category: industrial, fit: w, footprint: { w: 4, d: 4, h: 0.05 }, variants: [style],
+      tags: [sol, dalle, beton, resine, batiment, campus, cellule],
+      description: "Dalle de sol de 4 m sur 4, une par cellule d'un bâtiment du campus : béton pour l'atelier, la logistique et la maintenance, résine claire pour les bureaux.",
+      source: { pack: gmix } }

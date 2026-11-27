@@ -66,6 +66,11 @@ def generate_factory(params: GameParams) -> dict[str, Any]:
     spec["notions"] = _notions(pack, spec)
     spec["events"] = [{"id": k, **v} for k, v in pack["events"].items() if set(v["modules"]) & set(played)]
     _calibrate(spec, pack, level, item, machines)
+    if len(params.world_plan) >= 2 or (params.buildings or 1) >= 2:  # campus : trajets calculés (annexe 0013 §2 bis)
+        for field, key in (("walk_m_per_min", "trajet.marche_m_min"), ("forklift_m_per_min", "trajet.chariot_m_min"),
+                           ("pallet_handling_min", "trajet.manutention_palette_min")):  # fmt: skip
+            spec["factory"]["logistics"][field] = _val(pack, key)
+            spec["provenance"][f"logistics.{field}"] = spec["provenance"][key]
     spec["stations"], spec["agents"] = _stations_and_agents(pack, params, rng, spec)
     spec["factory"]["crew"] = _crew(pack, spec["factory"]["machines"])
     spec["notions"] = _notions(pack, spec)

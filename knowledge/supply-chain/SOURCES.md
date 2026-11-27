@@ -58,6 +58,8 @@ dans ce tableau avec une licence ou un droit d'usage.
 | inrs-implantation-plateformes-logistiques.md | Implantation d'une plate-forme logistique (INRS ED 6350) | INRS | oct. 2019 | Publication INRS ; synthèse interne, citations courtes |  |
 | wikipedia-fr-taux-de-rendement-synthetique.md | Taux de rendement synthétique | Contributeurs de Wikipédia (fr) | rév. 234398211 | CC BY-SA 4.0 (attribution : contributeurs de Wikipédia) |  |
 | nist-sematech-weibull.md | e-Handbook of Statistical Methods, 8.1.6.2 Weibull | NIST/SEMATECH | consulté le 2026-11-21 | Domaine public (administration fédérale des États-Unis) |  |
+| bohannon-vitesse-de-marche.md | Vitesse de marche confortable et maximale, adultes de 20 à 79 ans | Bohannon R.W., Age and Ageing 26(1) | 1997 (résumé lu le 2026-11-27) | Résumé d'article ; synthèse interne, citation courte |  |
+| circulation-vitesse-chariots-interieur.md | Circulation et vitesse des chariots en intérieur (R4323-51 ; INRS ED 766 p. 22) | Code du travail (code.travail.gouv.fr) ; INRS | R4323-51 version 2008-05-01 ; ED 766 avril 2019 (non relue) | Texte réglementaire ; publication INRS ; synthèse interne, citations courtes |  |
 
 ## Statut du corpus
 

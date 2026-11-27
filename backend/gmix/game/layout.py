@@ -17,9 +17,9 @@ import hashlib
 import json
 import math
 import random
-from collections import Counter
+from collections import Counter, deque
 from functools import lru_cache
-from typing import Any
+from typing import Any, Literal
 
 from gmix.assets_catalog import AssetCatalog, load_assets_catalog
 
@@ -36,6 +36,16 @@ PROTECT_M = 1.5
 EPS = 1e-9
 
 Cell = tuple[int, int]
+
+# Liaisons chronométrées entre départements (annexe 0013 §2 bis, décision 3) : (départ, arrivée, mode). Seules elles
+# peuvent relier deux bâtiments ; `factory` les importe.
+TIMED_LINKS = {
+    "kit": ("stock_mp", "production", "chariot"),
+    "repair": ("maintenance", "production", "marche"),
+    "pallet": ("emballage", "entrepot_pf", "chariot"),
+}
+PATH_CELL_M = 1.0  # shortcut : grille fixe de la recherche hors bâtiments ; passer au pas du campus si trop lent
+CAMPUS_TRIES = 20  # tirages à graine avant la disposition de référence
 
 
 class LayoutError(ValueError):
@@ -567,13 +577,19 @@ def _grid_out(d: _Dept) -> dict[str, Any]:
     }  # fmt: skip
 
 
-def _forklift_route(depts: dict[str, _Dept], pack: dict[str, Any]) -> list[list[float]]:
+def _forklift_route(depts: dict[str, _Dept], pack: dict[str, Any], via=None) -> list[list[float]]:
+    """Route du chariot : une ancre par département du flux ; `via(a, b)` donne les points à insérer entre deux
+    ancres de bâtiments différents (campus), jamais un segment droit à travers un mur."""
     flow = next((r for r in pack.get("placement_rules", []) if r["kind"] == "flow"), None)
-    anchors = []
+    anchors: list[list[float]] = []
+    previous = None
     for name in flow["blocks"] if flow else []:
         d = depts.get(name)
         if d is None:
             continue
+        if via and previous:
+            anchors += via(previous, name)
+        previous = name
         fr = d.frame
         if d.band:
             c, r, w, h = fr.rect(0, fr.vn - d.band, fr.un, d.band)
@@ -583,10 +599,13 @@ def _forklift_route(depts: dict[str, _Dept], pack: dict[str, Any]) -> list[list[
     return anchors if len(anchors) >= 2 else [[-10.5, 4.8], [8.0, 4.8]]
 
 
-def place_world(spec: dict[str, Any], pack: dict[str, Any]) -> dict[str, Any]:
+def place_world(
+    spec: dict[str, Any], pack: dict[str, Any], hall: list[float] | None = None, via=None
+) -> dict[str, Any]:
     """Pose tout le monde, sans hasard. Retourne `world` (objets, sites, liens, bornes), `departments` (avec leur
-    grille), `stations` et `agents` (positions et trajets recalculés), `aisles`, `unplaced`."""
-    hall = _hall(spec, pack)
+    grille), `stations` et `agents` (positions et trajets recalculés), `aisles`, `unplaced`. `hall` : boîte qui
+    remplace le hall (bornes, réseau, décor ; campus) ; `via` : voir `_forklift_route`."""
+    hall = hall or _hall(spec, pack)
     areas = {d["id"]: d["area"] for d in spec.get("departments", []) if d.get("area")}
     depts: dict[str, _Dept] = {}
     pack_deps = {d["id"]: d for d in pack.get("departments", [])}
@@ -636,7 +655,8 @@ def place_world(spec: dict[str, Any], pack: dict[str, Any]) -> dict[str, Any]:
     return {
         "world": {
             "template": pack["world"]["template"], "size": _hall_size(spec, pack),
-            "spawn": list(pack["world"]["spawn"]), "objects": objects, "forklift_route": _forklift_route(depts, pack),
+            "spawn": list(pack["world"]["spawn"]), "objects": objects,
+            "forklift_route": _forklift_route(depts, pack, via),
             "sites": sites, "links": links, "bounds": bounds, "decor": _decor(spec, boxes, links),
         },
         "departments": [
@@ -653,6 +673,291 @@ def place_world(spec: dict[str, Any], pack: dict[str, Any]) -> dict[str, Any]:
         "aisles": {dep_id: sorted(list(c) for c in d.aisles) for dep_id, d in depts.items()},
         "unplaced": [m for d in depts.values() for m in d.unplaced],
     }  # fmt: skip
+
+
+# --- trajets (annexe 0013 §2 bis, décision 3) -------------------------------------------------------------------
+
+
+def _centre(a: list[float]) -> list[float]:
+    return [(a[0] + a[2]) / 2, (a[1] + a[3]) / 2]
+
+
+def _manhattan(p: list[float], q: list[float]) -> list[list[float]]:
+    return [list(p), [q[0], p[1]], list(q)]
+
+
+def _join(*legs: list[list[float]]) -> list[list[float]]:
+    """Polyligne d'un seul tenant, sans point en double."""
+    out: list[list[float]] = []
+    for leg in legs:
+        for p in leg:
+            pt = [float(p[0]), float(p[1])]
+            if not out or out[-1] != pt:
+                out.append(pt)
+    return out
+
+
+def _plen(pts: list[list[float]]) -> float:
+    return sum(math.hypot(q[0] - p[0], q[1] - p[1]) for p, q in zip(pts, pts[1:], strict=False))
+
+
+def _site(spec: dict[str, Any], name: str):
+    """(centre, pièce, bâtiment) d'un département logé ; LayoutError sinon."""
+    dep = next((d for d in spec.get("departments", []) if d["id"] == name), None)
+    if dep is None or not dep.get("area"):
+        raise LayoutError(f"trajet : département inconnu ou sans aire : {name}")
+    world = spec.get("world", {})
+    room = next((r for r in world.get("rooms", []) if r["id"] == dep.get("room_id")), None)
+    if room is None:
+        raise LayoutError(f"trajet : département {name} sans pièce")
+    building = next((b for b in world.get("buildings", []) if b["id"] == room["building_id"]), None)
+    if building is None:
+        raise LayoutError(f"trajet : pièce {room['id']} sans bâtiment")
+    return _centre(dep["area"]), room, building
+
+
+def _outside_path(
+    world: dict[str, Any], p: list[float], q: list[float],
+    box: list[float] | None = None, forbidden: list[list[float]] | None = None,
+) -> list[list[float]]:  # fmt: skip
+    """Plus court chemin 4-voisins de p à q (cellules de PATH_CELL_M) dans `box`, hors des rectangles `forbidden`.
+    Défaut : voirie, bornes du monde + 8 m, hors de tous les bâtiments. LayoutError : aucun chemin."""
+    c = PATH_CELL_M
+    if box is None:
+        blds = [b["area"] for b in world["buildings"]]
+        bounds = world.get("bounds") or [min(b[0] for b in blds), min(b[1] for b in blds),
+                                         max(b[2] for b in blds), max(b[3] for b in blds)]  # fmt: skip
+        box, forbidden = [bounds[0] - 8, bounds[1] - 8, bounds[2] + 8, bounds[3] + 8], blds
+    ox, oz = box[0], box[1]
+    cols, rows = math.ceil((box[2] - ox) / c), math.ceil((box[3] - oz) / c)
+    blocked = {
+        (i, j)
+        for a in forbidden or []
+        for i in range(max(0, int((a[0] - ox) // c)), min(cols, math.ceil((a[2] - ox) / c)))
+        for j in range(max(0, int((a[1] - oz) // c)), min(rows, math.ceil((a[3] - oz) / c)))
+        if a[0] < ox + (i + 0.5) * c < a[2] and a[1] < oz + (j + 0.5) * c < a[3]
+    }
+
+    def start(pt: list[float]) -> Cell:  # cellule libre la plus proche du point (sur un bord : celles qui le touchent)
+        touching = {
+            (int((pt[0] + dx * EPS - ox) // c), int((pt[1] + dz * EPS - oz) // c)) for dx in (-1, 1) for dz in (-1, 1)
+        }
+        free = [n for n in touching if 0 <= n[0] < cols and 0 <= n[1] < rows and n not in blocked]
+        if not free:
+            raise LayoutError("trajet : départ ou arrivée muré")
+        return min(free, key=lambda n: (math.hypot(ox + (n[0] + 0.5) * c - pt[0], oz + (n[1] + 0.5) * c - pt[1]), n))
+
+    s, g = start(p), start(q)
+    parent: dict[Cell, Cell | None] = {s: None}
+    queue = deque([s])
+    while queue and g not in parent:
+        i, j = queue.popleft()
+        for n in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)):
+            if 0 <= n[0] < cols and 0 <= n[1] < rows and n not in blocked and n not in parent:
+                parent[n] = (i, j)
+                queue.append(n)
+    if g not in parent:
+        raise LayoutError("trajet : aucun chemin libre")
+    cells: list[Cell] = []
+    node: Cell | None = g
+    while node is not None:
+        cells.append(node)
+        node = parent[node]
+    cells.reverse()
+    turns = [
+        k for k in range(len(cells))
+        if k in (0, len(cells) - 1)
+        or (cells[k][0] - cells[k - 1][0], cells[k][1] - cells[k - 1][1])
+        != (cells[k + 1][0] - cells[k][0], cells[k + 1][1] - cells[k][1])
+    ]  # fmt: skip
+    return [[ox + (cells[k][0] + 0.5) * c, oz + (cells[k][1] + 0.5) * c] for k in turns]
+
+
+def _inside(world: dict[str, Any], building: dict[str, Any], keep: list[str],
+            p: list[float], q: list[float]) -> list[list[float]]:  # fmt: skip
+    """Chemin de p à q dans le bâtiment, sans traverser les pièces autres que `keep` (ids)."""
+    others = [r["area"] for r in world["rooms"] if r["building_id"] == building["id"] and r["id"] not in keep]
+    if p == q:
+        return [list(p)]
+    return _join([p], _outside_path(world, p, q, building["area"], others), [q])
+
+
+def _to_entrance(centre: list[float], room: dict[str, Any], building: dict[str, Any], world: dict[str, Any]
+                 ) -> list[list[float]]:  # fmt: skip
+    """Centre -> porte de la pièce -> entrée du bâtiment, la porte qui raccourcit le plus (hors autres pièces)."""
+    legs = [_join(_manhattan(centre, d), _inside(world, building, [room["id"]], d, building["entrance"]))
+            for d in room["doors"]]  # fmt: skip
+    return min(legs, key=_plen)
+
+
+def path_points(spec: dict[str, Any], a: str, b: str) -> list[list[float]]:
+    """Polyligne (m) du centre du département a à celui de b : Manhattan dans une pièce, par les portes dans un
+    bâtiment, par les entrées et la voirie entre bâtiments, sans traverser d'autre pièce. LayoutError : inconnu,
+    sans pièce, aucun chemin."""
+    ca, room_a, bld_a = _site(spec, a)
+    cb, room_b, bld_b = _site(spec, b)
+    world = spec.get("world", {})
+    if room_a["id"] == room_b["id"]:
+        return _join(_manhattan(ca, cb))
+    if bld_a["id"] == bld_b["id"]:
+        keep = [room_a["id"], room_b["id"]]
+        legs = [_join(_manhattan(ca, da), _inside(world, bld_a, keep, da, db), _manhattan(db, cb))
+                for da in room_a["doors"] for db in room_b["doors"]]  # fmt: skip
+        return min(legs, key=_plen)
+    out = _outside_path(world, bld_a["entrance"], bld_b["entrance"])
+    return _join(_to_entrance(ca, room_a, bld_a, world), out, _to_entrance(cb, room_b, bld_b, world)[::-1])
+
+
+def path_m(spec: dict[str, Any], a: str, b: str) -> float:
+    return _plen(path_points(spec, a, b))
+
+
+def travel_min(spec: dict[str, Any], a: str, b: str, mode: Literal["marche", "chariot"]) -> float:
+    """Minutes de trajet de a à b : longueur du chemin sur la vitesse du mode (spec.factory.logistics)."""
+    lg = (spec.get("factory") or {}).get("logistics") or {}
+    speed = lg.get("walk_m_per_min" if mode == "marche" else "forklift_m_per_min")
+    if not speed:
+        raise LayoutError("trajet : vitesses non renseignées (monde d'un seul bâtiment)")
+    return path_m(spec, a, b) / speed
+
+
+# --- campus : plusieurs bâtiments (annexe 0013 §2 bis, décision 4) ----------------------------------------------
+
+
+def default_plan(pack: dict[str, Any], buildings: int | None, seed: int) -> list[dict[str, Any]]:
+    """Plan de référence : b1 = premier archétype du pack, les autres tirés à graine parmi les suivants ; chacun
+    prend les départements intérieurs de ses pièces, b1 le reste."""
+    archetypes = list(pack.get("building_archetypes", {}))
+    n = buildings or 1
+    if not archetypes or n > len(archetypes):
+        raise LayoutError(f"plan du monde : {n} bâtiments demandés, {len(archetypes)} archétypes au pack")
+    picked = [archetypes[0], *random.Random(f"{seed}:plan").sample(archetypes[1:], n - 1)]
+    left = [d["id"] for d in pack["departments"] if not d.get("external")]
+    plan: list[dict[str, Any]] = []
+    for arch in picked[1:]:
+        listed = [d for r in pack["building_archetypes"][arch]["rooms"].values() for d in r["blocks"]]
+        mine = [d for d in left if d in listed]
+        left = [d for d in left if d not in mine]
+        plan.append({"archetype": arch, "department_ids": mine})
+    return [{"archetype": picked[0], "department_ids": left}, *plan]
+
+
+def _door(area: list[float], front: str) -> list[float]:
+    mx, mz = _centre(area)
+    return {"nord": [mx, area[1]], "sud": [mx, area[3]], "est": [area[2], mz], "ouest": [area[0], mz]}[front]
+
+
+def _campus_attempt(spec: dict[str, Any], pack: dict[str, Any], plan: list[dict[str, Any]], seed: int, k: int):
+    """Tentative k (0 : référence, ordre du plan, marges nulles) : le monde posé, sans le contrôler."""
+    rng = random.Random(f"{seed}:campus:{k}") if k else None
+
+    def draw(lo: int, hi: int) -> int:
+        return rng.randint(lo, hi) if rng else lo
+
+    cell = pack["campus"]["cell_m"]
+    pack_deps = {d["id"]: d for d in pack["departments"]}
+    sizes, boxes = [], []
+    for b in plan:
+        (w_min, d_min), (w_max, d_max) = pack["building_archetypes"][b["archetype"]]["size_cells"]
+        areas = [pack_deps[d]["area"] for d in b["department_ids"]]
+        box = [min(a[0] for a in areas), min(a[1] for a in areas), max(a[2] for a in areas), max(a[3] for a in areas)]
+        need_w, need_d = math.ceil((box[2] - box[0]) / cell - EPS), math.ceil((box[3] - box[1]) / cell - EPS)
+        if need_w > w_max or need_d > d_max:
+            raise LayoutError(f"bâtiment {b['archetype']} : groupe de {need_w} x {need_d} cellules, trop grand")
+        w, d = min(w_max, max(w_min, need_w + draw(0, 2))), min(d_max, max(d_min, need_d + draw(0, 2)))
+        sizes.append((w, d))
+        boxes.append(box)
+    order = list(range(len(plan)))
+    if rng:
+        rng.shuffle(order)
+    else:  # référence : b1 au milieu, les autres dans l'ordre du plan (trajets de b1 aux autres les plus courts)
+        order = order[1 : 1 + (len(order) - 1) // 2] + [0] + order[1 + (len(order) - 1) // 2 :]
+    gaps = [draw(1, 2) for _ in order[1:]]
+    cursor = -((sum(w for w, _ in sizes) + sum(gaps)) // 2)
+    z1 = math.ceil(max(d for _, d in sizes) / 2) * cell
+    ambiances = pack["ambiances"]
+    ambiance = (spec.get("params") or {}).get("ambiance") or next(iter(ambiances))
+    styles = ambiances[ambiance]["styles"]
+    buildings: dict[str, dict[str, Any]] = {}
+    rooms: list[dict[str, Any]] = []
+    moved: dict[str, list[float]] = {}
+    for rank, i in enumerate(order):
+        w, d = sizes[i]
+        bid, arch = f"b{i + 1}", plan[i]["archetype"]
+        a = pack["building_archetypes"][arch]
+        x0 = cursor * cell
+        area = [x0, z1 - d * cell, x0 + w * cell, z1]
+        box = boxes[i]
+        slack = w * cell - (box[2] - box[0])
+        dx, dz = x0 + draw(0, int(slack / 0.5 + EPS)) * 0.5 - box[0], z1 - box[3]
+        buildings[bid] = {
+            "id": bid, "archetype": arch, "label": a["label"], "area": area,
+            "entrance": [(area[0] + area[2]) / 2, area[1]], "style": styles[draw(0, len(styles) - 1)],
+            "walls": a.get("walls"), "door": a.get("door"),
+        }  # fmt: skip
+        for dep in plan[i]["department_ids"]:
+            src = pack_deps[dep]["area"]
+            moved[dep] = [src[0] + dx, src[1] + dz, src[2] + dx, src[3] + dz]
+            kind = next(r for r, v in a["rooms"].items() if dep in v["blocks"])
+            door = _door(moved[dep], pack_deps[dep].get("front", "nord"))
+            rooms.append({
+                "id": f"{bid}.{dep}", "building_id": bid, "kind": kind, "label": pack_deps[dep]["label"],
+                "area": moved[dep], "department_ids": [dep], "doors": [door],
+            })  # fmt: skip
+        cursor += w + (gaps[rank] if rank < len(gaps) else 0)
+    blist = [buildings[f"b{i + 1}"] for i in range(len(plan))]
+    top = z1 - max(d for _, d in sizes) * cell
+    hall = [min(b["area"][0] for b in blist), top, max(b["area"][2] for b in blist), z1]
+    room_of = {dep: r["id"] for r in rooms for dep in r["department_ids"]}
+    geo = {
+        "departments": [{"id": dep, "area": ar, "room_id": room_of[dep]} for dep, ar in moved.items()],
+        "world": {"buildings": blist, "rooms": rooms, "bounds": hall},
+    }
+
+    def via(a: str, b: str) -> list[list[float]]:
+        """Entre deux bâtiments : porte, entrée, voirie, entrée, porte, sans traverser d'autre pièce."""
+        _, room_a, bld_a = _site(geo, a)
+        _, room_b, bld_b = _site(geo, b)
+        if bld_a["id"] == bld_b["id"]:
+            return []
+        w = geo["world"]
+        out = _outside_path(w, bld_a["entrance"], bld_b["entrance"])
+        return [*_inside(w, bld_a, [room_a["id"]], room_a["doors"][0], bld_a["entrance"]), *out,
+                *_inside(w, bld_b, [room_b["id"]], bld_b["entrance"], room_b["doors"][0])]  # fmt: skip
+
+    bundle = place_world(spec | {"departments": geo["departments"]}, pack, hall=hall, via=via)
+    b1 = blist[0]["area"]
+    spawn = [blist[0]["entrance"][0], b1[1] - 2]
+    bounds = bundle["world"]["bounds"]
+    bundle["world"] |= {
+        "template": "campus", "size": [b1[2] - b1[0], b1[3] - b1[1]], "spawn": spawn, "buildings": blist,
+        "rooms": rooms, "ambiance": ambiance,
+        "bounds": [min(bounds[0], spawn[0]), min(bounds[1], spawn[1]), *bounds[2:]],
+    }  # fmt: skip
+    for d in bundle["departments"]:
+        if d["id"] in room_of:
+            d["room_id"] = room_of[d["id"]]
+    return bundle
+
+
+def place_campus(spec: dict[str, Any], pack: dict[str, Any], plan: list[dict[str, Any]], seed: int) -> dict[str, Any]:
+    """Pose un monde de 2 à 4 bâtiments (même retour que `place_world`, plus world.buildings et world.rooms,
+    departments[].room_id) : CAMPUS_TRIES tirages à graine, puis la disposition de référence. Jamais de repli sur
+    le hall en U : LayoutError si la référence échoue."""
+    if len(plan) < 2:
+        raise LayoutError("campus : au moins deux bâtiments (un seul : place_world)")
+    problems: list[str] = []
+    for k in [*range(1, CAMPUS_TRIES + 1), 0]:
+        try:
+            bundle = _campus_attempt(spec, pack, plan, seed, k)
+        except LayoutError as e:
+            problems = [str(e)]
+            continue
+        candidate = spec | {"departments": bundle["departments"], "world": spec.get("world", {}) | bundle["world"]}
+        problems = check_placement(candidate, pack)
+        if not problems:
+            return bundle
+    raise LayoutError("campus : la disposition de référence est refusée : " + " ; ".join(problems))
 
 
 # --- retouches du formateur -------------------------------------------------------------------------------------
@@ -804,11 +1109,18 @@ def recompile_layout(
     from gmix.game.spec import LayoutEdit  # import tardif : spec ne dépend pas du placeur
 
     models = [e if isinstance(e, LayoutEdit) else LayoutEdit(**e) for e in edits]
-    bundle, rejected = apply_edits(place_world(spec, pack), models, pack)
+    params = spec.get("params") or {}
+    seed = spec.get("seed", 0)
+    plan = params.get("world_plan") or (
+        default_plan(pack, params["buildings"], seed) if (params.get("buildings") or 1) >= 2 else []
+    )
+    placed = place_campus(spec, pack, plan, seed) if len(plan) >= 2 else place_world(spec, pack)
+    bundle, rejected = apply_edits(placed, models, pack)
     stations = {s["id"]: s["position"] for s in bundle["stations"]}
     routes = {agent_id: a["route"] for agent_id, a in bundle["agents"].items()}
+    stale = {"buildings": [], "rooms": [], "ambiance": None} if spec["world"].get("buildings") else {}
     new = spec | {
-        "world": spec["world"] | bundle["world"],
+        "world": spec["world"] | stale | bundle["world"],
         "departments": bundle["departments"],
         "stations": [s | {"position": stations.get(s["id"], s.get("position"))} for s in spec["stations"]],
         "agents": [a | {"route": routes.get(a["id"], a.get("route"))} for a in spec["agents"]],
@@ -932,6 +1244,10 @@ def check_placement(spec: dict[str, Any], pack: dict[str, Any]) -> list[str]:
     objects = spec.get("world", {}).get("objects", [])
     cell_of = {i: d["grid"]["cell_m"] for i, d in deps.items() if d.get("grid")}
     msgs: list[str] = []
+    world = spec.get("world", {})
+    room_bld = {r["id"]: r["building_id"] for r in world.get("rooms", [])}
+    bld_of = {i: room_bld.get(d.get("room_id")) for i, d in deps.items()}
+    timed = {(a, b) for a, b, _ in TIMED_LINKS.values()}
 
     def rects(name: str) -> list[tuple]:
         if name in deps:
@@ -951,6 +1267,10 @@ def check_placement(spec: dict[str, Any], pack: dict[str, Any]) -> list[str]:
                 else list(zip(rule["blocks"], rule["blocks"][1:], strict=False))
             )
             for a, b in pairs:
+                if bld_of.get(a) and bld_of.get(b) and bld_of[a] != bld_of[b]:
+                    if (a, b) not in timed and (b, a) not in timed:
+                        msgs.append(f"règle {rid} : passage non chronométré entre bâtiments : {a} -> {b}.")
+                    continue
                 ra, rb = rects(a), rects(b)
                 if not ra or not rb:
                     msgs.append(f"règle {rid} : {a if not ra else b} est introuvable dans le plan.")
@@ -1011,6 +1331,82 @@ def check_placement(spec: dict[str, Any], pack: dict[str, Any]) -> list[str]:
                         f"ne fait pas face à {rule['toward']}."
                     )
     msgs += _integrity(spec, pack, deps, pack_deps, objects)
+    if world.get("buildings"):
+        msgs += _campus_msgs(spec, pack, deps)
+    return msgs
+
+
+def _within(a: list[float], outer: list[float]) -> bool:
+    return outer[0] - EPS <= a[0] and outer[1] - EPS <= a[1] and a[2] <= outer[2] + EPS and a[3] <= outer[3] + EPS
+
+
+def _on_edge(pt: list[float], a: list[float]) -> bool:
+    inside = a[0] - EPS <= pt[0] <= a[2] + EPS and a[1] - EPS <= pt[1] <= a[3] + EPS
+    return inside and any(abs(pt[i] - a[j]) < EPS for i in (0, 1) for j in (i, i + 2))
+
+
+def _campus_msgs(spec: dict[str, Any], pack: dict[str, Any], deps: dict[str, Any]) -> list[str]:
+    """Contrôles du campus (annexe 0013 §2 bis) : bâtiments, pièces, portes, chemins, règles de zonage."""
+    world = spec["world"]
+    cell = pack["campus"]["cell_m"]
+    msgs: list[str] = []
+    blds, rooms = world["buildings"], world.get("rooms", [])
+    for i, a in enumerate(blds):
+        ar = a["area"]
+        if any(abs(v / cell - round(v / cell)) > EPS for v in ar):
+            msgs.append(f"bâtiment {a['id']} : pas aligné sur la grille de {cell:g} m.")
+        (w_min, d_min), (w_max, d_max) = pack["building_archetypes"][a["archetype"]]["size_cells"]
+        w, d = (ar[2] - ar[0]) / cell, (ar[3] - ar[1]) / cell
+        if not (w_min <= w <= w_max and d_min <= d <= d_max):
+            msgs.append(f"bâtiment {a['id']} : {w:g} x {d:g} cellules, hors de {w_min}-{w_max} x {d_min}-{d_max}.")
+        if not _on_edge(a["entrance"], ar):
+            msgs.append(f"bâtiment {a['id']} : entrée hors du bord.")
+        for b in blds[i + 1 :]:
+            dx, dz, _, _ = _gap(tuple(ar), tuple(b["area"]))
+            if max(dx, dz) < cell - EPS:
+                msgs.append(f"bâtiments {a['id']} et {b['id']} : moins d'une cellule ({cell:g} m) d'écart.")
+    for i, r in enumerate(rooms):
+        if not all(_on_edge(d, r["area"]) for d in r["doors"]):
+            msgs.append(f"pièce {r['id']} : porte hors du bord.")
+        msgs += [
+            f"département {d} : hors de la pièce {r['id']}."
+            for d in r["department_ids"]
+            if d in deps and not _within(deps[d]["area"], r["area"])
+        ]
+        for o in rooms[i + 1 :]:
+            dx, dz, ox, oz = _gap(tuple(r["area"]), tuple(o["area"]))
+            if o["building_id"] == r["building_id"] and ox > EPS and oz > EPS:
+                msgs.append(f"pièces {r['id']} et {o['id']} : se chevauchent.")
+    room_bld = {r["id"]: r["building_id"] for r in rooms}
+    for b in blds[1:]:
+        try:
+            _outside_path(world, blds[0]["entrance"], b["entrance"])
+        except LayoutError as e:
+            msgs.append(f"entrées {blds[0]['id']} et {b['id']} : {e}")
+    for rule in pack.get("zoning_rules", []):
+        a, b = rule["departments"]
+        if a not in deps or b not in deps:
+            continue
+        gap = _distance([tuple(deps[a]["area"])], [tuple(deps[b]["area"])])
+        same = room_bld.get(deps[a].get("room_id")) == room_bld.get(deps[b].get("room_id"))
+        kind = rule["type"]
+        if kind == "together" and not (
+            deps[a].get("room_id") == deps[b].get("room_id") or (same and gap <= cell + EPS)
+        ):
+            msgs.append(f"zonage : {a} et {b} doivent être dans la même pièce ou voisins (règle together).")
+        elif kind == "apart" and same and gap < 2 * cell - EPS:
+            msgs.append(f"zonage : {a} et {b} sont à {gap:.1f} m, {2 * cell:g} m au moins (règle apart).")
+        elif kind == "same_building" and not same:
+            msgs.append(f"zonage : {a} et {b} doivent être dans le même bâtiment (règle same_building).")
+        elif kind == "max_walk_m":
+            limit = pack["values"][rule["value"]]["value"]
+            try:
+                walk = path_m(spec, a, b)
+            except LayoutError as e:
+                msgs.append(f"zonage : {a} -> {b} : {e}")
+                continue
+            if walk > limit + EPS:
+                msgs.append(f"zonage : {a} -> {b} fait {walk:.0f} m à pied, {limit:g} m au plus (règle max_walk_m).")
     return msgs
 
 
@@ -1070,6 +1466,8 @@ def required_assets(pack: dict[str, Any]) -> set[str]:
     found |= {s["building"] for s in net.get("sites", {}).values() if s.get("building")}
     found |= {t["vehicle"] for t in net.get("link_types", {}).values() if t.get("vehicle")}
     found |= {a["character"] for a in pack.get("extra_agents", {}).values() if a.get("character")}
+    for arch in pack.get("building_archetypes", {}).values():
+        found |= {arch[k] for k in ("walls", "door") if arch.get(k)}
     for member in pack.get("crew", []):
         found |= set(member.get("characters", []))
     return found

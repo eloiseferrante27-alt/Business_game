@@ -68,9 +68,9 @@ Invariants de `layout.check_placement` (moteur-jeu, T5) : bâtiments disjoints, 
 cellule du campus ; `entrance` sur le bord du bâtiment ; chaque porte sur le bord de sa pièce ; l'aire d'un département
 dans celle de sa pièce ; un chemin praticable de l'entrée à chaque porte ; règles de zonage du pack respectées.
 
-Producteur : `layout.place_campus(spec, plan: list[PlannedBuilding], seed: int) -> dict` (moteur-jeu, T5), pur et
-déterministe à graine ; 20 graines dérivées de `seed`, puis repli sur le programme de référence. Plan vide :
-`place_world` actuel (hall en U, `template: usine`). `apply_edits` reste sans graine.
+Producteur : `layout.place_campus(spec, pack, plan, seed) -> dict` (moteur-jeu, T5), pur et déterministe à graine ;
+algorithme, repli et appelants : §2 bis (27/11, fait foi). Plan de moins de 2 bâtiments : `place_world` actuel (hall
+en U, `template: usine`). `apply_edits` reste sans graine.
 
 Clés de pack (game-designer, T5 ; contrôle de format ajouté par moteur-jeu dans `_check_world_keys`) :
 
@@ -84,8 +84,8 @@ building_archetypes:
     rooms:                                # kind -> blocs (départements) permis
       atelier: {label: Atelier, blocks: [ligne, magasin_mp, magasin_pf]}
       bureau: {label: Bureaux, blocks: [planification]}
-    walls: wall_brick                     # ids d'assets (ai/assets.yaml, statut importe)
-    door: door_industrial
+    walls: prop_wall_panel                # ids d'assets (ai/assets.yaml, statut importe) ; façade = Building.style
+    door: prop_door_industrial
 zoning_rules:                             # type dans spec.ZONING_KINDS, chacune avec provenance
   - {type: together, departments: [magasin_mp, ligne], provenance: {status: source, citation: "..."}}
   - {type: apart, departments: [peinture, soudage], provenance: {status: calibre, note: "..."}}
@@ -97,8 +97,9 @@ variants:                                 # rôle d'objet (ElementRole) -> asset
   machine: [mach_lathe_a, mach_lathe_b]
 ```
 
-`together` : pièces voisines (porte commune ou couloir de moins d'une cellule) ; `apart` : bâtiments différents ou
-au moins deux cellules d'écart ; `same_building` : même bâtiment ; `max_walk_m` : `travel_min` à pied sous la valeur.
+`together` : même pièce, ou même bâtiment et aires à une cellule ou moins (§2 bis, écart 5) ; `apart` : bâtiments différents ou au
+moins deux cellules d'écart ; `same_building` : même bâtiment ; `max_walk_m` : `layout.path_m` (mètres) au plus la
+valeur (§2 bis).
 
 Exemple (extrait) :
 
@@ -111,6 +112,184 @@ Exemple (extrait) :
  "departments": [{"id": "ligne", "label": "Ligne", "area": [4, 4, 40, 20], "room_id": "b1.atelier"}]}
 ```
 
+## 2 bis. Tranche T5 : décisions et plan (27/11, fait foi sur §2 et §3)
+
+### Décision 1. `ambiances`, `walls`, `style` : contrat valide, aucun renommage
+
+`ambiances` n'est pas une clé inventée : elle est au contrat depuis T2 (§1 `GameParams.ambiance`, §2 point 4,
+`SimSpec._campus_errors`). Sens fixé :
+- `building_archetypes.<a>.walls` et `.door` : ids d'assets (géométrie du module de mur, porte d'entrée), au catalogue
+  et hors `a_sourcer` ; `required_assets` les compte. `place_campus` les recopie dans `Building.walls` et
+  `Building.door` (facultatifs, ajoutés le 27/11 ; None : défaut de Godot), car Godot ne lit que la spec.
+- `Building.style` : valeur de la variante `style` de l'asset `walls` (matériau), tirée à graine dans
+  `ambiances[world.ambiance].styles`. Un style n'est pas un asset et n'entre pas dans `required_assets`.
+- `palette`, `season`, `vegetation` : aucun consommateur en T5. `_check_world_keys` n'accepte que `reference`, `ete`
+  et `normale` (l'aspect actuel) tant que Godot n'en rend pas d'autre (une valeur ignorée serait une contrainte ignorée).
+
+### Décision 2. Palette vers l'entrepôt PF : dans T5, dernière étape du moteur
+
+Sans elle, l'archétype `entrepot` sépare emballage et entrepôt PF par un passage instantané, ce qu'interdit l'ADR 0013
+§6.7. C'est le chronométrage d'un passage qui existe déjà (palette filmée -> PF) : aucune action, aucun indicateur,
+ordre de `advance` inchangé, aucune migration ; la règle d'arrêt (nouvel ADR si `simulate` ou `advance` sont
+restructurés) n'est pas atteinte. **Garde-fou** : si le code exige plus (autre ressource que le chariot, ordre des
+événements du jeu de référence changé), moteur-jeu s'arrête ; repli décidé d'avance : `limits.buildings: [1, 2, 1]`
+sans `entrepot`. Règle, en campus seulement (vitesses renseignées) :
+- l'emballage attend (`pk_wait`) que le chariot prenne la palette filmée ; le chariot sert d'abord une palette en
+  attente (elle bloque l'emballage), puis les kits ; prise seulement si une place PF est libre en comptant les
+  palettes en route (place réservée à la prise) ;
+- arrivée à prise + `pallet_handling_min` + t, chariot libre à prise + `pallet_handling_min` + 2t, avec
+  t = `travel_min(spec, "emballage", "entrepot_pf", "chariot")` ; stock PF et événement `palette` à l'arrivée ;
+- état : `fs["fk"]["transit"]` (palettes en route, lu avec défaut 0), fin de trajet persistée comme les kits en vol
+  (`inflight`) ; le conducteur reste `agent_stock_mp` ; `forklift_busy_min` compte les palettes.
+- `Logistics.pallet_handling_min: float | None` (ajouté le 27/11, None = 0), copié de `values`
+  `trajet.manutention_palette_min`, provenance `logistics.pallet_handling_min`.
+
+### Décision 3. Trajets : règles valides, forme exacte
+
+- Vitesses renseignées **si et seulement si** `spec.factory` et 2 bâtiments ou plus (contrôle `SimSpec`). Un bâtiment
+  (hall en U) : `kit_min` et `repair_travel_min` fixes, jeu de référence inchangé.
+- Kit : chariot occupé `kit_min + 2t`, kit remis à la ligne à `kit_min + t`, t = trajet `stock_mp -> production` au
+  chariot ; `kit_min` (8) ne compte plus que la préparation. Technicien : trajet `maintenance -> production` à pied, aller
+  seul, remplace `repair_travel_min` partout (`_tech_try`, `tech_stats.busy_min`, `trs_factors`).
+- Départs et arrivées fixés par le code, pas par le pack (la clé prévue au §3 est abandonnée) :
+  `layout.TIMED_LINKS = {"kit": ("stock_mp", "production", "chariot"), "repair": ("maintenance", "production",
+  "marche"), "pallet": ("emballage", "entrepot_pf", "chariot")}` ; `factory` l'importe (pas d'import circulaire).
+- Formes (layout.py, pures, sans pack : le moteur ne lit que la spec) :
+
+```python
+PATH_CELL_M = 1.0  # shortcut : grille fixe de la recherche hors bâtiments ; passer au pas du campus si trop lent
+def path_points(spec: dict, a: str, b: str) -> list[list[float]]   # ids de département ; polyligne (m)
+def path_m(spec: dict, a: str, b: str) -> float                     # longueur de path_points
+def travel_min(spec: dict, a: str, b: str, mode: Literal["marche", "chariot"]) -> float  # path_m / vitesse
+```
+
+  Point d'un département : centre de son `area`. Même pièce : Manhattan. Même bâtiment : centre -> porte de sa pièce ->
+  porte de l'autre -> centre (minimum sur les portes ; tronçons entre portes et entrées : décision 4, écart 3). Bâtiments différents :
+  centre -> porte -> entrée, puis plus court chemin 4-voisins hors bâtiments (cellules de `PATH_CELL_M` dans
+  `world.bounds` élargi de 8 m, cellules d'un bâtiment interdites), entrée -> porte -> centre. `LayoutError` :
+  département inconnu, sans `area` ou sans `room_id`, aucun chemin, ou vitesses None (`travel_min`).
+- Appelants : `factory.Plant.__init__` (une fois, les 3 `TIMED_LINKS`, si les vitesses sont renseignées),
+  `layout.check_placement` (`max_walk_m`, en mètres) et `_forklift_route` (ci-dessous). Ni Godot ni l'API.
+
+### Décision 4. `place_campus`
+
+`place_campus(spec: dict, pack: dict, plan: list[dict], seed: int) -> dict` : même retour que `place_world`, plus
+`world.buildings`, `world.rooms` et `departments[].room_id`. `place_world` gagne `hall: list[float] | None = None`
+(boîte qui remplace le hall pour `_build_network`, bornes et décor).
+- Appel : `recompile_layout` (seul point d'entrée : `factory_generation`, route des retouches, worker de génération)
+  appelle `place_campus` si le plan compte 2 bâtiments ou plus, sinon `place_world` (un plan d'un bâtiment loge tout dans le hall en U). Plan = `params.world_plan`, sinon
+  `default_plan(pack, params.buildings, seed)` : b1 = premier archétype du pack (`hall_production`), les n - 1 autres
+  tirés à graine parmi les suivants ; chacun prend les départements intérieurs listés dans ses `rooms.*.blocks`, b1 le
+  reste. `factory_generation` écrit vitesses et `pallet_handling_min` dès que le plan compte 2 bâtiments (values
+  `trajet.*`, provenance `logistics.<champ>`).
+- Tentative k (graine `f"{seed}:campus:{k}"`) :
+  1. Chaque bâtiment garde la disposition relative du hall en U (aires du pack) de ses départements, translatée en
+     bloc ; aucun nouveau placement interne.
+  2. Taille = boîte du groupe arrondie à la cellule `campus.cell_m`, plus une marge tirée de 0 à 2 cellules par axe,
+     bornée par `size_cells` (groupe trop grand : tentative échouée) ; groupe collé au bord z max (le quai reste au mur),
+     décalé à graine en x dans la marge (pas de 0,5 m).
+  3. Bâtiments en rangée selon x, bords z max alignés (côté camions), ordre tiré, allée de 1 ou 2 cellules tirée ;
+     rangée centrée sur x = 0.
+  4. Entrée au milieu du bord z min (côté opposé aux camions) ; `spawn` à 2 m devant l'entrée de b1.
+  5. Pièces : **une par département**, id `<b>.<département>`, `kind` = pièce de l'archétype qui le liste, `label` du
+     département, `area` = aire du département, une porte au milieu du bord côté `front` du département. (Le hall en U
+     n'a pas de découpage en rectangles disjoints par fonction ; le contrat permet plusieurs départements par pièce,
+     le producteur T5 n'en met qu'un.)
+  6. Style tiré dans l'ambiance (`params.ambiance`, sinon la première du pack, écrite dans `world.ambiance`) ; `walls`
+     et `door` recopiés ; `label` = label de l'archétype.
+  7. Pose actuelle sur les aires déplacées (`place_world(..., hall=boîte du campus)`) ; `template: campus`, `size` =
+     taille de b1 ; décor hors bâtiments et sites. `_forklift_route` : entre deux ancres de bâtiments différents,
+     insère `path_points` au lieu du segment droit.
+  8. Acceptée si `check_placement == []` (écart 1 ci-dessous).
+- Ordre : k = 1 à 20, puis k = 0 (référence : b1 au milieu de la rangée, les autres dans l'ordre du plan, marges 0,
+  allée 1 cellule ; écart 2). Si k = 0 échoue :
+  `LayoutError` (bug ; les tests couvrent tous les plans valides du pack). **Pas de repli sur le hall en U** : le monde
+  contredirait `params.buildings` sans le dire (une contrainte n'est jamais ignorée).
+- `check_placement`, si `world.buildings` : bâtiments disjoints à une cellule au moins, alignés sur la grille du
+  campus, tailles dans `size_cells` ; entrée sur le bord ; porte sur le bord de sa pièce ; aire du département dans sa
+  pièce ; pièces d'un bâtiment disjointes ; chemin entre toutes les entrées ; `zoning_rules` (sens du §2). Règles
+  `adjacent` et `flow` : une paire dans deux bâtiments n'est permise que si c'est un `TIMED_LINKS`
+  (« passage non chronométré entre bâtiments : a -> b »), sinon contiguïté comme aujourd'hui ; `protected_path` sur la
+  route du chariot, sortie comprise.
+
+### Écarts d'implémentation de l'étape 4 (`place_campus`, 27/11, architecte)
+
+1. **Validé.** Tentative acceptée sur `check_placement == []` seul : la spec est partielle à ce stade, `generate`
+   valide la spec complète ensuite. Condition : les tests A valident la spec complète (`SimSpec`) pour les 3 plans et
+   les 12 graines ; un refus à ce stade est un bug du placeur, pas un tirage à rejouer.
+2. **Validé.** Référence k = 0 : b1 au milieu de la rangée, les autres dans l'ordre du plan de part et d'autre
+   (texte de la décision 4 corrigé). L'ordre strict mettait l'atelier en bout de rangée à 161 m de la maintenance,
+   au-delà de `max_walk_m` (150) : la référence doit passer pour tous les plans valides.
+3. **Refusé.** Exclure du test de barrière les segments qui touchent une porte ou une entrée cache le cas même que la
+   règle protège : la route du chariot traversait le bureau du pilotage, donc des postes fixes (INRS ED 6350 § 4.4,
+   `postes_proteges_chariots`). « Intérieur supposé libre » (décision 3) ne vaut que pour une longueur, pas pour la
+   sécurité. **Correctif (moteur-jeu, layout.py, test_campus.py)** : généraliser `_outside_path` en une recherche
+   4-voisins à boîte et rectangles interdits passés en paramètres ; dans `path_points` (donc `path_m` et la route
+   du chariot), chaque tronçon porte -> entrée et porte -> porte suit cette recherche dans l'`area` du bâtiment,
+   aires des autres pièces interdites (pièces de départ et d'arrivée permises), à la place du Manhattan ; aucun
+   chemin : `LayoutError` (tentative échouée). Test de barrière et croisements sur tout le chemin, sans exclusion ;
+   les barrières sont posées le long de ce chemin. Tests : route `production -> entrepot_pf` qui ne coupe aucune pièce
+   tierce, poste à moins de `PROTECT_M` d'un tronçon intérieur sans barrière -> message, `max_walk_m` (150) toujours
+   tenu par la référence k = 0 sur les 3 plans.
+4. **Validé.** `recompile_layout` remet `buildings`, `rooms` et `ambiance` à vide quand une spec campus repasse à
+   1 bâtiment (sinon `template` et `buildings` se contredisent) ; `room_id` part avec les départements de
+   `place_world`, et des vitesses restées renseignées sont refusées par `SimSpec._campus_errors` (pas d'écart
+   silencieux). Test : spec campus recompilée à 1 bâtiment -> monde égal à la référence, hors clés nulles.
+5. **Validé.** `zoning_rules` contrôlées seulement si `world.buildings` est non vide : le hall en U reste la référence
+   (règles de l'ADR 0010) et n'a ni pièces ni `room_id`. Sens fixé (le §2 est aligné) : `together` = même pièce, ou
+   même bâtiment à une cellule **ou moins** ; `apart` = bâtiments différents, ou deux cellules au moins dans un même
+   bâtiment.
+
+### Contrôles à ajouter (moteur-jeu, dans `spec.py`, avec la mise à jour des tests qu'ils cassent)
+
+- `GameParams._world_choice_errors` : archétype en double ; département sans pièce dans son archétype ; plan non vide
+  qui ne loge pas tous les départements intérieurs du pack ; paire `together` ou `same_building` dans deux bâtiments
+  prévus. Casse `test_spec_0013.py` l. 92-93 (plan d'un seul département) : fixture à compléter.
+- `SimSpec._campus_errors` : vitesses renseignées sans `factory` ni 2 bâtiments, ou 2 bâtiments sans vitesses. Casse
+  l. 326-327 (vitesses sans bâtiment) : attendre le refus.
+- `_check_world_keys` : `campus.cell_m` positif et multiple de `grid.site_cell_m` ; archétypes (`label`, `size_cells`
+  entiers, min <= max, `rooms` à `label` et `blocks` de départements intérieurs, un bloc dans une seule pièce par
+  archétype, `walls` et `door`) ; `zoning_rules` (type de `ZONING_KINDS`, 2 départements connus, `value` clé numérique
+  de `values` pour `max_walk_m`, provenance) ; `ambiances` (`label`, `styles` non vide, valeurs de la décision 1).
+
+### Plan d'exécution T5
+
+| # | Agent | Fichiers | Travail | Critère de fin | Parallèle |
+|---|---|---|---|---|---|
+| 1 | moteur-jeu | game/spec.py (contrôles ci-dessus), tests/test_spec_0013.py | contrôles et tests cassés mis à jour | `test.ps1 -Fast` vert | avec 2, 3 |
+| 2 | game-designer | ai/packs/usine.yaml | notes du pack alignées (ci-dessous), `limits.buildings` laissé à [1, 1, 1] | provenance de chaque valeur | avec 1, 3 |
+| 3 | assets-3d (en cours) | ai/assets.yaml, godot/assets/ | `prop_wall_panel` (`variants: [style, hauteur]`, styles `bardage` et `brique`), `prop_door_industrial`, hors `a_sourcer` | `assets.ps1` vert | avec 1, 2 |
+| 4 | moteur-jeu | game/layout.py, game/factory_generation.py, tests/test_campus.py | `TIMED_LINKS`, `path_points`, `path_m`, `travel_min`, `default_plan`, `place_campus`, `place_world(hall=)`, `check_placement`, appelants | tests A ci-dessous | après 1 |
+| 5 | moteur-jeu | game/factory.py, tests/test_factory_campus.py | kit, technicien, `trs_factors` (décision 3) | tests B | après 4 |
+| 6 | moteur-jeu | game/factory.py, même test | palette (décision 2) | tests C | après 5 |
+| 7 | godot-dev | godot/scenes/world/world.gd (ou campus.gd) | `template: campus` : un bâtiment par `buildings` (murs `walls` en modules, `style` -> variante `style`, porte `door` à l'entrée, défaut si l'asset manque), pas de hall unique, zones des départements comme aujourd'hui, clic de pièce = département, caméra sur `bounds` | `godot.ps1 -Check`, `-Tour` sur une spec campus de fixture | après 4 (fixture), avec 5, 6 |
+| 8 | moteur-jeu | game/layout.py (`required_assets`) | compte `walls` et `door` | `pack_coverage("usine")` = 1,0 | après 3 et 6 |
+| 9 | game-designer | ai/packs/usine.yaml | `limits.buildings: [1, 3, 1]` | tests A à C verts sur le pack réel | après 8 |
+| 10 | devops | scripts/godot.ps1 | `-Flow -Buildings 3` (partie campus scriptée) | `-Flow -Buildings 3` vert | après 9, avec 11 |
+| 11 | documentaliste | docs/game-design.md, docs/architecture.md | campus, trajets, palette | références à jour | après 9 |
+| 12 | qa-reviewer | - | relecture | `test.ps1 -Integration`, `-Tour`, `-Flow`, `-Flow -Buildings 3`, 45 images/s | toujours en dernier |
+
+Tests attendus (moteur-jeu) :
+- A : `path_m` même pièce (Manhattan), même bâtiment (par les portes), deux bâtiments avec un troisième entre eux (détour
+  plus long que Manhattan) ; `LayoutError` (département inconnu, vitesses None) ; `default_plan` ; pour chacun des
+  3 plans valides de l'usine (hall + entrepôt, hall + maintenance, les trois) et 12 graines : spec valide,
+  `check_placement == []`, pilote automatique 2 semaines sans erreur ; empreintes distinctes (`world_fingerprint`)
+  au moins 8 sur 12 graines à 3 bâtiments, 6 à 2 ; même graine -> même spec ; repli k = 0 (les tirages refusés par
+  monkeypatch) puis `LayoutError` ; zonage violé (`together`, `apart`, `max_walk_m` à 10 m, paire de flux non
+  chronométrée) -> message ; **référence** : `buildings` None et 1 -> spec égale à celle d'avant T5 (empreinte prise
+  avant de coder, hors clés nulles ajoutées) et empreintes de `test_factory.py` inchangées ; budget de génération tenu.
+- B : kit remis à `kit_min + t`, chariot libre à `kit_min + 2t` ; trajet du technicien = trajet à pied ;
+  `trs_factors` le lit.
+- C : conservation (emballage + en route + PF) ; capacité PF jamais dépassée en comptant les palettes en route ;
+  palette servie avant un kit au même instant ; sauvegarde et reprise d'un tour avec une palette en route ; ancien état
+  sans `transit` relu.
+
+Pack (game-designer, étape 2) : commentaire « clé inventée » sans objet (décision 1) ; `trajet.formules` : kit remis à
+8 + t, chariot occupé 8 + 2t ; `zonage.marche_max_maintenance_m` : mesuré au centre de la production, pas à chaque
+machine ; `trajet.manutention_palette_min` : arrivée à 1 + t, chariot libre à 1 + 2t ; les entrées des bâtiments sont
+côté opposé aux camions ; fiche Bohannon 1997 hors corpus à demander à rag-knowledge (vitesse non dite par les PNJ
+tant qu'elle n'est pas sourcée au corpus).
+
 ## 3. Usine variée et trajets (T4, T5)
 
 | Ajout | Défaut | Sens |
@@ -118,7 +297,9 @@ Exemple (extrait) :
 | `BomItem.product_id: str \| None` | None = `Factory.product_id` | dès qu'un article le porte, mode plusieurs produits : chaque produit a au moins une ligne (`Line.product_id`) et une nomenclature ; sinon, règle actuelle (toutes les lignes font `Factory.product_id`) |
 | `Factory.clients: list[Client]` (4 au plus) | [] : `customer` seul, acheteur de `product_id` | `Client = Customer + {id: "c1".."c4", name, product_id, site_id}` ; ids uniques, produit et site connus ; `customer` est alors ignoré par le moteur (le générateur y recopie `clients[0]`) |
 | `Machine.type: str \| None`, motif `^[a-z][a-z0-9_]{1,29}$` | None : type unique | clé de `pack["machine_types"]` (`m1`..`m4` dans l'usine ; le chiffre est permis ici car la clé vient du pack, jamais d'un texte conçu), vérifiée par `SimSpec` (« type inconnu du pack ») |
-| `Logistics.walk_m_per_min`, `forklift_m_per_min` | None (ensemble, ou aucune) | renseignées : trajets calculés, `kit_min` ne compte plus que la préparation ; None : `kit_min` et `repair_travel_min` fixes |
+| `Logistics.walk_m_per_min`, `forklift_m_per_min` | None (ensemble, ou aucune) | renseignées : trajets calculés, `kit_min` ne compte plus que la préparation ; None : `kit_min` et `repair_travel_min` fixes (§2 bis, décision 3) |
+| `Logistics.pallet_handling_min` | None (= 0) | prise et dépose d'une palette PF au chariot, en campus (§2 bis, décision 2) |
+| `Building.walls`, `Building.door` | None (défaut Godot) | assets de l'archétype recopiés par `place_campus` (§2 bis, décision 1) |
 
 `Factory.product_id` reste le produit de référence (le premier). Les fournisseurs (3 à 8) n'ont besoin d'aucun champ :
 `suppliers`, `offers` et les sites fournisseurs existent déjà. Un site par fournisseur : le premier d'un profil garde
@@ -153,12 +334,7 @@ Tests attendus (moteur-jeu) : 2 et 3 produits, 1 à 4 clients jouables au pilote
 1 client : spec et rapport de tour identiques à la référence ; conservation de la matière par composant et du PF par
 produit ; un client n'emporte jamais un autre produit ; mise à niveau de l'ancien état ; budget de génération tenu.
 
-Trajets (moteur-jeu, T5) : `layout.travel_min(spec, a: str, b: str, mode: Literal["marche", "chariot"]) -> float`,
-pure, `a` et `b` ids de département ; plus court chemin par les portes et les entrées (distance de Manhattan sur la
-grille, couloirs compris), divisé par la vitesse du mode. Kit = `kit_min` + `travel_min(magasin MP -> département de la
-ligne, chariot)` ; dépannage = `travel_min(maintenance -> ligne, marche)` au lieu de `repair_travel_min`. Les
-départements de départ sont déclarés par le pack (clé fixée par moteur-jeu et game-designer en T5). Provenance :
-`logistics.walk_m_per_min`, `logistics.forklift_m_per_min`.
+Trajets (moteur-jeu, T5) : remplacé par le §2 bis, décision 3 (27/11).
 
 ## 4. Module finance du moteur `factory` (D2)
 
@@ -316,7 +492,7 @@ clé `correlation_id = document_id`, traitement idempotent (une réindexation re
 | 3 | T4 : bornes, secteurs, types de machine, variantes | game-designer | ai/packs/usine.yaml | `limits` du §1, provenance | avec 4 |
 | 4 | T4 : `generate` (§1, §3), placeur à graine | moteur-jeu | game/generation.py, game/layout.py, tests | §7 vert, 8 empreintes sur 12 graines | avec 3 |
 | 5 | D1 : corpus finance | rag-knowledge, game-designer | knowledge/finance-entreprise/ | §4.1 sourcé et daté | avec 3, 4 |
-| 6 | T5 : archétypes, zonage, `place_campus`, `travel_min`, Godot campus | game-designer, assets-3d, moteur-jeu, godot-dev | §2, §3 | ADR 0013 T5 | après 4 |
+| 6 | T5 : archétypes, zonage, `place_campus`, `travel_min`, Godot campus | game-designer, assets-3d, moteur-jeu, godot-dev | §2 bis (plan détaillé) | ADR 0013 T5 | après 4 |
 | 7 | T8 : routes, worker `rag`, passages, publication | backend-api, pipeline-kafka, rag-knowledge, godot-dev | §5, §6 | droits des 3 rôles testés | après 6 |
 | 8 | D2 : pack et module finance (§4) | game-designer puis moteur-jeu | ai/packs/finance-entreprise.yaml, game/factory_game.py, game/finance.py | un test par action, VAN du §4.4 | avec 7 |
 | 9 | T9 : section `monde`, étapes du §6 | ia-runtime, pipeline-kafka, moteur-jeu | §5, §6 | ADR 0013 T9 | après 7, 8 |
