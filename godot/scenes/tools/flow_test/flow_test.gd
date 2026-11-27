@@ -921,6 +921,8 @@ func _generate_campus(home: Control, params: Dictionary) -> Dictionary:
 
 ## Remplit le formulaire (cases, listes, nombres, nom) puis clique « Générer » ; renvoie le détail API du jeu créé.
 func _generate(home: Control, params: Dictionary) -> Dictionary:
+	_pick(home.get("_mode_select") as OptionButton, 0)  # mode « paramètres » : masqué à l'écran (défaut : IA)
+	await _frames(2)
 	await _select_pack(home, str(params.get("pack", "atelier")))
 	_fill_form(home, params)
 	var options: Dictionary = home.call("_current_pack")  # les choix du pack sélectionné (le pack atelier : les clés d'origine)

@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
@@ -37,6 +38,12 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     # Jeton Bearer si Ollama est déplacé sur un serveur derrière un reverse proxy (vide en local)
     ollama_api_key: str = ""
+    # « openai » : les tâches de texte partent vers une passerelle compatible OpenAI (gmix.llm.openai_compat) ;
+    # embeddings et décision restent sur Ollama. « ollama » (défaut) : tout en local.
+    llm_provider: Literal["ollama", "openai"] = "ollama"
+    openai_base_url: str = ""
+    openai_api_key: str = ""
+    openai_model: str = ""
 
     # Contact exigé par Wikimédia pour gmix.tools.fetch_wikipedia (e-mail ou URL du projet)
     wiki_contact: str = ""
