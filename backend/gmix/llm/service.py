@@ -21,6 +21,7 @@ from gmix.db import get_sessionmaker
 from gmix.db.models import LLMCache
 from gmix.llm.catalog import AICatalog, ModelSpec, TaskProfile, load_catalog
 from gmix.llm.ollama import ChatResult, OllamaClient, Usage
+from gmix.llm.openai_compat import OpenAIClient
 from gmix.llm.tokens import estimate_messages
 from gmix.settings import get_settings
 
@@ -74,7 +75,9 @@ class LLMCacheStore:
 
 
 class LLMService:
-    def __init__(self, catalog: AICatalog, client: OllamaClient, cache: LLMCacheStore | None = None) -> None:
+    def __init__(
+        self, catalog: AICatalog, client: OllamaClient | OpenAIClient, cache: LLMCacheStore | None = None
+    ) -> None:
         self.catalog = catalog
         self.client = client
         self.cache = cache
@@ -83,8 +86,14 @@ class LLMService:
     @classmethod
     def from_settings(cls, *, with_cache: bool = True) -> "LLMService":
         settings = get_settings()
-        client = OllamaClient(settings.ollama_base_url, api_key=settings.ollama_api_key)
-        return cls(load_catalog(), client, LLMCacheStore() if with_cache else None)
+        catalog = load_catalog()
+        client: OllamaClient | OpenAIClient = OllamaClient(settings.ollama_base_url, api_key=settings.ollama_api_key)
+        if settings.llm_provider == "openai":
+            chat_tags = {m.tag for m in catalog.models.values() if m.kind == "chat"}
+            client = OpenAIClient(
+                settings.openai_base_url, settings.openai_api_key, settings.openai_model, local=client, serves=chat_tags
+            )
+        return cls(catalog, client, LLMCacheStore() if with_cache else None)
 
     async def aclose(self) -> None:
         await self.client.aclose()
@@ -308,7 +317,10 @@ class LLMService:
     ) -> str | None:
         if not (task.cache and self.cache):
             return None
-        payload = json.dumps([task_name, model.name, messages, task.options, extra], sort_keys=True, ensure_ascii=False)
+        served = getattr(self.client, "model", None) if model.kind == "chat" else None  # passerelle : son modèle
+        payload = json.dumps(
+            [task_name, served or model.name, messages, task.options, extra], sort_keys=True, ensure_ascii=False
+        )
         return hashlib.sha256(payload.encode()).hexdigest()
 
     @staticmethod

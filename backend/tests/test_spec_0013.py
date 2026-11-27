@@ -122,6 +122,13 @@ def test_design_request_accepts_buildings_when_the_pack_declares_the_limit(campu
     assert DesignRequest(pack="usine", brief=BRIEF, fixed={"buildings": 2}).fixed == {"buildings": 2}
 
 
+def test_design_request_accepts_network_and_checks_its_distances() -> None:  # pack réel : le minimal n'a pas de réseau
+    fixed = {"network": {"fournisseur_economique": "import"}}
+    assert DesignRequest(pack="usine", brief=BRIEF, fixed=fixed).fixed == fixed
+    with pytest.raises(ValueError, match="réseau"):
+        DesignRequest(pack="usine", brief=BRIEF, fixed={"network": {"fournisseur_rapide": "import"}})
+
+
 def test_design_request_domain_and_documents(usine_pack) -> None:  # noqa: F811
     with pytest.raises(ValueError, match="n'appartient pas"):
         DesignRequest(pack="usine", brief=BRIEF, domain="finance-entreprise")

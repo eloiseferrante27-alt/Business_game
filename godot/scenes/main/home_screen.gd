@@ -57,6 +57,8 @@ var _design_players_min: SpinBox
 var _design_players_max: SpinBox
 var _design_started_ms := 0
 var _design_game := ""  # jeu en cours de conception (suivi par GET /games/{id}/job)
+var _schema: GmixWorldSchema  # schéma du monde : ses réglages rejoignent `_locks`
+var _designed: Dictionary = {}  # jeu conçu (GET /games/{id}) : ses params sont la base de « Appliquer »
 var _new_username: LineEdit
 var _new_name: LineEdit
 var _new_password: LineEdit
@@ -117,12 +119,13 @@ func _build_staff(column: VBoxContainer) -> void:
 	form_panel.name = "Nouveau jeu"
 	tabs.add_child(form_panel)
 	var form_box := Ui.vbox(form_panel)
-	form_box.add_child(Ui.label("Aucun texte à rédiger : choisissez les paramètres, le jeu est assemblé et vérifié aussitôt.", 0, Ui.MUTED, true))
 	var mode := Ui.hbox(form_box)
 	_mode_row = mode
-	mode.add_child(Ui.label("Mode de création", 0, Color.WHITE))
+	mode.add_child(Ui.label("Mode de création : Concevoir avec l'IA", 0, Color.WHITE))
+	# shortcut: « Choisir les paramètres » retiré de l'écran ; le formulaire reste pour flow_test (qui choisit l'index 0)
 	_mode_select = Ui.select(["Choisir les paramètres", "Concevoir avec l'IA"])
-	_mode_select.custom_minimum_size.x = 320
+	_mode_select.selected = 1
+	_mode_select.visible = false
 	_mode_select.item_selected.connect(func(_index: int) -> void: _apply_mode())
 	mode.add_child(_mode_select)
 	_form = Ui.scroll_list(form_box)
@@ -345,19 +348,17 @@ func _spin(low: float, high: float, value: float, step: float) -> SpinBox:
 # --- conception par l'IA (pack usine) ---------------------------------------------------------------------
 
 
-## Le choix du mode n'existe que pour l'usine ; les autres packs gardent le formulaire de paramètres.
+## L'écran ne propose que la conception par l'IA (usine) ; l'index 0 (paramètres) ne sert qu'aux contrôles automatiques.
 func _apply_mode() -> void:
-	var designable := str(_current_pack().get("id", "")) == "usine"
-	var designing := designable and _mode_select.selected == 1
-	_mode_row.visible = designable
+	var designing := _mode_select.selected == 1
 	_form.get_parent().visible = not designing
 	_generate_button.visible = not designing
 	_design.get_parent().visible = designing
 
 
 func _build_design_panel() -> void:
-	_design.add_child(Ui.label("Décrivez l'usine que vous voulez faire jouer : l'IA imagine le scénario, puis la simulation est assemblée et vérifiée. Comptez de 10 à 30 secondes.", 0, Ui.MUTED, true))
-	_design.add_child(Ui.label("Votre brief", 0, Color.WHITE))
+	_design.add_child(Ui.label("Décrivez l'usine que vous voulez faire jouer : l'IA préremplit les champs et le schéma du monde ci-dessous, puis la simulation est assemblée et vérifiée. Comptez de 10 à 30 secondes. Ensuite, modifiez ce que vous voulez et appliquez.", 0, Ui.MUTED, true))
+	_design.add_child(Ui.label("Brève description (brief)", 0, Color.WHITE))
 	_brief = TextEdit.new()
 	_brief.placeholder_text = "Décrivez l'usine, ses difficultés, ce que vos joueurs doivent apprendre."
 	_brief.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
@@ -366,8 +367,10 @@ func _build_design_panel() -> void:
 	_design.add_child(_brief)
 	_design.add_child(Ui.label("Exemple : %s" % DESIGN_EXAMPLE, 16, Ui.MUTED, true))
 	_design_fixed = Ui.vbox(_design, 8)
+	_schema = GmixWorldSchema.new()
+	_design.add_child(_schema)
 	var row := Ui.flow(_design)
-	_design_button = Ui.button("Concevoir l'usine", _design_start, true, "play")
+	_design_button = Ui.button("Concevoir avec l'IA", _design_start, true, "play")
 	row.add_child(_design_button)
 	row.add_child(Ui.button("Utiliser l'exemple", func() -> void: _brief.text = DESIGN_EXAMPLE))
 	_design_state = Ui.vbox(_design, 8)
@@ -382,14 +385,14 @@ func _build_fixed_form() -> void:
 		return
 	var pack: Dictionary = found[0]
 	var limits: Dictionary = pack["limits"]
-	_design_fixed.add_child(Ui.label("Imposer à l'IA (facultatif) : cochez « Imposer » pour que le scénario respecte votre choix ; sinon l'IA choisit d'après votre brief.", 16, Ui.MUTED, true))
+	_design_fixed.add_child(Ui.label("Champs préremplis par l'IA d'après votre description. Un champ que vous modifiez est imposé (case « Imposer » cochée) : l'IA le respecte.", 16, Ui.MUTED, true))
 	var theme := _select(pack["themes"], "label")
-	_lock_row(_design_fixed, "Secteur", "theme", theme, func() -> Variant: return pack["themes"][theme.selected]["id"])
+	_lock_choice(_design_fixed, "Secteur", "theme", theme, pack["themes"])
 	var weeks := _spin(limits["weeks"][0], limits["weeks"][1], limits["weeks"][2], 1)
-	_lock_row(_design_fixed, "Durée (semaines)", "weeks", weeks, func() -> Variant: return int(weeks.value))
+	_lock_row(_design_fixed, "Durée (semaines)", "weeks", weeks, func() -> Variant: return int(weeks.value), func(v: Variant) -> void: weeks.set_value_no_signal(float(v)))
 	var level := _select(pack["difficulties"], "label")
 	level.selected = 1 if pack["difficulties"].size() > 1 else 0
-	_lock_row(_design_fixed, "Niveau", "difficulty", level, func() -> Variant: return pack["difficulties"][level.selected]["id"])
+	_lock_choice(_design_fixed, "Niveau", "difficulty", level, pack["difficulties"])
 	var players := HBoxContainer.new()
 	_design_players_min = _spin(1, 60, 2, 1)
 	_design_players_max = _spin(1, 60, 6, 1)
@@ -404,23 +407,40 @@ func _build_fixed_form() -> void:
 	_design_fixed.add_child(more)
 	var events := _select(pack["events"], "label")
 	events.selected = 1 if pack["events"].size() > 1 else 0
-	_lock_row(more, "Aléas", "events", events, func() -> Variant: return pack["events"][events.selected]["id"])
+	_lock_choice(more, "Aléas", "events", events, pack["events"])
 	if limits["products"][1] > limits["products"][0]:
 		var products := _spin(limits["products"][0], limits["products"][1], limits["products"][2], 1)
-		_lock_row(more, "Produits", "products", products, func() -> Variant: return int(products.value))
+		_lock_row(more, "Produits", "products", products, func() -> Variant: return int(products.value), func(v: Variant) -> void: products.set_value_no_signal(float(v)))
 	var company := Ui.field("nom de l'entreprise")
 	company.max_length = 40
-	_lock_row(more, "Nom de l'entreprise", "company_name", company, func() -> Variant: return company.text.strip_edges())
+	_lock_row(more, "Nom de l'entreprise", "company_name", company, func() -> Variant: return company.text.strip_edges(), func(v: Variant) -> void: company.text = "" if v == null else str(v))
+	if not (pack.get("world", {}).get("blocks", []) as Array).is_empty():
+		_schema.setup(pack)
+		_locks.merge(_schema.locks)
 
 
-## Rangée « légende, champ, Imposer » ; la valeur partira dans `fixed` si la case est cochée.
-func _lock_row(parent: Node, caption: String, key: String, control: Control, getter: Callable) -> void:
+## Rangée « légende, champ, Imposer » ; la valeur partira dans `fixed` si la case est cochée. Modifier le champ coche
+## « Imposer » ; `setter` le préremplit (valeurs de l'IA) sans le cocher.
+func _lock_row(parent: Node, caption: String, key: String, control: Control, getter: Callable, setter: Callable) -> void:
 	var check := CheckBox.new()
 	check.text = "Imposer"
 	check.name = "Lock_%s" % key
 	_form_row(parent, caption, control, true)
 	parent.get_child(parent.get_child_count() - 1).add_child(check)  # la rangée que _form_row vient d'ajouter
-	_locks[key] = [check, getter]
+	var touched := func(_value: Variant = null) -> void: check.button_pressed = true
+	if control is OptionButton:
+		(control as OptionButton).item_selected.connect(touched)
+	elif control is SpinBox:
+		(control as SpinBox).value_changed.connect(touched)
+	elif control is LineEdit:
+		(control as LineEdit).text_changed.connect(touched)
+	_locks[key] = [check, getter, setter]
+
+
+## `_lock_row` d'une liste de choix du pack ({id, label}) : la valeur est l'id du choix.
+func _lock_choice(parent: Node, caption: String, key: String, control: OptionButton, items: Array) -> void:
+	var ids: Array = items.map(func(item: Dictionary) -> String: return item["id"])
+	_lock_row(parent, caption, key, control, func() -> Variant: return ids[control.selected], func(v: Variant) -> void: control.select(maxi(ids.find(v), 0)))
 
 
 func _design_start() -> void:
@@ -477,6 +497,43 @@ func _list_text(value: Variant) -> String:
 	return "" if value == null else str(value)
 
 
+## Valeurs du jeu conçu dans les champs et le schéma ; les cases « Imposer » ne bougent pas.
+func _prefill(game: Dictionary) -> void:
+	_designed = game
+	var spec: Dictionary = game["spec"] if game.get("spec") is Dictionary else {}
+	var params: Dictionary = spec.get("params", {})
+	for key: String in _locks:
+		if params.has(key) and params[key] != null:
+			(_locks[key][2] as Callable).call(params[key])
+	if _design_players_min != null:
+		_design_players_min.set_value_no_signal(float(params.get("players_min", _design_players_min.value)))
+		_design_players_max.set_value_no_signal(float(params.get("players_max", _design_players_max.value)))
+	_schema.show_spec(spec)
+
+
+## PUT /games/{id}/params : les params du jeu conçu, remplacés par les valeurs des champs et du schéma (même graine).
+func _apply_changes() -> void:
+	var spec: Dictionary = _designed["spec"] if _designed.get("spec") is Dictionary else {}
+	if spec.is_empty():
+		return
+	var params: Dictionary = (spec["params"] as Dictionary).duplicate(true)
+	for key: String in _locks:
+		params[key] = (_locks[key][1] as Callable).call()
+	if str(params.get("company_name", "")).is_empty():
+		params.erase("company_name")  # vide : nom tiré au hasard
+	if params.get("buildings") != spec["params"].get("buildings"):
+		params["world_plan"] = []  # plan de l'IA pour l'ancien nombre de bâtiments : celui du pack le remplace
+	params["players_min"] = int(_design_players_min.value)
+	params["players_max"] = int(_design_players_max.value)
+	var res: Dictionary = await Api.put_json("/api/v1/games/%s/params" % _designed["id"], params)
+	if not res["ok"]:
+		_status.text = res["error"]
+		return
+	_prefill(res["data"])
+	_status.text = "Modifications appliquées : %s. Le jeu est en brouillon, relisez-le puis publiez-le." % res["data"]["title"]
+	await _load_games()
+
+
 ## Avancement (étapes + barre), résultat ou échec d'une conception, d'après le job de l'API (et le jeu s'il est prêt).
 func _design_show(job: Dictionary, game: Dictionary = {}) -> void:
 	Ui.clear(_design_state)
@@ -506,7 +563,10 @@ func _design_show(job: Dictionary, game: Dictionary = {}) -> void:
 			state.add_child(Ui.label("Aucune attente de votre brief n'a été laissée de côté. Relisez le jeu avant de le publier.", 0, Ui.MUTED, true))
 		var buttons := Ui.flow(state)
 		if not game.is_empty():
-			buttons.add_child(Ui.button("Relire et publier", func() -> void: _open_review(game), true, "play"))
+			_prefill(game)
+			state.add_child(Ui.label("Les champs et le schéma du monde montrent maintenant les choix de l'IA : modifiez-les puis appliquez, ou relisez directement.", 0, Ui.MUTED, true))
+			buttons.add_child(Ui.button("Appliquer mes modifications", _apply_changes, false, "refresh"))
+			buttons.add_child(Ui.button("Relire et publier", func() -> void: _open_review(_designed), true, "play"))
 		return
 	var current := -1
 	if status == "running":

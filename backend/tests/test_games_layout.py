@@ -59,6 +59,11 @@ async def test_options_expose_coverage_and_usine_is_422() -> None:
         options = (await client.get("/api/v1/games/options", headers=heads["trainer"])).json()
         for pack in options["packs"]:
             assert 0 <= pack["coverage"]["ratio"] <= 1 and pack["available"] == (not pack["coverage"]["missing"])
+        world = {p["id"]: p["world"] for p in options["packs"]}
+        assert world["atelier"]["blocks"] == []  # schéma du monde : usine seulement
+        blocks = {b["id"]: b for b in world["usine"]["blocks"]}
+        assert blocks["production"]["agent"]["job"] and blocks["pilotage"]["extra_agent"]
+        assert {s["kind"] for s in world["usine"]["sites"]} == {"fournisseur", "client"}
         # tant que le générateur d'usine manque : 422 lisible (et non 500)
         usine = PARAMS | {"pack": "usine", "modules": ["pilotage"], "products": 1}
         answer = await client.post("/api/v1/games", json=usine, headers=heads["trainer"])

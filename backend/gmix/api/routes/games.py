@@ -18,7 +18,7 @@ from gmix.db.models import BusinessGame, GameStatus, GenerationJob, JobStatus, L
 from gmix.game import generation
 from gmix.game.engine import GameRuleError
 from gmix.game.generation import autopilot_check, generate
-from gmix.game.layout import check_placement, pack_coverage, recompile_layout
+from gmix.game.layout import check_placement, pack_coverage, recompile_layout, site_label
 from gmix.game.spec import (
     FACTORY_SECTIONS,
     DesignRequest,
@@ -92,12 +92,32 @@ def _choices(pack: dict[str, Any]) -> dict[str, Any]:
     }  # fmt: skip
 
 
+def _world(pack: dict[str, Any]) -> dict[str, Any]:
+    """Schéma du monde avant conception : blocs opérationnels (départements, leur agent et leurs équipements),
+    sites du réseau et archétypes de bâtiments. Vide pour un pack sans départements (atelier)."""
+    extras = {a.get("department"): {"id": k, "name": a["name"]} for k, a in pack.get("extra_agents", {}).items()}
+    blocks = [
+        {"id": d["id"], "label": d["label"], "external": bool(d.get("external")), "site": d.get("site"),
+         "agent": {k: d["agent"][k] for k in ("name", "job")} if d.get("agent") else None,
+         "extra_agent": extras.get(d["id"]),
+         "elements": [e["label"] for e in d.get("elements", [])]}
+        for d in pack.get("departments", [])
+    ]  # fmt: skip
+    sites = [
+        {"id": k, "label": site_label(k, s), "kind": s["kind"], "distances": s["distances"], "default": s["default"]}
+        for k, s in pack.get("network", {}).get("sites", {}).items()
+    ]
+    archetypes = [{"id": k, "label": a["label"]} for k, a in pack.get("building_archetypes", {}).items()]
+    classes = {k: c["label"] for k, c in pack.get("network", {}).get("distance_classes", {}).items()}
+    return {"blocks": blocks, "sites": sites, "archetypes": archetypes, "distance_classes": classes}
+
+
 def _pack_entry(pack_id: str) -> dict[str, Any]:
     pack = load_pack(pack_id)
     entry = ATELIER_INFO | {k: pack[k] for k in ATELIER_INFO if k in pack}
     cover = pack_coverage(pack_id, load_assets_catalog())
     return {"id": pack_id, **entry, "params": pack.get("params", []), **_choices(pack),
-            "limits": pack.get("limits", ATELIER_RANGES),
+            "limits": pack.get("limits", ATELIER_RANGES), "world": _world(pack),
             "coverage": cover, "available": cover["ratio"] >= 1.0}  # fmt: skip
 
 

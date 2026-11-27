@@ -45,6 +45,8 @@ var _round_bar: GmixRoundBar
 var _stage: VBoxContainer
 var _week: Label
 var _tween: Tween
+var _basic_tool := "surexel"  # outil de base ouvert
+var _sheet: Array = []  # cellules SurExel, gardées tant que la tablette existe
 
 
 func _ready() -> void:
@@ -203,8 +205,11 @@ func _tabs() -> Array:
 		for module: Dictionary in spec.get("modules", []):  # module rattaché à aucun département : sa propre page
 			if not placed.has(module["id"]):
 				tabs.append(["module:%s" % module["id"], str(module["title"])])
+	if not (Session.state().get("factory", {}) as Dictionary).is_empty():
+		tabs.append(["blocks", "KPI par bloc"])
 	if not _tools().is_empty():
 		tabs.append(["tools", "Outils"])
+	tabs.append(["basics", "Outils de base"])
 	return tabs
 
 
@@ -246,6 +251,16 @@ func _render() -> void:
 			_cards(GmixPanelView.panels_for(spec, "bandeau", "joueur"), state)
 		"tools":
 			_render_tools(state)
+		"blocks":
+			GmixBlockKpis.build(_stage, spec, state)
+		"basics":
+			var basics := GmixBasicTools.new()
+			basics.tool = _basic_tool
+			basics.sheet = _sheet
+			basics.picked.connect(func(id: String) -> void:
+				_basic_tool = id
+				_render())
+			_stage.add_child(basics)
 		_ when _tab.begins_with("module:"):
 			_render_module(_tab.trim_prefix("module:"))
 		_ when _tab.begins_with("dept:"):
@@ -267,7 +282,7 @@ func _render() -> void:
 func _render_alerts(state: Dictionary) -> void:
 	Ui.clear(_alerts)
 	# Une alerte s'affiche sur la page de son département (repli : son module) et dans la vue générale.
-	var general := _tab in ["supervision", "dashboard", "indicators", "tools"]
+	var general := _tab in ["supervision", "dashboard", "indicators", "tools", "blocks", "basics"]
 	var alerts: Array = (state.get("alerts", []) as Array).filter(
 		func(alert: Dictionary) -> bool:
 			return general or _tab in ["dept:%s" % alert.get("department_id"), "module:%s" % alert.get("module_id")]
@@ -366,8 +381,8 @@ func _role_of(module_id: String) -> Dictionary:
 func _rail_icon(tab_id: String) -> String:
 	match tab_id:
 		"supervision": return "supervision"
-		"dashboard", "indicators": return "dashboard"
-		"tools": return "tools"
+		"dashboard", "indicators", "blocks": return "dashboard"
+		"tools", "basics": return "tools"
 	return tab_id.get_slice(":", 1)
 
 

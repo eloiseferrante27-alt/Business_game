@@ -71,7 +71,7 @@ DesignStage = Literal[
 ]  # fmt: skip
 FIXABLE = frozenset(
     {"theme", "modules", "extra_agents", "agent_tone", "difficulty", "weeks", "events", "products", "options",
-     "company_name", "buildings", "suppliers", "clients", "ambiance"}
+     "company_name", "buildings", "suppliers", "clients", "ambiance", "network"}
 )  # fmt: skip  # champs de GameParams que le formateur peut imposer
 # Monde à plusieurs bâtiments (ADR 0013 §3.5, annexe 0013 §2) : types de règle de zonage du pack
 ZONING_KINDS = ("together", "apart", "same_building", "max_walk_m")
