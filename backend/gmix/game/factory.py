@@ -73,6 +73,19 @@ class Plant:
         self.bottleneck = [  # le goulot est la machine la plus lente de la ligne (la première en cas d'égalité)
             max(ms, key=lambda i: self.machines[i]["cycle_min"]) for ms in self.line_machines
         ]
+        self.spares = f.get("spares")  # pièces de rechange par type de machine (annexe 0013 §3 quater) ; None : aucune
+        if self.spares:
+            self.mtype = [m.get("type") or m["id"] for m in self.machines]
+            self.types = sorted(set(self.mtype))
+            work_h = (self.mpd - sum(d for _, d in self.breaks)) / 60  # une journée de marche par machine
+            self.s_star = {
+                t: _poisson_stock(
+                    sum(work_h / m["mtbf_h"] for m, mt in zip(self.machines, self.mtype, strict=True) if mt == t),
+                    self.spares["service_level"],
+                )
+                for t in self.types
+            }
+            self.hold_rate = spec["economy"]["holding_rate_week"]
         self.scale = [m["mtbf_h"] * 60 / math.gamma(1 + 1 / m["weibull_shape"]) for m in self.machines]
         self.agents = {a["id"] for a in spec["agents"]} | {c["id"] for c in f["crew"]}
         # produits fabriqués (un par ligne en multi-produit) : une matière, une nomenclature, un stock PF chacun ;
@@ -121,6 +134,17 @@ class Plant:
                 self.pal_h, self.pal_t = self.lg["pallet_handling_min"], layout.travel_min(spec, *links["pallet"])
 
 
+def _poisson_stock(mean: float, level: float) -> int:
+    """Plus petit S >= 1 tel que P(Poisson(mean) >= S) <= 1 - level : le stock du pilote pour un type de machine."""
+    term = cdf = math.exp(-mean)  # P(N = 0) puis P(N <= S - 1)
+    s = 1
+    while 1.0 - cdf > 1.0 - level:
+        term *= mean / s
+        cdf += term
+        s += 1
+    return s
+
+
 def _rng(plant: Plant, *key: Any) -> random.Random:
     return random.Random(":".join(str(k) for k in (plant.seed, *key)))
 
@@ -137,9 +161,23 @@ def _hazard(rng: random.Random) -> float:
     return -math.log(1.0 - rng.random())
 
 
+def spares_target(plant: Plant, cfg: dict[str, Any] | None) -> dict[str, int]:
+    """Stock visé par type : S* du pilote (cfg None) ou `pieces` par type couvert par `cible` du joueur."""
+    if cfg is None:
+        return dict(plant.s_star)
+    covered = {"aucune": set(), "goulot": {plant.mtype[b] for b in plant.bottleneck}, "toutes": set(plant.types)}
+    return {t: cfg["pieces"] if t in covered[cfg["cible"]] else 0 for t in plant.types}
+
+
 def initial_state(plant: Plant) -> dict[str, Any]:
     ids = plant.line_ids
-    return {
+    spares = {}
+    if plant.spares:  # clés ajoutées seulement avec `spares` : une spec sans pièces garde l'état d'avant
+        spares = {"spares": {
+            "target": dict(plant.s_star), "stock": dict(plant.s_star), "transit": dict.fromkeys(plant.types, 0),
+            "waiting": {t: [] for t in plant.types}, "reserved": [],
+        }}  # fmt: skip
+    return spares | {
         "day": 0,
         "seq": 0,
         "ids": {"lot": 0, "of": 0, "po": 0, "co": 0},
@@ -147,7 +185,8 @@ def initial_state(plant: Plant) -> dict[str, Any]:
             "preventive": dict.fromkeys(ids, "aucune"),
             "priority": "arrivee",
             "protect": dict.fromkeys(ids, "aucune"),
-        },
+        }
+        | ({"spares": None} if plant.spares else {}),  # None : stock S* du pilote ; sinon {cible, pieces}
         "machines": [
             {
                 "cur": None,
@@ -395,6 +434,11 @@ class _Sim:
         self.prev_done: list[str] = []
         self.prev_skipped: list[str] = []
         self.costs = {"repair": 0.0, "preventive": 0.0, "mp": 0.0}
+        if P.spares:
+            self.sp = fs["spares"]
+            self.sp_last = 0.0
+            self.sp_area = dict.fromkeys(P.types, 0.0)  # stock x minutes, par type
+            self.sp_stat = {"used": 0, "missing": 0, "wait_min": 0.0, "bought": 0, "purchase": 0.0}
         self.dock_stats = {"wait_min": 0.0, "busy_min": 0.0}
         self.fk_busy_min = 0.0
         self.relief_min = 0.0
@@ -409,7 +453,7 @@ class _Sim:
             "auto": self._auto, "pick": self._pick, "truck": self._truck, "unl": self._unl, "insp": self._insp,
             "kit": self._kit, "qc": self._qc, "qcw": self._qcw, "case": self._case, "wrap": self._wrap,
             "pdel": self._pdel, "fkfree": self._fkfree, "load": self._load, "rstart": self._rstart, "rep": self._rep,
-            "prv": self._prv, "frame": self._frame,
+            "prv": self._prv, "frame": self._frame, "spare": self._spare,
         }  # fmt: skip
 
     # -- mécanique ---------------------------------------------------------------------------------------------------
@@ -724,9 +768,74 @@ class _Sim:
 
     def _rstart(self, now: float, i: int, _: Any) -> None:
         m = self.M[i]
+        if self.P.spares and not self._take_spare(now, i):
+            return
         self._ev(now, "reparation_debut", m.id, by="agent_maintenance")
         self._agent(now, "agent_maintenance", "occupe", m.id, now + m.mttr)
         self._push(now + m.mttr, "rep", i)
+
+    # -- pièces de rechange ------------------------------------------------------------------------------------------
+
+    def _sp_acc(self, now: float) -> None:
+        """Cumule stock x durée jusqu'à now (avant tout changement de stock) : base du coût de possession."""
+        dt = now - self.sp_last
+        for t, n in self.sp["stock"].items():
+            self.sp_area[t] += n * dt
+        self.sp_last = now
+
+    def _sp_order(self, now: float, t: str) -> None:
+        """Commande jusqu'à la cible (stock + en route - machines en attente) ; livraison à l'ouverture du
+        `lead_days`-ième jour suivant (lead_days = 1 : la prochaine ouverture)."""
+        sp, cfg = self.sp, self.P.spares
+        while sp["stock"][t] + sp["transit"][t] - len(sp["waiting"][t]) < sp["target"][t]:
+            sp["transit"][t] += 1
+            self.sp_stat["bought"] += 1
+            self.sp_stat["purchase"] += cfg["price"]
+            self._push((now // self.P.mpd + cfg["lead_days"]) * self.P.mpd, "spare", t)
+
+    def _take_spare(self, now: float, i: int) -> bool:
+        """Début de réparation : True si la pièce est là ; sinon la machine attend, le technicien est libéré."""
+        P, sp, t = self.P, self.sp, self.P.mtype[i]
+        if i in sp["reserved"]:
+            sp["reserved"].remove(i)
+        elif sp["stock"][t] > 0:
+            self._sp_acc(now)
+            sp["stock"][t] -= 1
+            self._sp_order(now, t)  # pièce utilisée = pièce recommandée (règle maintenance.pieces)
+        else:
+            self.sp_stat["missing"] += 1
+            sp["waiting"][t].append([now, i])
+            self._sp_order(now, t)
+            k = len(sp["waiting"][t]) - 1  # la k-ième machine attend la k-ième livraison en route
+            due = sorted(e[0] for e in self.h if e[3] == "spare" and e[4] == t)[k]
+            self._ev(now, "attente_piece", self.M[i].id, duration_min=round(due - now, 2))
+            self.tech_busy -= 1
+            self.tech_stats["busy_min"] += P.walk_t
+            self._agent(now, "agent_maintenance", "disponible", "maintenance")
+            self._tech_try(now)
+            return False
+        self.sp_stat["used"] += 1
+        return True
+
+    def _spare(self, now: float, t: str, _: Any) -> None:
+        sp = self.sp
+        sp["transit"][t] -= 1
+        if sp["waiting"][t]:  # la pièce va à la première machine en attente ; le technicien revient (trajet + MTTR)
+            t0, i = sp["waiting"][t].pop(0)
+            self.sp_stat["wait_min"] += now - t0
+            sp["reserved"].append(i)
+            self.repair_q.append((now, i))
+            self._tech_try(now)
+        else:
+            self._sp_acc(now)
+            sp["stock"][t] += 1
+
+    def _sp_week(self) -> None:
+        """Début de semaine : cible du pilote (S*) ou du joueur, puis commande jusqu'à la cible."""
+        P, sp = self.P, self.sp
+        sp["target"] = spares_target(P, self.settings.get("spares"))
+        for t in P.types:
+            self._sp_order(0.0, t)
 
     def _rep(self, now: float, i: int, _: Any) -> None:
         m, P = self.M[i], self.P
@@ -1241,6 +1350,8 @@ class _Sim:
         self._insp_try(0.0)
         self._tech_try(0.0)
         self._store(0.0)
+        if P.spares:
+            self._sp_week()
         h, T, disp = self.h, self.T, self.disp
         while h and h[0][0] <= T:
             t, _, _, kind, a, b = heapq.heappop(h)
@@ -1255,6 +1366,11 @@ class _Sim:
             if self.starve[ln] is not None:
                 self._close_starve(ln, T)
                 self.starve[ln] = 0.0  # le manque continue au tour suivant (date relative)
+        if P.spares:
+            self._sp_acc(T)
+            self.sp_stat["holding"] = P.hold_rate * P.spares["price"] * sum(self.sp_area.values()) / T
+            self.costs["spares"] = self.sp_stat["purchase"] + self.sp_stat["holding"]
+            fs["spares"]["waiting"] = {t: [[t0 - T, i] for t0, i in w] for t, w in self.sp["waiting"].items()}
         fs["day"] += P.days
         fs["seq"] = self.seq
         fs["events"] = [
@@ -1347,6 +1463,10 @@ class _Sim:
             "shipped": self.shipped_turn,
             "costs": self.costs,
         }  # fmt: skip
+        if P.spares:
+            report["spares"] = {k: self.fs["spares"][k] for k in ("stock", "transit", "target")} | {
+                k: round(v, 2) if isinstance(v, float) else v for k, v in self.sp_stat.items()
+            }
         if P.multi:  # partie à un produit et un client : rapport inchangé (référence de la tranche T4b)
             report["by_product"] = [  # palettes emballées, unités expédiées, commandes échues et à l'heure du tour
                 {"product_id": pid, "shipped": self.shipped_p[p], "pallets": self.packed_p[p],

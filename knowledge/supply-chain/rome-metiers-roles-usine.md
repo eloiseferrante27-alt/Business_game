@@ -24,6 +24,18 @@ L'appellation est rattachée au code ROME dans la fiche métier (liste des appel
 
 - Fiche I1326 : le responsable d'équipe maintenance « Planifie les interventions de maintenance préventive et corrective pour minimiser les arrêts de production » et gère une équipe de techniciens.
 - Fiche H2507 (Responsable de ligne de production industrielle), mot pour mot : « Planifier des interventions de maintenance » (savoir-faire, enjeu « Prévention des risques », code OGR 122329) ; « Maintenance préventive et corrective » (savoirs, catégorie « Techniques professionnelles », code OGR 477228). Ni l'une ni l'autre n'est un savoir-faire de cœur de métier (champ coeur_metier vide).
+- Fiche I1326 (Responsable d'équipe maintenance), compétences mot pour mot (open data v62, fichier fiche_emploi_metier) :
+  - savoir-faire, « Prévention des risques » : « Planifier les opérations de maintenance des équipements » (OGR 125310, cœur de métier : Principale) ; « Planifier les interventions d'urgence » (OGR 484770) ;
+  - savoir-faire, « Maintenance, Réparation » : « Réaliser ou superviser les interventions de maintenance préventive et corrective » (OGR 490295, cœur de métier : Principale) ; « Détecter l'origine d'une panne (sur place ou à distance) » (OGR 402115) ;
+  - savoir-faire, « Management » : « Répartir la charge de travail et les tâches à effectuer entre les membres de l'équipe » (OGR 489488) ;
+  - savoir-faire, « Gestion des stocks » : « Gérer les stocks de pièces de rechange » (OGR 483226) ;
+  - savoirs, « Normes et procédés » : « Gestion de la maintenance » (OGR 109977) ;
+  - appellation : « Dispatcheur / Dispatcheuse de techniciens de maintenance » (OGR 14497).
+- Fiche H1404 (Technicien / Technicienne méthodes), compétences mot pour mot :
+  - savoir-faire, « Maintenance, Réparation » : « Analyser un dysfonctionnement ou une non conformité » (OGR 123311, cœur de métier : Principale) ; « Réaliser une opération de maintenance » (OGR 300183) ;
+  - savoir-faire, « Conseil, Transmission » : « Apporter un appui technique aux services qualité, maintenance, méthodes, recherche et développement » (OGR 121049) ;
+  - savoirs, « Normes et procédés » : « Gestion de la maintenance » (OGR 109977).
+- Constat : la fiche H1404 ne contient aucune compétence de planification (aucun savoir-faire dont le libellé contient « planifi »). La planification du préventif figure dans I1326 et H2507, pas dans H1404 : la répartition préventif / correctif entre deux rôles (méthodes et équipe de maintenance) n'est donc pas fondée par le ROME.
 
 ## Limites
 

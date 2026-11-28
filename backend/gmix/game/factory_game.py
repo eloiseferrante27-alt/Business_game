@@ -149,6 +149,30 @@ def _h_priority(spec: dict[str, Any], state: dict[str, Any], v: dict[str, Any]) 
     return "Réparations : les goulots d'abord." if v["ordre"] == "goulot" else "Réparations : dans l'ordre d'arrivée."
 
 
+def _delivery_text(lead_days: int) -> str:
+    return "demain à 8 h" if lead_days == 1 else f"dans {lead_days} jours à 8 h"
+
+
+def _h_spares(spec: dict[str, Any], state: dict[str, Any], v: dict[str, Any]) -> str:
+    plant = factory.Plant(spec)
+    if not plant.spares:
+        raise GameRuleError("Cette usine n'a pas de stock de pièces de rechange à régler")
+    cfg = {"cible": v["cible"], "pieces": int(v.get("pieces", 3))}
+    state["fs"]["settings"]["spares"] = cfg
+    sp = state["fs"]["spares"]
+    target = factory.spares_target(plant, cfg)
+    ordered = sum(max(0, target[t] - (sp["stock"][t] + sp["transit"][t] - len(sp["waiting"][t]))) for t in plant.types)
+    label = {
+        "aucune": "aucune machine",
+        "goulot": f"goulots, {cfg['pieces']} par type",
+        "toutes": f"toutes les machines, {cfg['pieces']} par type",
+    }[cfg["cible"]]
+    price = plant.spares["price"]
+    when = _delivery_text(plant.spares["lead_days"])
+    tail = f" ; {ordered} pièce(s) commandée(s), livrée(s) {when} ({money(ordered * price)})"
+    return f"Pièces de rechange : {label}{tail if ordered else ' ; rien à commander'}."
+
+
 # --- pilote automatique ---------------------------------------------------------------------------------------------
 
 
@@ -202,6 +226,8 @@ def _autopilot(
         settings["preventive"] = dict.fromkeys(plant.line_ids, "goulot")
     if "priorite_reparation" not in played:
         settings["priority"] = "arrivee"
+    if plant.spares and "pieces_rechange" not in played:
+        settings["spares"] = None  # S* du pilote
     if "proteger_goulot" not in played:
         settings["protect"] = dict.fromkeys(plant.line_ids, "aucune")
     if {"commander_mp", "lancer_of"} <= played:
@@ -251,6 +277,8 @@ def advance(spec: dict[str, Any], state: dict[str, Any], played: set[str]) -> di
     relief = report["relief_min"] / 60 * plant.costs["operator_per_h"]
     costs = {"repair": report["costs"]["repair"], "preventive": report["costs"]["preventive"],
              "staff": staff, "relief": relief, "mp": report["costs"]["mp"]}  # fmt: skip
+    if "spares" in report["costs"]:  # pièces : commande + possession (absent sans spares : coûts d'avant)
+        costs["spares"] = report["costs"]["spares"]
     new["cash"] = round(new["cash"] + revenue - sum(costs.values()), 2)
     snap["report"] = report
     previous = new["history"][-1]["otif"] if new["history"] else 100.0
@@ -271,12 +299,19 @@ def advance(spec: dict[str, Any], state: dict[str, Any], played: set[str]) -> di
         {"week": week, **kpis, "event": new["last"]["event"], "lost": lost, "returns": 0, "delays": len(delayed),
          "wear": _wear(plant, report, effects.get("mtbf", 1.0)), "preventive": len(report["preventive"]["done"]),
          "by_product": _week_products(spec, plant, new["fs"], rows)}
+        | ({"spares": _week_spares(report["spares"])} if "spares" in report else {})
     )  # fmt: skip
     if week >= spec["meta"]["weeks"]:
         new["status"], new["event"] = "finished", None
     else:
         new["week"], new["event"] = week + 1, roll_event(spec, week + 1)
     return new
+
+
+def _week_spares(sp: dict[str, Any]) -> dict[str, Any]:
+    """Pièces de la semaine : utilisées, pannes en attente, minutes d'attente, achat et possession (€)."""
+    return {"used": sp["used"], "missing": sp["missing"], "wait_min": round(sp["wait_min"]), "bought": sp["bought"],
+            "purchase": round(sp["purchase"], 2), "holding": round(sp["holding"], 2)}  # fmt: skip
 
 
 def _by_product(plant: factory.Plant, report: dict[str, Any]) -> list[dict[str, Any]]:
@@ -311,6 +346,13 @@ def _game_products(spec: dict[str, Any], state: dict[str, Any], plant: factory.P
         row["shipped"] = sum(w[i]["shipped"] for w in weeks)
         row["otif"] = round(sum(otifs) / len(otifs), 1) if otifs else None
     return now
+
+
+def _game_spares(history: list[dict[str, Any]]) -> dict[str, Any]:
+    """Débrief : pièces semaine par semaine et cumul (sans valeur du pilote : le bilan n'en compare aucune)."""
+    weeks = [{"week": h["week"], **h["spares"]} for h in history if "spares" in h]
+    keys = ("used", "missing", "wait_min", "bought", "purchase", "holding")
+    return {"weeks": weeks, "total": {k: round(sum(w[k] for w in weeks), 2) for k in keys}}
 
 
 def _wear(plant: factory.Plant, report: dict[str, Any], mtbf_factor: float) -> dict[str, Any]:
@@ -351,7 +393,11 @@ def bottleneck_wear(spec: dict[str, Any], state: dict[str, Any]) -> list[dict[st
         g["avoided"] = round(avoided, 1) if avoided >= 2 * math.sqrt(g["expected"]) and avoided > 0 else None
         costs = spec["factory"]["costs"]
         counted = g["shape"] > 1 and g["with_preventive"] and g["avoided"] is not None
-        per_failure = g["mttr_h"] * costs["repair_per_h"] + costs.get("damage_per_failure", 0.0)
+        per_failure = (
+            g["mttr_h"] * costs["repair_per_h"]
+            + costs.get("damage_per_failure", 0.0)
+            + (spec["factory"].get("spares") or {}).get("price", 0.0)
+        )  # pièce usée par la panne
         g["avoided_cost"] = g["avoided"] * per_failure if counted else None
         g["expected"], g["down_h"] = round(g["expected"], 1), round(g["down_h"], 1)
         g["expected_without_preventive"] = g["expected"]  # pannes attendues sans entretien, telles qu'affichées
@@ -445,6 +491,21 @@ def _avg(values: list[float | None]) -> float | None:
     return round(sum(values) / len(values), 1) if values else None
 
 
+_SP_STOCK_KEYS = ("stock", "transit", "target")
+
+
+def _spare_stocks(plant: factory.Plant, fs: dict[str, Any]) -> list[dict[str, Any]]:
+    """Stock de pièces par type de machine : en rayon, en route, visé, en attente (format des autres stocks)."""
+    sp = fs["spares"]
+    return [
+        {"type": t, "name": " / ".join(dict.fromkeys(m["name"] for m, mt in zip(plant.machines, plant.mtype,
+                                                                               strict=True) if mt == t)),
+         "quantity": sp["stock"][t], "pending": sp["transit"][t], "target": sp["target"][t],
+         "waiting": len(sp["waiting"][t])}
+        for t in plant.types
+    ]  # fmt: skip
+
+
 def _factory_view(spec: dict[str, Any], state: dict[str, Any], plant: factory.Plant) -> dict[str, Any]:
     fs = state["fs"]
     snap = state["snap"] or _blank_snap(plant, fs)
@@ -534,6 +595,7 @@ def _factory_view(spec: dict[str, Any], state: dict[str, Any], plant: factory.Pl
                 "min": plant.pf_min,
             },
             "quarantine": fs["mp"]["quarantine"],
+            **({"spares": _spare_stocks(plant, fs)} if plant.spares else {}),
         },
         "orders": {
             "production": [
@@ -560,6 +622,11 @@ def _factory_view(spec: dict[str, Any], state: dict[str, Any], plant: factory.Pl
             ],  # fmt: skip
         },
         "by_product": _game_products(spec, state, plant),
+        **(
+            {"spares_week": {k: v for k, v in snap["report"]["spares"].items() if k not in _SP_STOCK_KEYS}}
+            if plant.spares and snap.get("report")
+            else {}
+        ),  # semaine passée : used, missing, wait_min, bought, ...
         "agents": agents,
         "products": dict(zip(COUNTERS[1:], snap["counters"][1:], strict=True)),
         "flow": {"nodes": nodes, "edges": [{"from": a, "to": b, "count": c} for a, b, c in snap["edges"]]},
@@ -595,6 +662,23 @@ def public_state(spec: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
     view["briefings"] = engine._briefings(spec, state, view)
     view["alerts"] = _alerts(spec, state, view)
     return view
+
+
+DAY_NAMES = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+
+
+def _waiting_spares(plant: factory.Plant, fs: dict[str, Any]) -> dict[str, tuple[str, int]]:
+    """Machines qui attendent leur pièce : id -> (jour de livraison, stock visé de leur type). La k-ième machine en
+    attente d'un type reçoit la k-ième livraison en route (événements `spare` gardés dans fs["events"])."""
+    if not plant.spares:
+        return {}
+    sp, out = fs["spares"], {}
+    for t, waiting in sp["waiting"].items():
+        due = sorted(e[0] for e in fs["events"] if e[3] == "spare" and e[4] == t)
+        for k, (_, i) in enumerate(waiting[: len(due)]):
+            day = (fs["day"] + int(due[k] // plant.mpd)) % plant.days  # semaine de plant.days jours dès le lundi
+            out[plant.mids[i]] = (DAY_NAMES[day], sp["target"][t])
+    return out
 
 
 def _alerts(spec: dict[str, Any], state: dict[str, Any], view: dict[str, Any]) -> list[dict[str, Any]]:
@@ -639,7 +723,6 @@ def _alerts(spec: dict[str, Any], state: dict[str, Any], view: dict[str, Any]) -
                 {"line": _name(spec, lid), "stockout_min": round(line["stockout_min"])},
                 ref=f"line:{lid}",
             )
-    ordered = state["fs"]["settings"]["priority"] == "goulot"
     for m in f["machines"]:
         if m["state"] == "panne":
             emit(
@@ -647,8 +730,21 @@ def _alerts(spec: dict[str, Any], state: dict[str, Any], view: dict[str, Any]) -
                 f"breakdown:{m['id']}",
                 {"machine": m["name"]},
                 ref=f"machine:{m['id']}",
-                action=None if ordered else ("priorite_reparation", {"ordre": "goulot"}),
             )
+    chosen = state["fs"]["settings"].get("spares")  # réglage du joueur (None : S* du pilote)
+    for mid, (day, target) in _waiting_spares(plant, state["fs"]).items():
+        name = next(m["name"] for m in f["machines"] if m["id"] == mid)
+        kind = plant.mtype[plant.mids.index(mid)]
+        keep = chosen and factory.spares_target(plant, chosen | {"pieces": 1})[kind] > 0  # sa cible couvre ce type
+        emit(
+            "spare_missing",
+            f"spare_missing:{mid}",
+            {"machine": name, "day": day},
+            ref=f"machine:{mid}",
+            action=("pieces_rechange", {"cible": chosen["cible"] if keep else "toutes", "pieces": target + 1})
+            if target < 6
+            else None,
+        )
     threshold = tpl.get("trs_low", {}).get("threshold")
     for lid, line in (snap.get("lines") or {}).items():
         if threshold is not None and line["trs"] is not None and line["trs"] < threshold:
@@ -686,6 +782,7 @@ def debrief(spec: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
     return {
         "status": state["status"], "company": spec["meta"]["company"], "weeks_played": len(history), "kpis": finals,
         "history": history, "by_product": _game_products(spec, state, factory.Plant(spec)),
+        **({"spares": _game_spares(history)} if any("spares" in h for h in history) else {}),
         "lessons": _lessons(spec, state), "bottlenecks": bottleneck_wear(spec, state),
         "preventive": preventive_balance(spec, state),
         "notions": [n for n in spec["notions"] if n["id"] in notion_ids],
@@ -966,6 +1063,14 @@ def _facts_maintenance(spec: dict[str, Any], state: dict[str, Any], view: dict[s
                       "sans entretien d'après son MTBF.") for w in bottleneck_wear(spec, state)]  # fmt: skip
     if rep["technician"]["waited"]:
         facts.append((False, f"{rep['technician']['waited']} panne(s) ont attendu le technicien."))
+    if "spares" in rep:
+        sp = rep["spares"]
+        names = {s["type"]: s["name"] for s in f["stocks"]["spares"]}
+        facts.append((False, "Pièces de rechange en stock : "
+                      + " ; ".join(f"{names[t]} {n}" for t, n in sp["stock"].items()) + "."))  # fmt: skip
+        if sp["missing"]:
+            facts.append((True, f"{sp['missing']} panne(s) ont attendu une pièce, {num(sp['wait_min'], 0)} minutes "
+                                "d'attente au total."))  # fmt: skip
     done, skipped = len(rep["preventive"]["done"]), len(rep["preventive"]["skipped"])
     facts.append((False, f"Préventif : {done} fait(s), {skipped} non fait(s)."))
     return facts
@@ -1037,7 +1142,7 @@ def _facts_client(spec: dict[str, Any], state: dict[str, Any], view: dict[str, A
 engine._HANDLERS.update({
     ("pilotage", "lancer_of"): _h_launch, ("pilotage", "commander_mp"): _h_order,
     ("production", "proteger_goulot"): _h_protect, ("maintenance", "preventif"): _h_preventive,
-    ("maintenance", "priorite_reparation"): _h_priority,
+    ("maintenance", "priorite_reparation"): _h_priority, ("maintenance", "pieces_rechange"): _h_spares,
 })  # fmt: skip
 engine._FACTS.update({
     "usine_fournisseur": _facts_fournisseur, "usine_reception": _facts_reception, "usine_stock_mp": _facts_stock_mp,

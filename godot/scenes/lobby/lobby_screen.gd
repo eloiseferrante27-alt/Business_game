@@ -22,6 +22,7 @@ var _copy_button: Button
 var _start_button: Button
 var _advance_button: Button
 var _debrief_button: Button
+var _leave_button: Button
 
 
 func _ready() -> void:
@@ -35,6 +36,8 @@ func _ready() -> void:
 	heading.add_child(_subtitle)
 	header.add_child(Ui.button("Actualiser", func() -> void: Session.reload()))
 	header.add_child(Ui.button("Retour à l'accueil", func() -> void: navigate.emit("home")))
+	_leave_button = Ui.button("Quitter le lobby", _confirm_leave)
+	header.add_child(_leave_button)
 	_pitch = Ui.label("", 0, Ui.MUTED, true)
 	column.add_child(_pitch)
 	_status = Ui.label("", 0, Ui.ACCENT, true)
@@ -104,6 +107,7 @@ func _render() -> void:
 	_week.text = GameText.week_bbcode(spec, state)
 	_kpis.text = GameText.kpis_bbcode(state)
 	_start_button.visible = manager and game_status == "waiting"
+	_leave_button.visible = not manager and game_status == "waiting"
 	_advance_button.visible = manager and game_status == "running"
 	var week := int(state.get("week", 1))
 	var last_week := week >= int(state.get("weeks", 1))
@@ -168,6 +172,24 @@ func _choose_role(role_id: String) -> void:
 		return
 	_status.text = ""
 	Session.open(res["data"])
+
+
+func _confirm_leave() -> void:
+	Ui.confirm(
+		self, "Quitter le lobby",
+		"Votre place et votre rôle seront libérés. Vous pourrez revenir avec le code tant que la partie n'est pas lancée.",
+		"Quitter", _leave
+	)
+
+
+func _leave() -> void:
+	var res: Dictionary = await Api.post_json(Session.url("/leave"))
+	if not res["ok"]:
+		_status.text = res["error"]
+		await Session.reload()  # partie lancée entre-temps : le bouton disparaît
+		return
+	Session.close()
+	navigate.emit("home")
 
 
 func _start() -> void:

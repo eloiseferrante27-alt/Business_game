@@ -99,13 +99,13 @@ Restes :
 
 **T4b fait le 27/11 (1 à 3 produits, 1 à 4 clients, correction de l'ingestion RAG, sources de la finance), commitée en 9f5a0a3 et poussée (bcf8b89..9f5a0a3, contribution_Romain).** Détail : docs/game-design.md (section T4b), restes dans docs/blocages.md.
 
-**T7 (rôles de jeu de 1 à 6 joueurs) : faite le 27/11, à commiter.** Merge du commit d'Amine (b9b9445) en b483971, poussé : conception par l'IA, passerelle compatible OpenAI (docs/ai-runtime.md), tableur SurExel (`check_surexel.gd`, 11 cas, lancé par `-Check`). Détail : docs/roles.md, restes dans docs/blocages.md.
+**T7 (rôles de jeu de 1 à 6 joueurs) : faite le 27/11, commitée en b8334ad ; restes (route pour quitter un lobby, reprise de la passerelle OpenAI) et pièces de rechange faits le 27-28/11, à commiter.** Merge du commit d'Amine (b9b9445) en b483971, poussé : conception par l'IA, passerelle compatible OpenAI (docs/ai-runtime.md), tableur SurExel (`check_surexel.gd`, 11 cas, lancé par `-Check`). Détail : docs/roles.md, restes dans docs/blocages.md.
 
-Mesures qa-reviewer, 27/11 : `test.ps1 -Integration` 1107 passés, 0 échec, 0 erreur (correctif `_release_db_pool` de `test_timeline.py`, à confirmer) ; `-Flow` 815 ; `-Flow -Pack usine` 529 ; `-Flow -Pack usine -Products 3 -Clients 4 -Buildings 3` 552 ; `-Flow -Design` 72 ; `-Flow -Roles` 51 ; `-Tour` 256 écrans ; `smoke.ps1` OK.
+Mesures qa-reviewer, 28/11 : `test.ps1 -Integration` 1138 passés, 0 échec (`test_timeline` sans erreur pour la seconde fois) ; `-Flow` 816 ; `-Flow -Pack usine` 530 ; `-Flow -Pack usine -Products 3 -Clients 4 -Buildings 3` 552 ; `-Flow -Design` 72 ; `-Flow -Roles` 55 ; `-Tour` 256 écrans ; `smoke.ps1` OK.
 
 Restes de T4b : seuil d'OTIF de 90 codé en dur (`game_text.gd`) ; `pf_min` par produit et plafond de produits finis en palettes reportés à D3 ; pas de champ « Clients » au formulaire du formateur (T10) ; faits des PNJ à 3 produits non mesurés par les évaluations.
 
-**Prochaine action : commiter T7, puis (T8, D2)**, T9, D3, T10, T11 (Première version). Ordre de l'ADR 0013 : T7 -> (T8, D2) -> T9.
+**Prochaine action : commiter les restes de T7 et les pièces de rechange, puis T8 avec D2 en parallèle**, T9, D3, T10, T11 (Première version). Ordre de l'ADR 0013 : T7 -> (T8, D2) -> T9.
 
 **Session du 24-26/11 : T3, T4 (sauf T4b), D1 — commité et poussé le 26/11 (8f36f11, push b11aa8f..8f36f11)**
 

@@ -613,6 +613,114 @@ Vérification commune : `.\scripts\test.ps1 -Fast` vert, plus la commande de l'�
    godot/README.md (`action_block`). Commande : Grep de `module_block` hors code, vide.
 9. qa-reviewer, en dernier : `.\scripts\test.ps1 -Integration`, `godot.ps1 -Flow`, `-Flow -Pack usine`, `smoke.ps1`.
 
+### Quitter le lobby (reste de T7, 27/11, architecte)
+
+Décision : un membre quitte le lobby **avant le lancement seulement** ; ensuite, 409. Un joueur parti en cours de
+partie est déjà couvert : absent du hub, le vote sur les absents (annexe 0010 §1) fait jouer son rôle par le pilote
+automatique (`held_roles`). Rendre le rôle au pilote changerait `expected`, le journal et le débrief, sans rien fermer
+de plus. Pas d'exclusion d'un autre membre par le formateur dans ce contrat.
+
+Route (backend-api, `api/routes/lobbies.py`, après `join_lobby`) : `POST /api/v1/lobbies/{lobby_id}/leave`, sans
+corps ; succès **204**, sans corps (POST comme `/join` : `api_client.gd` n'a pas de DELETE et lit un corps vide).
+Appelant : tout compte membre du lobby (joueur, formateur, admin), qui ne retire que lui-même. Contrôles dans cet
+ordre, sous verrou de ligne (`_access(session, lobby_id, user, lock=True)`) :
+
+| Cas | Code | Message |
+|---|---|---|
+| lobby inconnu, ou compte ni membre ni gestionnaire | 404 | « Lobby introuvable » (`_access`, inchangé) |
+| lobby créé avant l'ADR 0006 | 410 | message de `_access`, inchangé |
+| gestionnaire (formateur du lobby, admin) non membre | 409 | « Vous n'êtes pas dans ce lobby » |
+| `state["status"] != "waiting"` | 409 | « La partie est lancée : vous ne pouvez plus quitter le lobby » |
+| sinon | 204 | aucun corps |
+
+Effet, même règle que `join` à l'envers :
+- si le partant n'est pas `trainer_id` : `before` = membres hors formateur, partant compris ; si
+  `engine.role_plan(spec, before) != engine.role_plan(spec, before - 1)`, `game_role = null` pour tous les membres
+  restants (formateur membre compris, comme `join`) ; sinon leurs rôles restent ;
+- la ligne `LobbyMember` du partant est supprimée : son rôle redevient libre, n (non figé avant le lancement) passe
+  à `before - 1`, la place compte de nouveau pour « Lobby complet » ; le compte peut revenir par `/join` (rôle à
+  rechoisir) ou entrer dans une autre équipe du groupe (`other_team` ne le trouve plus, ADR 0011) ;
+- formateur du lobby membre : sa ligne est supprimée, rien d'autre (il n'est pas dans n) ; il garde la gestion
+  (`trainer_id`). Admin membre : compté dans n, traité comme un joueur ;
+- commit, puis `lobby.members` sur `GAME_EVENTS` par `_broadcast` (acteur : le partant), charge
+  `await _members_event(session, lobby)` : `{members, seats}` des membres restants. Aucun topic ni type d'événement
+  nouveau (`topics.py` inchangé), pas d'audit (`join` n'en a pas).
+
+Matrice, lignes ajoutées (colonnes du tableau ci-dessus) :
+
+| Opération | joueur avec rôle | joueur sans rôle | formateur du lobby | autre formateur | admin |
+|---|---|---|---|---|---|
+| `leave` (attente) | 204 | 204 | 204 si membre, sinon 409 | 404 | 204 si membre, sinon 409 |
+| `leave` (lancée ou finie) | 409 | 409 | 409 | 404 | 409 |
+
+Client (godot-dev) :
+- `lobby/lobby_screen.gd` : bouton « Quitter le lobby » dans l'en-tête, après « Retour à l'accueil », visible si
+  `not Session.is_manager() and game_status == "waiting"` (un non-gestionnaire qui voit la vue est membre).
+  Formateur et admin n'ont pas de bouton (l'API les accepte s'ils sont membres).
+- Clic : `Ui.confirm(self, "Quitter le lobby", "Votre place et votre rôle seront libérés. Vous pourrez revenir avec
+  le code tant que la partie n'est pas lancée.", "Quitter", _leave)`.
+- `_leave` : `Api.post_json(Session.url("/leave"))` ; succès : `Session.close()` puis `navigate.emit("home")` ;
+  refus : `_status.text = res["error"]` puis `await Session.reload()` (partie lancée entre-temps : le bouton
+  disparaît).
+- `autoload/session.gd` `_on_members` : `lobby["my_role"]` relu dans `members` (entrée où
+  `user_id == str(Api.user["id"])`). Sans cela, un plan changé par une entrée ou un départ laisse au client un rôle
+  que l'API a remis à `null`. Les autres clients n'ont rien de neuf : `lobby_members_changed` redessine liste et plan.
+
+Plan (L1 et L2 en parallèle, fichiers disjoints) :
+1. L1, backend-api : `api/routes/lobbies.py`, route `leave_lobby` ; `tests/test_lobby_roles.py` : matrice ci-dessus,
+   les 4 refus et leurs messages, remise à `null` quand le plan change (spec usine T7, 4 -> 3 joueurs), rôles gardés
+   sinon, place libérée (lobby plein, départ, `/join` accepté), `lobby.members` publié. Commande :
+   `pytest backend\tests\test_lobby_roles.py` (python du venv), puis `.\scripts\test.ps1 -Fast`.
+2. L2, godot-dev : `lobby_screen.gd`, `session.gd` ; dans `flow_test.gd`, parcours `R` : un joueur `_raw` quitte
+   avant le lancement (204, plan relu), un `leave` après le lancement rend 409. Commande : `.\scripts\godot.ps1
+   -Check` puis `-Tour` ; `-Flow -NoLlm` après L1.
+3. documentaliste, après L1 et L2 : docs/roles.md (matrice), docs/kafka.md (`lobby.members` émis aussi par
+   `leave`), docs/blocages.md (retirer « aucune route pour quitter un lobby »).
+4. qa-reviewer, en dernier : `.\scripts\test.ps1 -Integration`, `.\scripts\godot.ps1 -Flow -NoLlm`.
+
+## 3 quater. Pièces de rechange (pack usine, action `pieces_rechange`, 27/11, architecte)
+
+Validé par l'utilisateur le 27/11 : seule décision de `chef_equipe_maintenance` dans le plan à 5, `priorite_reparation`
+était inerte avec un seul technicien. Règle et chiffres : `maintenance.pieces.*` de `ai/packs/usine.yaml`.
+
+```python
+class SpareParts(BaseModel):
+    price: float = Field(ge=0)                 # € par pièce, payés à la commande
+    lead_days: int = Field(ge=1, le=5)         # jours ouvrés, livraison à l'ouverture du jour
+    service_level: float = Field(gt=0, lt=1)   # stock S* du pilote : plus petit S >= 1, P(N >= S) <= 1 - niveau
+
+Factory.spares: SpareParts | None = None      # None : comportement d'avant, pieces_rechange sans effet
+FactoryCosts.damage_per_failure               # sens : dégâts hors pièce (usine : 200 - 150 = 50 €)
+EventKind += "attente_piece"                  # EVENT_DATA {"duration_min"} ; sujet : id de la machine
+```
+
+- spec v2, `version` reste 2 ; une spec sans `spares` donne les mêmes `history` et `public_state` qu'avant
+  (références `t4b_reference.json` et `t7_reference.json` inchangées).
+- Stock tenu par `Machine.type` ; machine sans `type` : son id en tient lieu. Coût de possession :
+  `economy.holding_rate_week` x `price` x stock moyen de la semaine (pièces en route exclues).
+- `attente_piece` : émis quand le technicien trouve le stock vide ; `duration_min` = minutes jusqu'à la livraison
+  (ouvertures hors du tour comprises). La machine reste `panne` dans les instantanés : rejeu Godot inchangé ; que
+  le client ignore ce type inconnu reste à vérifier à l'étape 4 (`-Flow -Pack usine`).
+- Provenance (génération) : `maintenance.pieces.prix`, `.delai_jours`, `.niveau_service` (game-designer : valeur
+  0,99 à déclarer, elle n'est aujourd'hui que dans la note de `stock_pilote`), `maintenance.cout_degats_panne`.
+
+Exemple valide (étape 1 : `backend/tests/test_spares_contract.py`) : spec usine générée, à laquelle on ajoute
+
+```json
+{"factory": {"spares": {"price": 150, "lead_days": 1, "service_level": 0.99},
+             "costs": {"damage_per_failure": 50}}}
+```
+
+Relu par `SimSpec` sans clé perdue ; une `Timeline` avec `[t, "attente_piece", "m1", {"duration_min": 300}]` est
+valide. Refusés (erreur de champ pydantic, `loc` `factory.spares.<champ>`) : `lead_days` 0 ou 6 (`greater_than_equal`,
+`less_than_equal`) ; `service_level` 0 ou 1 (`greater_than`, `less_than`) ; `price` -1 (`greater_than_equal`) ; et
+`attente_piece` sans `duration_min` -> « données ['duration_min'] attendues ». Plus `generate` à chaque borne de
+`limits` (`check_bounds` de test_t4b_contract.py), avant et après le moteur.
+
+Plan : 1. moteur-jeu, test ci-dessus (code nouveau en `xfail(strict=True)`) ; 2. game-designer,
+`maintenance.pieces.niveau_service` ; 3. moteur-jeu, après 1 et 2 : `factory.py` (stock, attente, commande, coût),
+`factory_game` (pilote S*, action), `factory_generation` (`spares`, 50 €) ; 4. qa-reviewer, `test.ps1 -Integration`.
+
 ## 4. Module finance du moteur `factory` (D2)
 
 ### 4.1 Activation et paramètres

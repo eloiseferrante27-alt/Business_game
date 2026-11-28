@@ -62,9 +62,10 @@ de ses joueurs. Pas d'inscription libre en v1.
 | 2 | `responsable_flux`, `responsable_atelier` |
 | 3 | `responsable_production`, `chef_de_ligne`, `responsable_maintenance` (rôles des modules) |
 | 4 | `acheteur`, `ordonnanceur`, `chef_de_ligne`, `responsable_maintenance` |
-| 5 | `acheteur`, `ordonnanceur`, `chef_de_ligne`, `technicien_methodes`, `chef_equipe_maintenance` |
+| 5 | `acheteur`, `ordonnanceur`, `chef_de_ligne`, `technicien_methodes`, `chef_equipe_maintenance` (`priorite_reparation` et `pieces_rechange`) |
 | 6 | plan à 5 ; le 6e joueur double `acheteur` (U2, 27/11) |
 
+- `POST /{id}/leave` (204) : un membre ne retire que lui-même ; 409 « Vous n'êtes pas dans ce lobby » ; 409 « La partie est lancée : vous ne pouvez plus quitter le lobby » ; 404, 410. Les rôles des autres ne sont effacés que si le plan change ; `lobby.members` est publié et le partant est désabonné du WebSocket. Client : bouton « Quitter le lobby » (avec confirmation) dans la salle d'attente.
 - `PUT /{id}/role` : 422 « Ce rôle n'est pas proposé à {n} joueurs » ; 409 tant qu'un rôle du plan est libre ; 409 après le lancement. `engine.assign_seats` attribue les rôles au lancement.
 - `GET …/memory` ne rend que les échanges du joueur qui le demande ; l'agent, lui, se souvient de ceux de
   tout le lobby.

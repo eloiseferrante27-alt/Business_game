@@ -240,6 +240,7 @@ def test_role_actions_and_action_owners() -> None:
     assert engine.action_owners(spec, PLAN4) == {
         "commander_mp": "acheteur", "lancer_of": "ordonnanceur", "proteger_goulot": "chef_de_ligne",
         "preventif": "responsable_maintenance", "priorite_reparation": "responsable_maintenance",
+        "pieces_rechange": "responsable_maintenance",
     }  # fmt: skip
     owners = engine.action_owners(spec, None)  # None : module.role_id
     assert owners["lancer_of"] == "responsable_production" and owners["proteger_goulot"] == "chef_de_ligne"
@@ -313,8 +314,8 @@ if __name__ == "__main__":
 
 @pytest.mark.parametrize(
     ("held", "cash", "stockouts", "otif"),
-    [((), 179597, 0, 100.0), (("acheteur",), 41596, 10, 20.0), (("ordonnanceur",), -866, 0, 0.0),
-     (("acheteur", "ordonnanceur"), 7054, 0, 0.0)],
+    [((), 179550, 0, 100.0), (("acheteur",), 41548, 10, 20.0), (("ordonnanceur",), -914, 0, 0.0),
+     (("acheteur", "ordonnanceur"), 7006, 0, 0.0)],  # trésorerie après pièces de rechange (écart seul : cash)
 )  # fmt: skip
 def test_one_pilotage_action_held_keeps_the_rule_of_the_other(held, cash, stockouts, otif) -> None:
     """Revue T7 : un seul des deux gestes de pilotage tenu (sans décision) : l'autre garde sa règle automatique.

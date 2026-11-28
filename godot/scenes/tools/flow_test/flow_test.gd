@@ -690,6 +690,15 @@ func _roles_journey() -> void:
 		titles[role["id"]] = role["title"]
 	_check(plan.size() == 5 and owners.size() >= 5 and (owners.values() as Array).all(func(r: Variant) -> bool: return r in plan), "6 joueurs : plan à 5 rôles, chaque action a un titulaire du plan", str(view["seats"]))
 
+	var leave_path := "/api/v1/lobbies/%s/leave" % lobby_id
+	var left := await _raw(tokens[5], HTTPClient.METHOD_POST, leave_path)
+	var after: Dictionary = (await _lobby_view(_trainer, lobby_id)).get("seats", {})
+	_check(left["ok"] and int(after.get("players", 0)) == 5 and (await _lobby_view(tokens[5], lobby_id)).is_empty(), "le joueur 6 quitte : 204, plan à 5 joueurs, salle fermée pour lui", str(left["error"]) + str(after))
+	var again := await _raw(tokens[5], HTTPClient.METHOD_POST, leave_path)
+	_check(again["status"] == 404 or again["status"] == 409, "second départ refusé", str(again["status"]))
+	var back := await _raw(tokens[5], HTTPClient.METHOD_POST, "/api/v1/lobbies/join", {"code": code})
+	_check(back["ok"] and int(((await _lobby_view(_trainer, lobby_id)).get("seats", {}) as Dictionary).get("players", 0)) == 6, "le joueur 6 revient avec le code : 6 joueurs", str(back["error"]))
+
 	_begin("R.2", "Choix de rôle : 422 hors plan, 409 tant qu'un rôle est libre, puis choix des 4 derniers rôles du plan")
 	var outside := (spec["roles"] as Array).filter(func(r: Dictionary) -> bool: return not r["id"] in plan)
 	if not _check(not outside.is_empty(), "la spec déclare un rôle hors du plan à 5"):
@@ -717,6 +726,8 @@ func _roles_journey() -> void:
 	_check(role_of[0] == plan[1] and role_of[4] == plan[0] and role_of[5] == plan[0], "ordre : choix respectés, joueur 5 le rôle libre, joueur 6 en double", str(role_of))
 	var late := await _raw(tokens[0], HTTPClient.METHOD_PUT, "/api/v1/lobbies/%s/role" % lobby_id, {"game_role": plan[2]})
 	_check(late["status"] == 409, "rôle figé après le lancement : 409", str(late["error"]))
+	var too_late := await _raw(tokens[5], HTTPClient.METHOD_POST, leave_path)
+	_check(too_late["status"] == 409 and str(too_late["error"]).contains("La partie est lancée"), "départ après le lancement : 409", str(too_late["error"]))
 
 	_begin("R.4", "Actions : permise pour son rôle, 409 nommant le rôle pour un autre ; le formateur agit sur chaque rôle")
 	var module_of := {}  # action -> module

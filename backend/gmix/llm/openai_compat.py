@@ -5,6 +5,7 @@ soit le modèle Ollama qu'elles nomment. Les embeddings et les modèles de déci
 la passerelle n'a pas de route /v1/embeddings, et l'API /v1/systemone n'existe que chez Ollama.
 """
 
+import asyncio
 import json
 from collections.abc import AsyncIterator
 from typing import Any
@@ -15,6 +16,9 @@ from gmix.llm.ollama import CONNECT_TIMEOUT_S, ChatResult, OllamaClient, OllamaE
 
 # Options Ollama du catalogue -> paramètres OpenAI ; les autres (num_ctx…) n'ont pas d'équivalent et sont ignorées.
 OPTIONS = {"num_predict": "max_tokens", "temperature": "temperature", "top_p": "top_p", "seed": "seed", "stop": "stop"}
+
+ATTEMPTS = 3  # premier essai + 2 reprises, attente RETRY_DELAY_S puis 2x
+RETRY_DELAY_S = 0.5
 
 
 class OpenAIClient:
@@ -147,7 +151,18 @@ class OpenAIClient:
         )
 
     async def _post(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
-        response = await self._http.post(path, json=body)
-        if response.status_code >= 400:
-            raise OllamaError(f"{path} -> HTTP {response.status_code}: {response.text[:500]}")
-        return response.json()
+        # shortcut: appel non streamé seulement (un flux a déjà émis du texte), à revoir si besoin.
+        for attempt in range(1, ATTEMPTS + 1):
+            try:
+                response = await self._http.post(path, json=body)
+                status, error = response.status_code, f"HTTP {response.status_code}: {response.text[:500]}"
+            except (httpx.TimeoutException, httpx.ConnectError) as exc:
+                status, error = 0, f"{type(exc).__name__} {exc}"
+            if status and status < 400:
+                return response.json()
+            if not (status in (0, 429) or status >= 500):  # 4xx hors 429 : définitif
+                raise OllamaError(f"Passerelle OpenAI : {path} refusé ({error})")
+            if attempt == ATTEMPTS:
+                raise OllamaError(f"Passerelle OpenAI indisponible après {ATTEMPTS} essais : {path} ({error})")
+            await asyncio.sleep(RETRY_DELAY_S * attempt)
+        raise AssertionError("inaccessible")

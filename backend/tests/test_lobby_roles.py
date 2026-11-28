@@ -210,3 +210,107 @@ async def test_join_that_changes_the_role_plan_clears_choices() -> None:
             await session.execute(delete(User).where(User.username.like(f"%-{suffix}")))
             await session.commit()
         await get_engine().dispose()
+
+
+class _FakeProducer:
+    def __init__(self) -> None:
+        self.events: list[Any] = []
+
+    async def publish(self, topic: Any, event: Any, key: str | None = None) -> None:
+        self.events.append(event)
+
+
+async def test_leave_lobby_before_start() -> None:
+    """POST /leave : retire l'appelant, refus 409 (pas membre, partie lancée), 404 pour un autre formateur ;
+    plan stable (atelier par défaut) : les rôles des autres sont gardés ; le formateur membre part sans effet."""
+    suffix = uuid.uuid4().hex[:8]
+    names = {"trainer": UserRole.TRAINER, "other": UserRole.TRAINER, "p1": UserRole.PLAYER, "p2": UserRole.PLAYER}
+    users = {n: await create_user(f"{n}-{suffix}", "mdp-de-test-1", r) for n, r in names.items()}
+    heads = {n: _auth(u) for n, u in users.items()}
+    ids = [u.id for u in users.values()]
+    try:
+        async with (
+            app.router.lifespan_context(app),
+            httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client,
+        ):
+            game = (await client.post("/api/v1/games", json=PARAMS, headers=heads["trainer"])).json()
+            made = await client.post(
+                "/api/v1/lobbies", json={"name": "Départ", "business_game_id": game["id"]}, headers=heads["trainer"]
+            )
+            code, url = made.json()["join_code"], f"/api/v1/lobbies/{made.json()['id']}"
+            for name in ("trainer", "p1", "p2"):
+                await client.post("/api/v1/lobbies/join", json={"code": code}, headers=heads[name])
+            role = game["spec"]["roles"][0]["id"]
+            await client.put(f"{url}/role", json={"game_role": role}, headers=heads["p1"])
+            assert (await client.get(url, headers=heads["p1"])).json()["seats"]["players"] == 2
+
+            assert (await client.post(f"{url}/leave", headers=heads["other"])).status_code == 404
+            left = await client.post(f"{url}/leave", headers=heads["p2"])
+            assert left.status_code == 204 and left.content == b""
+            view = (await client.get(url, headers=heads["p1"])).json()
+            assert view["seats"]["players"] == 1 and view["my_role"] == role
+            again = await client.post(f"{url}/leave", headers=heads["p2"])
+            assert again.status_code == 404  # ni membre ni gestionnaire
+            assert (await client.post(f"{url}/leave", headers=heads["trainer"])).status_code == 204
+            again = await client.post(f"{url}/leave", headers=heads["trainer"])
+            assert (again.status_code, again.json()["detail"]) == (409, "Vous n'êtes pas dans ce lobby")
+            assert (await client.get(url, headers=heads["p1"])).json()["my_role"] == role
+
+            assert (await client.post(f"{url}/start", headers=heads["trainer"])).status_code == 200
+            late = await client.post(f"{url}/leave", headers=heads["p1"])
+            assert (late.status_code, late.json()["detail"]) == (
+                409,
+                "La partie est lancée : vous ne pouvez plus quitter le lobby",
+            )
+    finally:
+        async with get_sessionmaker()() as session:
+            await session.execute(delete(Lobby).where(Lobby.trainer_id.in_(ids)))
+            await session.execute(delete(BusinessGame).where(BusinessGame.created_by.in_(ids)))
+            await session.execute(delete(User).where(User.username.like(f"%-{suffix}")))
+            await session.commit()
+        await get_engine().dispose()
+
+
+async def test_leave_that_changes_the_role_plan_clears_choices_and_publishes() -> None:
+    """Spec à `role_plans` : 3 -> 2 joueurs change le plan, les rôles sont effacés ; `lobby.members` est publié
+    avec seats = 2 et le partant n'est plus abonné au hub."""
+    suffix = uuid.uuid4().hex[:8]
+    names = {"trainer": UserRole.TRAINER, "p1": UserRole.PLAYER, "p2": UserRole.PLAYER, "p3": UserRole.PLAYER}
+    users = {n: await create_user(f"{n}-{suffix}", "mdp-de-test-1", r) for n, r in names.items()}
+    heads = {n: _auth(u) for n, u in users.items()}
+    ids = [u.id for u in users.values()]
+    try:
+        async with (
+            app.router.lifespan_context(app),
+            httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client,
+        ):
+            game = (await client.post("/api/v1/games", json=PARAMS, headers=heads["trainer"])).json()
+            spec, plans, _ = _with_plans(game["spec"])
+            made = await client.post(
+                "/api/v1/lobbies", json={"name": "Plans", "business_game_id": game["id"]}, headers=heads["trainer"]
+            )
+            lobby_id, code = made.json()["id"], made.json()["join_code"]
+            url = f"/api/v1/lobbies/{lobby_id}"
+            async with get_sessionmaker()() as session:
+                await session.execute(update(Lobby).where(Lobby.id == uuid.UUID(lobby_id)).values(spec=spec))
+                await session.commit()
+            for name in ("p1", "p2", "p3"):
+                await client.post("/api/v1/lobbies/join", json={"code": code}, headers=heads[name])
+            put = await client.put(f"{url}/role", json={"game_role": plans[3][0]}, headers=heads["p1"])
+            assert put.status_code == 200, put.text
+            producer, hub = _FakeProducer(), app.state.hub
+            app.state.producer = producer
+            hub.subscribe(str(users["p3"].id), lobby_id)
+            assert (await client.post(f"{url}/leave", headers=heads["p3"])).status_code == 204
+            assert (await client.get(url, headers=heads["p1"])).json()["my_role"] is None
+            assert str(users["p3"].id) not in hub.watchers(lobby_id)
+            event = next(e for e in producer.events if e.type == "lobby.members")
+            assert event.payload["seats"]["players"] == 2 and len(event.payload["members"]) == 2
+            app.state.producer = None
+    finally:
+        async with get_sessionmaker()() as session:
+            await session.execute(delete(Lobby).where(Lobby.trainer_id.in_(ids)))
+            await session.execute(delete(BusinessGame).where(BusinessGame.created_by.in_(ids)))
+            await session.execute(delete(User).where(User.username.like(f"%-{suffix}")))
+            await session.commit()
+        await get_engine().dispose()

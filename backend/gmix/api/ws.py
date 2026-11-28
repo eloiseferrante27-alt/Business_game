@@ -52,6 +52,9 @@ class WebSocketHub:
             members.discard(client_id)
         self._lobbies[lobby_id].add(client_id)
 
+    def unsubscribe(self, client_id: str, lobby_id: str) -> None:
+        self._lobbies.get(lobby_id, set()).discard(client_id)
+
     def watchers(self, lobby_id: str) -> set[str]:
         """Sessions abonnées au lobby (= joueurs connectés, ADR 0010 annexe §1).
         shortcut: le hub est en mémoire, donc un seul processus d'API ; à revoir avec plusieurs workers uvicorn."""

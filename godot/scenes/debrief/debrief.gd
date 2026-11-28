@@ -158,6 +158,12 @@ static func _body(box: Control, report: Dictionary) -> void:
 		for p: Dictionary in by_product:
 			var otif := "n.d." if p.get("otif") == null else GameText.kpi_value("%", p["otif"])
 			box.add_child(Ui.label("%s : %s produits (%s palettes), %s expédiés, OTIF %s" % [p.get("name", ""), GameText.number(p.get("quantity")), GameText.number(p.get("pallets")), GameText.number(p.get("shipped")), otif], 0, Ui.TEXT, true))
+	var spares: Dictionary = report.get("spares", {})
+	if spares.has("total"):  # total seul : une ligne par semaine encombrerait le débrief
+		var t: Dictionary = spares["total"]
+		box.add_child(Ui.label("Pièces de rechange", 24))
+		box.add_child(Ui.label("%s pièces utilisées, %s pannes ont attendu une pièce (%s min d'attente), achats %s, possession %s." % [GameText.number(t.get("used")), GameText.number(t.get("missing")), GameText.number(t.get("wait_min")), GameText.money(t.get("purchase")), GameText.money(t.get("holding"))], 0, Ui.TEXT, true))
+		box.add_child(Ui.label("Une panne dure le temps de réparation (MTTR), plus le délai de livraison si la pièce manque : un stock de pièces de rechange bien dimensionné évite cet arrêt, mais sa possession a un coût.", 0, Ui.MUTED, true))
 	var text := Ui.rich()
 	text.text = GameText.debrief_bbcode(report, false)
 	box.add_child(text)

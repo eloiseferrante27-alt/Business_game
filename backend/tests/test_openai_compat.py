@@ -6,9 +6,10 @@ from typing import Any
 import httpx
 import pytest
 
-from gmix.llm.ollama import OllamaClient, Usage
+from gmix.llm.catalog import load_catalog
+from gmix.llm.ollama import OllamaClient, OllamaError, Usage
 from gmix.llm.openai_compat import OpenAIClient
-from gmix.llm.service import LLMService
+from gmix.llm.service import BudgetExceeded, LLMService
 from gmix.settings import get_settings
 
 
@@ -69,4 +70,59 @@ def test_openai_provider_requires_base_url_and_model(monkeypatch: pytest.MonkeyP
 async def test_installed_models_keeps_the_served_tags_when_ollama_is_down() -> None:
     client = _client(lambda request: httpx.Response(200, json={}))
     assert await client.installed_models() == {"qwen2.5:3b"}  # Ollama injoignable (port 1) : rien de local
+    await client.aclose()
+
+
+MSG = [{"role": "user", "content": "x"}]
+OK = {"choices": [{"message": {"content": "ok"}}]}
+
+
+def _flaky(statuses: list[int], calls: list[int]) -> Any:
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        status = statuses[min(len(calls), len(statuses)) - 1]
+        return httpx.Response(status, json=OK if status == 200 else {"error": "x"})
+
+    return handler
+
+
+@pytest.fixture(autouse=True)
+def _no_wait(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("gmix.llm.openai_compat.RETRY_DELAY_S", 0)
+
+
+async def test_503_then_success_is_retried() -> None:
+    calls: list[int] = []
+    client = _client(_flaky([503, 200], calls))
+    assert (await client.chat("qwen2.5:3b", MSG)).content == "ok" and len(calls) == 2
+    await client.aclose()
+
+
+async def test_three_503_give_a_clear_error_after_three_attempts() -> None:
+    calls: list[int] = []
+    client = _client(_flaky([503], calls))
+    with pytest.raises(OllamaError, match="Passerelle OpenAI indisponible après 3 essais"):
+        await client.chat("qwen2.5:3b", MSG)
+    assert len(calls) == 3
+    await client.aclose()
+
+
+async def test_400_is_not_retried() -> None:
+    calls: list[int] = []
+    client = _client(_flaky([400], calls))
+    with pytest.raises(OllamaError, match="refusé"):
+        await client.chat("qwen2.5:3b", MSG)
+    assert len(calls) == 1
+    await client.aclose()
+
+
+async def test_too_long_context_is_refused_before_any_http_call() -> None:
+    calls: list[int] = []
+    client = _client(_flaky([200], calls))
+    catalog = load_catalog()
+    client._serves = {catalog.models[catalog.task("system.ping").model].tag}
+    service = LLMService(catalog, client)
+    with pytest.raises(BudgetExceeded):
+        await service.text("system.ping", [{"role": "user", "content": "mot " * 2000}])
+    assert calls == []
     await client.aclose()

@@ -31,7 +31,7 @@ ValueStatus = Literal["source", "calibre", "exemple"]
 EventKind = Literal[
     "of_lance", "kit_livre", "lot_termine", "panne", "reparation_debut", "reparation_fin", "preventif", "reglage",
     "changement_outil", "livraison_mp", "non_conforme", "rebut", "palette", "commande_client", "expedition", "agent",
-    "camion_arrive", "camion_part",
+    "camion_arrive", "camion_part", "attente_piece",
 ]  # fmt: skip
 Side = Literal["nord", "sud", "est", "ouest"]
 # Rôles des objets d'un bloc (ADR 0009) ; `Role` désigne déjà les rôles des joueurs
@@ -792,8 +792,16 @@ class FactoryCosts(BaseModel):
     preventive_per_intervention: float = Field(ge=0)
     operator_per_h: float = Field(ge=0)
     damage_per_failure: float = Field(
-        default=0, ge=0, description="€ de dégâts ajoutés à chaque réparation (pack : maintenance.cout_degats_panne)"
+        default=0, ge=0, description="€ de dégâts hors pièce ajoutés à chaque réparation (pièce : spares.price)"
     )
+
+
+class SpareParts(BaseModel):
+    """Pièces de rechange par type de machine (annexe 0013 §3 quater) ; absent : réparation sans attente de pièce."""
+
+    price: float = Field(ge=0, description="€ par pièce, payés à la commande (pack : maintenance.pieces.prix)")
+    lead_days: int = Field(ge=1, le=5, description="jours ouvrés de livraison, à l'ouverture (maintenance.pieces.*)")
+    service_level: float = Field(gt=0, lt=1, description="niveau de service du stock S* du pilote (loi de Poisson)")
 
 
 class InitialOrder(BaseModel):
@@ -828,6 +836,7 @@ class Factory(BaseModel):
     clients: list[Client] = Field(default_factory=list, max_length=4)
     resources: Resources = Field(default_factory=Resources)
     costs: FactoryCosts
+    spares: SpareParts | None = None  # None : comportement d'avant pieces_rechange, action sans effet
     protect_buffer: int = Field(
         default=30, ge=1, le=500, description="table devant le goulot en mode tampon_avant (proteger_goulot)"
     )
@@ -963,7 +972,7 @@ COUNTERS = ["mp", *get_args(ProductState)]  # ordre fixe des compteurs d'un inst
 # Clés de données de chaque type d'événement (annexe 0007 §3) : toutes présentes, `null` seulement où c'est indiqué
 EVENT_DATA = {
     **dict.fromkeys(("of_lance", "kit_livre", "lot_termine"), {"line_id", "quantity"}),
-    "panne": {"duration_min"},
+    **dict.fromkeys(("panne", "attente_piece"), {"duration_min"}),  # attente_piece : sujet = machine
     **dict.fromkeys(("reparation_debut", "reparation_fin"), {"by"}),
     "preventif": {"by", "duration_min"},
     **dict.fromkeys(("reglage", "changement_outil"), {"duration_min"}),

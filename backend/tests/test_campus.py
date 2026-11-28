@@ -364,7 +364,7 @@ def test_single_building_reference_numbers_do_not_change() -> None:
     for _ in range(3):
         state = engine.advance(spec, state, autopilot_all=True)
         seen.append((state["cash"], state["history"][-1]["otif"], state["history"][-1]["trs"]))
-    assert seen == [(38962.0, 100.0, 84.4), (52158.0, 100.0, 81.9), (67936.0, 100.0, 83.7)]
+    assert seen == [(38954.24, 100.0, 84.4), (52142.74, 100.0, 81.9), (67912.82, 100.0, 83.7)]  # pièces
     assert "transit" not in state["fs"]["fk"]
 
 

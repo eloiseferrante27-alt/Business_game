@@ -279,6 +279,16 @@ static func factory_dashboard_bbcode(spec: Dictionary, state: Dictionary) -> Str
 	var finished: Variant = stocks.get("pf")
 	if finished is Dictionary:
 		out.append("• Produits finis : %s palettes sur %s places" % [number(finished.get("pallets")), number(finished.get("capacity_pallets"))])
+	var spares: Array = stocks.get("spares", [])
+	if not spares.is_empty():  # absent des specs sans pièces de rechange
+		out.append("\n[b]Pièces de rechange[/b]")
+		for s: Dictionary in spares:
+			var waiting := int(s.get("waiting", 0))
+			var wait_txt := ", [color=%s]%s machine(s) attendent leur pièce[/color]" % [ORANGE, number(waiting)] if waiting > 0 else ""
+			out.append("• %s : %s en stock (cible %s), %s en commande%s" % [esc(s.get("name", "?")), number(s.get("quantity")), number(s.get("target")), number(s.get("pending")), wait_txt])
+		var week: Variant = factory.get("spares_week")
+		if week is Dictionary:
+			out.append("Cette semaine : %s pièce(s) utilisée(s), %s manquante(s), %s min d'attente au total" % [number(week.get("used")), number(week.get("missing")), number(week.get("wait_min"))])
 	var by_product: Array = factory.get("by_product", [])
 	if by_product.size() > 1:  # à un seul produit, le bloc doublerait les stocks
 		out.append("\n[b]Par produit[/b]")

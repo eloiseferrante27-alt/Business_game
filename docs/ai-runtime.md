@@ -102,7 +102,7 @@ d'authentification propre : ne jamais l'exposer directement). Avec plus de VRAM,
 
 ## Passerelle compatible OpenAI (merge du 27/11)
 
-`LLM_PROVIDER=openai` (`.env.example`) envoie toutes les tâches de texte à `OPENAI_MODEL` via `OPENAI_BASE_URL` (clé `OPENAI_API_KEY`), sans `num_ctx`. Si `OPENAI_BASE_URL` ou `OPENAI_MODEL` est vide, une erreur claire est levée au premier appel. Pas de nouvelle tentative ni de limite de contexte.
+`LLM_PROVIDER=openai` (`.env.example`) envoie toutes les tâches de texte à `OPENAI_MODEL` via `OPENAI_BASE_URL` (clé `OPENAI_API_KEY`), sans `num_ctx`. Si `OPENAI_BASE_URL` ou `OPENAI_MODEL` est vide, une erreur claire est levée au premier appel. Jusqu'à 3 essais, seulement sur timeout, connexion refusée, 429 et 5xx ; erreur finale « Passerelle OpenAI indisponible après 3 essais » ; un flux de texte n'est pas retenté. Le budget de tokens est contrôlé avant tout appel, pour Ollama comme pour OpenAI (`service.py`, `_check_budget`). Pas de limite de contexte.
 
 ## Agents en jeu
 

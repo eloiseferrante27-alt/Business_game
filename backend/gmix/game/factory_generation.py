@@ -254,6 +254,7 @@ def _calibrate(spec, pack, level, items, machines, theme, n_clients) -> None:
             lg_src["pf_capacity_pallets"] * max(n_lines, 2) // _val(pack, "entrepot_pf.lignes_cahier")
         )
     lot = _val(pack, "pilotage.taille_lot")
+    has_spares = "maintenance.pieces.prix" in pack["values"]
     spec["factory"] = {
         "product_id": "p1", "lot_size": lot, "pf_min": 1,
         "bom": [{"component_id": f"c{k}", "per_unit": it["mp"]["per_unit"]} | ({"product_id": f"p{k}"} if k > 1 else {})
@@ -270,8 +271,13 @@ def _calibrate(spec, pack, level, items, machines, theme, n_clients) -> None:
                       "line_leads": _val(pack, "pilotage.chefs_de_ligne")},  # fmt: skip
         "costs": {"repair_per_h": _val(pack, "maintenance.cout_reparation_h"),
                   "preventive_per_intervention": _val(pack, "maintenance.cout_preventif"),
-                  "damage_per_failure": pack["values"].get("maintenance.cout_degats_panne", {}).get("value", 0),
+                  # 200 € de dégâts + pièce, dont la pièce (150 €) est payée à sa commande : reste 50 € ici
+                  "damage_per_failure": pack["values"].get("maintenance.cout_degats_panne", {}).get("value", 0)
+                  - (_val(pack, "maintenance.pieces.prix") if has_spares else 0),
                   "operator_per_h": _val(pack, "pilotage.cout_operateur_h")},  # fmt: skip
+        **({"spares": {"price": _val(pack, "maintenance.pieces.prix"),
+                       "lead_days": _val(pack, "maintenance.pieces.delai_jours"),
+                       "service_level": _val(pack, "maintenance.pieces.niveau_service")}} if has_spares else {}),
         "protect_buffer": _val(pack, "machine.protect_buffer"),
     }  # fmt: skip
     line_ids = sorted({m["line_id"] for m in machines})

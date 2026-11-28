@@ -185,6 +185,9 @@ func _on_members(members: Array, seats: Dictionary) -> void:
 	if lobby.is_empty():
 		return
 	lobby["members"] = members
+	for member: Dictionary in members:  # l'API remet mon rôle à null quand le plan change (entrée ou départ)
+		if str(member.get("user_id")) == str(Api.user.get("id")):
+			lobby["my_role"] = member.get("game_role")
 	if not seats.is_empty():
 		lobby["seats"] = seats
 	lobby_changed.emit()

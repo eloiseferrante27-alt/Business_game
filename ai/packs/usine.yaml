@@ -46,6 +46,9 @@
 #     encours (`loi_de_little`, `point_de_commande`, `stock_de_securite`, `delai_et_fiabilite`).
 #  6. Expliquer pourquoi une usine chargée près de 100 % livre en retard (comprendre) -> charge de la difficulté,
 #     attente des commandes -> notion `charge_et_attente`.
+#  7. Dimensionner le stock de pièces de rechange (appliquer) -> action `pieces_rechange` -> pannes qui ont attendu
+#     une pièce, minutes d'arrêt, coût de possession ; leçon : l'arrêt réel d'une panne (MDT) ajoute au MTTR le
+#     délai d'une pièce absente (values maintenance.pieces.*, notions `disponibilite`, `stock_de_securite`).
 #
 # Hors corpus, donc non présenté comme notion : temps d'un lot = premier produit + (n - 1) x cycle du goulot
 # (formule du cahier, affichée comme `exemple` au débrief) ; loi de Weibull (fiche nist-sematech-weibull depuis le
@@ -449,6 +452,10 @@ criteria:
     note: >-
       Lu par generation.apply_rules : partiel = initial_cash + partial_share x gain du pilote, soit finir sans perdre
       d'argent ; sans partiel si le gain est nul. Pilote : 96 802 à 206 146 € pour des cibles de 66 000 à 154 200 € ; passif : sous la trésorerie de départ.
+      Ces bornes datent d'avant pieces_rechange (à remesurer). Voulu : cash_final = départ + cash_share x gain du
+      pilote (generation.py), donc tout coût nouveau du pilote (pièces, possession) déplace la cible, le critère et
+      le texte de game_rules.objectifs ; 6 références sur 12 changées le 28/11/2026, attendu. Le recomplètement des
+      pièces est corrigé depuis (maintenance.pieces.niveau_service) : références régénérées le 28/11 après ce correctif.
 
 # Règles à cocher (annexe 0010 §6), gabarits lus par generation.apply_rules (clés : weeks, company, otif, trs,
 # stockouts, cash_final, initial_cash). Seulement des mécaniques que le moteur applique ; la règle d'annulation de
@@ -513,6 +520,18 @@ alerts:
     action: {action_id: priorite_reparation, values: {ordre: goulot}, unless: "priorité déjà au goulot"}
     status: source
     citation: "Notion goulot (fiche wikipedia-fr-theorie-des-contraintes) : chaque heure perdue par la contrainte est perdue pour la ligne."
+  - id: spare_missing
+    level: critical
+    department_id: maintenance
+    module_id: maintenance
+    when: "machine en panne qui attend la livraison de sa pièce (factory_game._waiting_spares : {machine}, {day})"
+    text: "{machine} attend sa pièce de rechange, livrée {day} à 8 h."
+    action: {action_id: pieces_rechange, values: {cible: toutes, pieces: "stock visé du type + 1"},
+             unless: "stock visé du type déjà à 6, le maximum de l'action"}
+    status: source
+    citation: >-
+      Fiche wikipedia-en-mean-time-between-failures l.25 : l'arrêt moyen (MDT) inclut « waiting for components to
+      arrive », en plus du MTTR. Critique même hors goulot : la machine reste arrêtée jusqu'à la livraison.
   - id: trs_low
     level: warning
     department_id: production
@@ -750,7 +769,105 @@ values:
       du 21/11/2026 (J04, 3 lignes, sans aléas, graines 5 à 8 ; préventif du goulot contre aucun ; Δ trésorerie
       moyen) : forme 2 au MTBF du jeu +262 € (-425 à +1 225, neutre au bruit près) ; forme 2 au MTBF x 0,4 +451 € ;
       forme 3 +265 € ; forme 1 -3 038 € (le préventif n'évite rien). 0 € : -1 238 € même en usure ; 150 € : -112 € à
-      x 1 mais -137 € à x 0,4 (le préventif ne paie jamais) : 200 retenu.
+      x 1 mais -137 € à x 0,4 (le préventif ne paie jamais) : 200 retenu. Depuis pieces_rechange (27/11/2026), ces
+      200 € comprennent la pièce de rechange de la panne (maintenance.pieces.prix, 150 €, payée à sa commande) : la
+      génération écrit damage_per_failure = 200 - 150 = 50 € de dégâts hors pièce ; le coût total d'une panne ne
+      change pas.
+  maintenance.pieces.regle:
+    status: source
+    source: wikipedia-en-mean-time-to-repair
+    note: >-
+      Le MTTR exclut le délai d'une pièce absente (l.6 : « does not include lead time for parts not readily
+      available or other Administrative or Logistic Downtime ») ; l'arrêt moyen (MDT) l'inclut
+      (wikipedia-en-mean-time-between-failures l.25 : « waiting for components to arrive ») ; la disponibilité
+      opérationnelle dépend de la quantité et de la proximité des pièces (wikipedia-en-availability l.63). Règle du
+      jeu (action pieces_rechange) : quand le technicien arrive à la machine, une pièce du type de la machine en
+      stock -> réparation de MTTR ; sinon la machine reste en panne jusqu'à la livraison de la pièce
+      (maintenance.pieces.delai_jours), le technicien repart puis revient (trajet + MTTR). Chaque pièce utilisée est
+      recommandée (recomplètement pièce pour pièce). Métier : ROME I1326 « Gérer les stocks de pièces de rechange »
+      (rome-metiers-roles-usine l.31).
+  maintenance.pieces.par_panne:
+    value: 1
+    unit: pièce par panne
+    status: calibre
+    note: >-
+      Simplification du jeu, non sourcée : chaque réparation consomme une pièce (un kit : roulement, capteur,
+      électrovanne...) du type de la machine ; dans la réalité, certaines pannes (bourrage, déréglage) n'en
+      demandent aucune. Les machines d'un même type (machines[].type) partagent leurs pièces, sur toutes les lignes.
+  maintenance.pieces.delai_jours:
+    value: 1
+    unit: jour ouvré
+    status: calibre
+    source: trumpf-pieces-detachees-expedition-jour-meme
+    note: >-
+      Pièce commandée (après une panne sans pièce, au recomplètement ou à une hausse du stock) livrée à l'ouverture
+      du jour ouvré suivant, 8 h. Ordre de grandeur (fiche trumpf-pieces-detachees-expedition-jour-meme) : l.8
+      « 85 % des commandes quittent l'atelier le jour même par camion » ; l.11, les clients internationaux reçoivent
+      leur commande « en deux jours environ ». Calibré, non sourcé : la page ne donne aucun délai pour la France
+      (l.17) ; J+1 est une déduction (expédition le jour même, transport national plus court que l'international),
+      à vérifier ; une seule entreprise, chiffres non audités (l.15-16). Une pièce spécifique fabriquée à la
+      demande prend souvent plus longtemps (non modélisé).
+  maintenance.pieces.prix:
+    value: 150
+    unit: € par pièce
+    status: calibre
+    note: >-
+      Kit de pièces d'usure d'une panne, ordre de grandeur indicatif, non sourcé (à vérifier). Borné par les 200 € de
+      maintenance.cout_degats_panne, qui comptaient déjà les pièces cassées : 150 € de pièce, facturés à
+      l'expédition (le jour de la commande), et 50 € de dégâts hors pièce à la réparation. Au pilote automatique,
+      chaque pièce utilisée est recommandée à l'instant où elle sort du stock : le coût d'une panne et la trésorerie
+      ne changent que du coût de possession (maintenance.pieces.possession).
+  maintenance.pieces.niveau_service:
+    value: 0.99
+    unit: probabilité de ne pas manquer de pièce pendant le délai
+    status: calibre
+    source: wikipedia-en-service-level
+    note: >-
+      Niveau de service alpha du stock de pièces du pilote automatique (maintenance.pieces.stock_pilote) :
+      probabilité que la demande pendant le délai soit servie par le stock en main, sans attente
+      (wikipedia-en-service-level l.20). Le stock qui le garantit = consommation pendant le délai + stock de
+      sécurité, la consommation suivant une loi de Poisson (wikipedia-en-reorder-point l.13 et l.36). Le seuil de
+      99 % est un choix de calibrage, non sourcé : le pilote ne manque presque jamais de pièce, et le stock reste
+      petit (8 à 16 pièces en tout). Strictement entre 0 et 1 (contrat Factory.spares.service_level).
+      Ce 99 % est un alpha par période (l.21) : un type de machine sur 100 jours connaît au plus un jour où une
+      panne attend. La part des pannes qui attendent est un niveau bêta (l.26), autre mesure : les jours sans
+      panne comptent dans l'alpha, pas dans le bêta. Maintenu à 0,99 le 28/11/2026 : un stock dimensionné pour
+      que la panne reste un fait de MTTR, coût de possession faible (maintenance.pieces.possession) ; le joueur
+      apprend le nombre et la cible (goulot ou toutes), le pilote reste la référence honnête. Mesures du 28/11/2026
+      (moteur-jeu, pilote, 36 parties : 2 secteurs, 1 et 3 produits, 3 difficultés, graines 1 à 3). Avant le
+      correctif : 24 pannes sur 570 ont attendu une pièce (4,2 %), car la pièce n'était pas recommandée à sa sortie
+      du stock (contraire à maintenance.pieces.regle). Après le correctif (factory._take_spare recommande la pièce
+      dès qu'elle est utilisée, testé) : 0 panne sur 574 a attendu ; les 36 parties sont jouables.
+  maintenance.pieces.possession:
+    status: source
+    source: wikipedia-fr-stock
+    note: >-
+      Coût de possession = coût de stockage unitaire x quantité moyenne stockée (l.116) ; la valeur du stock pèse
+      sur la trésorerie (l.112). Par semaine : pilotage.taux_possession_semaine (0,0048, soit 25 % par an, calibre)
+      x maintenance.pieces.prix x pièces en stock en moyenne sur la semaine (moyenne pondérée par le temps simulé ;
+      pièces en route exclues). Exemple : 11 pièces à 150 € (équilibré, 2 lignes) = 1 650 € de stock, 7,92 € par
+      semaine. Faible devant une panne du goulot qui attend sa pièce une demi-journée (environ 80 produits à 20 par
+      heure) : garder les pièces des machines critiques paie presque toujours ; la décision porte sur le nombre.
+  maintenance.pieces.stock_pilote:
+    status: source
+    source: wikipedia-en-reorder-point
+    note: >-
+      Stock de départ et cible du pilote automatique, par type de machine, fixes pour la partie : S = plus petit
+      entier >= 1 tel que P(N >= S) <= 1 - maintenance.pieces.niveau_service (1 %), N suivant une loi de
+      Poisson de moyenne m = pannes attendues pendant le délai = maintenance.pieces.delai_jours x somme, sur les
+      machines du type, de (minutes de la journée hors pauses / 60) / MTBF de la machine (440 / 60 = 7,33 h :
+      borne haute, la machine marcherait tout le temps ouvert). Fiche l.13 : point de commande = consommation
+      pendant le délai + stock de sécurité ; l.36 : consommation supposée suivre une loi de Poisson. 99 % : niveau
+      de service alpha (maintenance.pieces.niveau_service), choix de calibrage pour que le pilote ne manque
+      presque jamais de pièce : au plus 1 % de risque par type et par jour (l'estimation du 27/11, « moins d'une
+      panne sur 1 000 », confondait alpha et part des pannes ; mesures avant et après correctif : niveau_service).
+      Stock de départ = S, gratuit (décision du 28/11/2026) : dotation de départ, comme les stocks de départ de
+      matières et de produits finis (components[].initial_stock, products[].initial_stock), comptée dans l'actif de
+      départ et non dans la trésorerie ; le coût de possession court dès la semaine 1. Le payer ne changerait que la trésorerie de départ (11 pièces à 150 € =
+      1 650 € en équilibré, 2 lignes), puis l'objectif de trésorerie, calé sur le pilote, suivrait.
+      Résultat (S par type m1, m2, m3, m4) : découverte 1 ligne 2, 2, 2, 2 ; équilibré 2 lignes 3, 3, 3, 2 ; expert
+      3 lignes 5, 4, 4, 3 ; 8 à 16 pièces en tout. Exemple : équilibré, 2 lignes, m1 (MTBF 40 h) : m = 2 x 7,33 / 40
+      = 0,37 ; P(N >= 2) = 5,3 %, P(N >= 3) = 0,6 % : S = 3.
 
   # --- Pilotage (cahier §3.7) ----------------------------------------------------------------------------
   pilotage.journee_min: {value: 480, unit: min, status: exemple, note: "Cahier §3.7 : journée de 8 h simulées."}
@@ -840,7 +957,10 @@ values:
       (définition, ROME, version 62, lu le 27/11/2026) ; la fiche H1404, qui contient l'appellation du préparateur méthodes
       en maintenance, ne parle pas du préventif. Les deux types de maintenance sont sourcés : wikipedia-en-maintenance
       l.25-26 (« checked and serviced in a planned manner » ; « repaired or replaced after wear, malfunction or break
-      down »).
+      down »). Pièces de rechange (pieces_rechange, 27/11/2026) au même rôle chef_equipe_maintenance, sourcé :
+      fiche rome-metiers-roles-usine l.31, savoir-faire de la fiche I1326 « Gérer les stocks de pièces de rechange »
+      (OGR 483226). Aux plans à 1 et 2 joueurs, l'action suit les autres actions de maintenance (responsable_usine,
+      responsable_atelier) ; à 3 et 4, responsable_maintenance tient tout le module.
   roles.intitules_rome:
     status: source
     source: rome-metiers-roles-usine
@@ -1532,7 +1652,9 @@ modules:
     notions: [goulot, tampon_avant_goulot, rendement_en_cascade, capacite_et_trs, changement_de_serie]
   maintenance:
     title: Maintenance
-    description: Choisir où faire le préventif et dans quel ordre réparer, avec un seul technicien.
+    description: >-
+      Choisir où faire le préventif, quelles pièces de rechange garder et dans quel ordre réparer, avec un seul
+      technicien.
     role: {id: responsable_maintenance, title: Responsable de maintenance industrielle, mission: Garder les goulots disponibles au juste coût}
     stations: [maintenance, machine]
     actions:
@@ -1558,8 +1680,25 @@ modules:
               - {id: arrivee, label: Dans l'ordre d'arrivée des pannes}
               - {id: goulot, label: Les goulots d'abord}
         autopilot: réparations dans l'ordre d'arrivée
-    autopilot: préventif sur le goulot de chaque ligne, réparations dans l'ordre d'arrivée
-    notions: [disponibilite, pannes_par_usure, maintenance_preventive, goulot]
+      # Règle, coûts et pilote : values maintenance.pieces.* ; stock tenu par type de machine (machines[].type).
+      - id: pieces_rechange
+        label: Régler le stock de pièces de rechange
+        fields:
+          - id: cible
+            label: Machines dont on garde des pièces
+            type: choice
+            options:
+              - {id: aucune, label: "Aucune : pas de stock ; chaque panne attend sa pièce, livrée le lendemain à 8 h"}
+              - {id: goulot, label: "Les goulots : les autres machines en panne attendent leur pièce"}
+              - {id: toutes, label: "Toutes les machines : plus de pièces à acheter et à stocker"}
+          - {id: pieces, label: Pièces gardées par type de machine, type: int, min: 1, max: 6, step: 1, default: 3}
+        autopilot: >-
+          pièces de rechange gardées pour toutes les machines, assez pour couvrir 99 fois sur 100 les pannes du délai
+          de livraison ; chaque pièce utilisée est recommandée
+    autopilot: >-
+      préventif sur le goulot de chaque ligne, réparations dans l'ordre d'arrivée, pièces de rechange pour toutes
+      les machines (chaque pièce utilisée est recommandée)
+    notions: [disponibilite, pannes_par_usure, maintenance_preventive, goulot, stock_de_securite]
 
 # Rôles de jeu en plus de modules.*.role (annexe 0013 §3 ter, T7) : `module` = page de tablette, qui doit tenir au
 # moins une des `actions`. Découpage par fonctions : values roles.organisation_par_fonctions et
@@ -1569,7 +1708,7 @@ roles:
     title: Directeur·rice d'unité de production
     mission: Livrer chaque commande à l'heure en tenant seul la matière, les lignes et les machines
     module: pilotage
-    actions: [lancer_of, commander_mp, proteger_goulot, preventif, priorite_reparation]
+    actions: [lancer_of, commander_mp, proteger_goulot, preventif, priorite_reparation, pieces_rechange]
   responsable_flux:
     title: Gestionnaire de flux de production
     mission: Faire entrer la matière et lancer les OF au rythme de la demande, sans rupture ni stock inutile
@@ -1577,9 +1716,9 @@ roles:
     actions: [lancer_of, commander_mp]
   responsable_atelier:
     title: Chef·fe de fabrication
-    mission: Garder les goulots en marche en arbitrant protection, préventif et ordre des réparations
+    mission: Garder les goulots en marche en arbitrant protection, préventif, pièces de rechange et réparations
     module: production
-    actions: [proteger_goulot, preventif, priorite_reparation]
+    actions: [proteger_goulot, preventif, priorite_reparation, pieces_rechange]
   acheteur:
     title: Acheteur·se approvisionneur·se
     mission: Commander la matière à temps, au bon fournisseur
@@ -1597,9 +1736,9 @@ roles:
     actions: [preventif]
   chef_equipe_maintenance:
     title: Chef·fe d'équipe de maintenance industrielle
-    mission: Choisir l'ordre des réparations pour perdre le moins de production
+    mission: Tenir le stock de pièces de rechange et l'ordre des réparations pour perdre le moins de production
     module: maintenance
-    actions: [priorite_reparation]
+    actions: [priorite_reparation, pieces_rechange]
 
 # Joueurs -> rôles ; chaque plan tient chaque action une fois. 6 joueurs : plan à 5, le 6e double `acheteur` (U2).
 role_plans:

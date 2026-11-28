@@ -346,6 +346,27 @@ async def join_lobby(body: JoinRequest, user: CurrentUser, session: Session, req
     return await _view(session, lobby, user, member, request)
 
 
+@router.post("/{lobby_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
+async def leave_lobby(lobby_id: uuid.UUID, user: CurrentUser, session: Session, request: Request) -> None:
+    """Un membre se retire lui-même, avant le lancement seulement (ADR 0013, annexe §3 ter, reste de T7)."""
+    lobby, member = await _access(session, lobby_id, user, lock=True)
+    if member is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Vous n'êtes pas dans ce lobby")
+    if lobby.state["status"] != "waiting":
+        raise HTTPException(status.HTTP_409_CONFLICT, "La partie est lancée : vous ne pouvez plus quitter le lobby")
+    if user.id != lobby.trainer_id:
+        before = await session.scalar(
+            select(func.count()).where(LobbyMember.lobby_id == lobby.id, LobbyMember.user_id != lobby.trainer_id)
+        )
+        if engine.role_plan(lobby.spec, before) != engine.role_plan(lobby.spec, before - 1):  # plan changé : à refaire
+            await session.execute(update(LobbyMember).where(LobbyMember.lobby_id == lobby.id).values(game_role=None))
+    await session.delete(member)
+    await session.commit()
+    # le hub ne contrôle l'appartenance qu'à l'abonnement : on ferme celui du partant
+    request.app.state.hub.unsubscribe(str(user.id), str(lobby.id))
+    await _broadcast(request, lobby, user, "lobby.members", await _members_event(session, lobby))
+
+
 @router.get("/{lobby_id}")
 async def get_lobby(lobby_id: uuid.UUID, user: CurrentUser, session: Session, request: Request) -> dict[str, Any]:
     lobby, member = await _access(session, lobby_id, user)

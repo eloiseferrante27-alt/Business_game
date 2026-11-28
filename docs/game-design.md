@@ -57,6 +57,14 @@ de difficulté, jamais un nombre inventé.
 
 Ce tableau est le plan à 3 joueurs. Depuis T7 (27/11), le pack déclare `roles` et `role_plans` : de 1 à 6 joueurs, 10 rôles de l'usine répartis par plan (docs/roles.md, « Rôles de jeu »). Une action sans titulaire tourne en pilote automatique, action par action (sauf la semaine où le formateur agit). Le HUD et la tablette grisent les actions des autres rôles ; la salle d'attente propose les rôles du plan, et le formateur y voit le plan.
 
+**Pièces de rechange (pack usine, 27/11)** : l'ordre des réparations, seule décision du `chef_equipe_maintenance` à 5 joueurs, était inerte (0 écart sur 36 parties). L'action `pieces_rechange` (module maintenance) règle `cible` (aucune, goulot, toutes) et `pieces` (1 à 6) ; elle est dans tous les plans, de 1 à 5 joueurs.
+
+- Stock par type de machine. Réparation = MTTR si la pièce est en stock ; sinon la machine attend la livraison (`lead_days`, 1 jour ouvré, `calibre`, événement `attente_piece`). Chaque pièce utilisée est recommandée aussitôt.
+- Coût : prix (150 €, `calibre`) plus possession. Pilote : stock S\* (Poisson, service 99 % par type et par jour) : 0 panne sur 574 en attente de pièce, 36 parties jouables.
+- Affichage : tableau de bord et débrief (« Pièces de rechange »), alerte `spare_missing`. Contrat : `SpareParts`, `Factory.spares` (ADR 0013 annexe §3 quater).
+- Source : ROME I1326 (`knowledge/supply-chain/rome-metiers-roles-usine.md`). La page TRUMPF (`trumpf-pieces-detachees-expedition-jour-meme.md`) ne donne aucun délai pour la France : J+1 est une déduction.
+- Leçon (objectif n° 7) : une décision n'a de valeur pédagogique que si elle change le résultat ; on la mesure sur des parties jouées avant de l'offrir à un rôle.
+
 ## Ce qui varie selon la demande (cible ADR 0013 ; état livré au 21/11 : la demande règle des chiffres d'une usine unique)
 
 | Dimension | Données sourcées du pack | Procédural à graine (T4, T5) | Agents IA (T9) | Moteur seul |
